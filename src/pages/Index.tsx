@@ -315,6 +315,7 @@ const Index = () => {
                     weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit +
                     weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0
                   }
+                  fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0}
                   weeklyIncome={metrics.weeklyIncome}
                   expenseData={(() => {
                     const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
@@ -343,6 +344,7 @@ const Index = () => {
                   weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit +
                   weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0
                 }
+                fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0}
                 weeklyIncome={metrics.weeklyIncome}
                 expenseData={(() => {
                   const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];

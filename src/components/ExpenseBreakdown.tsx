@@ -12,6 +12,7 @@ interface ExpenseCategory {
 
 interface ExpenseBreakdownProps {
   totalNames: number;
+  fieldWorkNames: number;
   weeklyIncome: number;
   expenseData: {
     perNameExpenses: number;
@@ -26,6 +27,7 @@ interface ExpenseBreakdownProps {
 
 export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
   totalNames,
+  fieldWorkNames,
   weeklyIncome,
   expenseData,
   logistics,
@@ -53,7 +55,7 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
       name: 'Field Staff Salaries',
       amount: expenseData.perNameExpenses,
       icon: Users,
-      description: `₦61 per name × ${totalNames} names`
+      description: `₦61 per name × ${fieldWorkNames} field work names`
     },
     {
       name: 'Production Management',
