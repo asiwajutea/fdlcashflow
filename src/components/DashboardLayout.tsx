@@ -1,15 +1,15 @@
 import React from 'react';
 import { BarChart3, Calendar, DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
 }
-
-export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) => {
-  return (
-    <div className="min-h-screen bg-gradient-surface">
+export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
+  children,
+  title
+}) => {
+  return <div className="min-h-screen bg-gradient-surface">
       {/* Header */}
       <header className="bg-card border-b border-card-border shadow-financial-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -27,12 +27,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">{title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date().toLocaleDateString('en-US', { 
-                    weekday: 'long', 
-                    year: 'numeric', 
-                    month: 'long', 
-                    day: 'numeric' 
-                  })}
+                  {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
                 </p>
               </div>
             </div>
@@ -41,9 +41,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, titl
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-slate-900">
         {children}
       </main>
-    </div>
-  );
+    </div>;
 };
