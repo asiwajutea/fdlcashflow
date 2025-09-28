@@ -2,95 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Financial Dashboard Design System - Professional & Clean */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
+    /* Core Background & Text */
+    --background: 249 250 251;
+    --foreground: 15 23% 42%;
+    
+    /* Financial App Primary - Deep Blue */
+    --primary: 221 83% 20%;
+    --primary-light: 221 83% 30%;
+    --primary-dark: 221 83% 15%;
+    --primary-foreground: 0 0% 98%;
+    
+    /* Success/Profit - Green */
+    --success: 142 76% 36%;
+    --success-light: 142 76% 46%;
+    --success-background: 142 76% 96%;
+    --success-foreground: 142 76% 16%;
+    
+    /* Danger/Loss - Red */
+    --danger: 0 84% 60%;
+    --danger-light: 0 84% 70%;
+    --danger-background: 0 84% 96%;
+    --danger-foreground: 0 84% 30%;
+    
+    /* Warning - Orange */
+    --warning: 38 95% 56%;
+    --warning-light: 38 95% 66%;
+    --warning-background: 38 95% 96%;
+    --warning-foreground: 38 95% 26%;
+    
+    /* Neutral System */
+    --muted: 220 15% 95%;
+    --muted-dark: 220 15% 85%;
+    --muted-foreground: 220 9% 46%;
+    
+    /* Card & Surface System */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 15 23% 42%;
+    --card-border: 220 13% 91%;
+    
+    /* Form Elements */
+    --input: 220 13% 91%;
+    --border: 220 13% 91%;
+    --ring: 221 83% 20%;
+    
+    /* Secondary & Accent */
+    --secondary: 220 15% 95%;
+    --secondary-foreground: 15 23% 42%;
+    --accent: 220 15% 95%;
+    --accent-foreground: 15 23% 42%;
+    
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
+    --popover-foreground: 15 23% 42%;
+    
+    /* Destructive (using danger colors) */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    
+    /* Border Radius */
     --radius: 0.5rem;
-
+    
+    /* Sidebar System */
     --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
+    --sidebar-foreground: 15 23% 42%;
+    --sidebar-primary: 221 83% 20%;
     --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
+    --sidebar-accent: 220 15% 95%;
+    --sidebar-accent-foreground: 15 23% 42%;
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 221 83% 20%;
+    
+    /* Custom Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
+    --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
+    --gradient-surface: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    
+    /* Custom Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(var(--primary) / 0.05);
+    --shadow-md: 0 4px 6px -1px hsl(var(--primary) / 0.1), 0 2px 4px -1px hsl(var(--primary) / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(var(--primary) / 0.1), 0 4px 6px -2px hsl(var(--primary) / 0.05);
+    
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 15 23% 42%;
+    --foreground: 0 0% 98%;
+    --card: 15 23% 42%;
+    --card-foreground: 0 0% 98%;
+    --popover: 15 23% 42%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 221 83% 20%;
+    --secondary: 217 32% 18%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 217 32% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 32% 18%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 217 32% 18%;
+    --input: 217 32% 18%;
+    --ring: 212 27% 84%;
   }
 }
 
@@ -98,8 +117,26 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer components {
+  /* Financial Card Styles */
+  .financial-card {
+    @apply bg-card border border-card-border rounded-lg shadow-sm;
+  }
+  
+  .metric-positive {
+    @apply text-success bg-success-background;
+  }
+  
+  .metric-negative {
+    @apply text-danger bg-danger-background;
+  }
+  
+  .metric-warning {
+    @apply text-warning bg-warning-background;
   }
 }
