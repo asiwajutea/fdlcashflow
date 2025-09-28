@@ -3,6 +3,7 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
 import { FinancialCharts } from '@/components/FinancialCharts';
+import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -255,9 +256,10 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data-entry">Data Entry</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
             <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
           </TabsList>
@@ -282,6 +284,13 @@ const Index = () => {
                   <Button 
                     variant="outline" 
                     className="w-full justify-start"
+                    onClick={() => setActiveTab('expenses')}
+                  >
+                    View Expense Breakdown
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
                   >
                     Export Weekly Report
                   </Button>
@@ -294,10 +303,61 @@ const Index = () => {
                 </div>
               </Card>
             </div>
+
+            {/* Expense Overview */}
+            {weeklyDataEntries.length > 0 && (
+              <div className="mt-6">
+                <ExpenseBreakdown
+                  totalNames={
+                    weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork +
+                    weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry +
+                    weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit +
+                    weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit +
+                    weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0
+                  }
+                  weeklyIncome={metrics.weeklyIncome}
+                  expenseData={(() => {
+                    const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
+                    if (!currentWeek) return { perNameExpenses: 0, productionManager: 0, fixedSalaries: 0, weeklyExpenses: 0, employeeGratuity: 0 };
+                    const totalNames = currentWeek.fieldWork + currentWeek.dataEntry + currentWeek.bacAudit + currentWeek.metadataAudit + currentWeek.virtualAudit;
+                    return calculateExpenses(totalNames);
+                  })()}
+                  logistics={metrics.weeklyIncome * 0.03}
+                  incentives={metrics.weeklyIncome * 0.02}
+                />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="data-entry">
             <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} />
+          </TabsContent>
+
+          <TabsContent value="expenses">
+            {weeklyDataEntries.length > 0 ? (
+              <ExpenseBreakdown
+                totalNames={
+                  weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork +
+                  weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry +
+                  weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit +
+                  weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit +
+                  weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0
+                }
+                weeklyIncome={metrics.weeklyIncome}
+                expenseData={(() => {
+                  const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
+                  if (!currentWeek) return { perNameExpenses: 0, productionManager: 0, fixedSalaries: 0, weeklyExpenses: 0, employeeGratuity: 0 };
+                  const totalNames = currentWeek.fieldWork + currentWeek.dataEntry + currentWeek.bacAudit + currentWeek.metadataAudit + currentWeek.virtualAudit;
+                  return calculateExpenses(totalNames);
+                })()}
+                logistics={metrics.weeklyIncome * 0.03}
+                incentives={metrics.weeklyIncome * 0.02}
+              />
+            ) : (
+              <Card className="financial-card p-8 text-center">
+                <p className="text-muted-foreground">Enter weekly data to see expense breakdown</p>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="charts">
