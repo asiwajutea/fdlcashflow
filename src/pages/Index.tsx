@@ -28,8 +28,8 @@ const Index = () => {
   const MONTHLY_BOOKLET_INCOME = 65000;
   const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // Average weeks per month
 
-  // Calculate expenses for a given total names and field work names
-  const calculateExpenses = (totalNames: number, fieldWorkNames: number) => {
+  // Calculate expenses for given work type counts
+  const calculateExpenses = (fieldWorkNames: number, dataEntryNames: number = 0, bacAuditNames: number = 0) => {
     // Field Work–Driven Expenses (based on field work names only)
     const fieldWorkSalaries = {
       fieldAgent: 25,
@@ -63,21 +63,19 @@ const Index = () => {
 
     // Calculate field work expenses (based on field work names only)
     const fieldWorkExpenseRate = Object.values(fieldWorkSalaries).reduce((sum, rate) => sum + rate, 0);
-    const totalFieldWorkExpenses = fieldWorkNames * fieldWorkExpenseRate;
+    const fieldWorkExpenses = fieldWorkNames * fieldWorkExpenseRate;
 
-    // Calculate production manager costs per work type (we'll need individual counts)
-    // For now, using totalNames as approximation - should be updated to use individual counts
-    const avgProductionManagerRate = (
-      productionManagerRates.fieldWork + 
-      productionManagerRates.dataEntry + 
-      productionManagerRates.bacAudit
-    ) / 3;
-    const productionManagerCosts = totalNames * avgProductionManagerRate;
+    // Calculate production manager costs per work type
+    const productionManagerFieldWork = fieldWorkNames * productionManagerRates.fieldWork;
+    const productionManagerDataEntry = dataEntryNames * productionManagerRates.dataEntry;
+    const productionManagerBacAudit = bacAuditNames * productionManagerRates.bacAudit;
 
-    // Total salaries
+    // Total salaries for gratuity calculation
     const totalSalaries = 
-      totalFieldWorkExpenses + 
-      productionManagerCosts + 
+      fieldWorkExpenses + 
+      productionManagerFieldWork +
+      productionManagerDataEntry +
+      productionManagerBacAudit +
       Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0);
 
     // Additional expenses as percentages
@@ -87,12 +85,13 @@ const Index = () => {
     // so we'll calculate them separately in the main calculation
 
     return {
-      perNameExpenses: totalFieldWorkExpenses,
-      productionManager: productionManagerCosts,
+      fieldWorkExpenses,
+      productionManagerFieldWork,
+      productionManagerDataEntry,
+      productionManagerBacAudit,
       fixedSalaries: Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0),
       weeklyExpenses: Object.values(weeklyExpenses).reduce((sum, expense) => sum + expense, 0),
       employeeGratuity,
-      totalSalaries,
     };
   };
 
@@ -128,15 +127,17 @@ const Index = () => {
       currentWeek.metadataAudit + 
       currentWeek.virtualAudit;
 
-    const expenseBreakdown = calculateExpenses(totalNames, currentWeek.fieldWork);
+    const expenseBreakdown = calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
     
     // Calculate logistics and incentives based on weekly income (approximated)
     const logistics = weeklyIncome * 0.03;
     const incentives = weeklyIncome * 0.02;
     
     const weeklyExpenses = 
-      expenseBreakdown.perNameExpenses +
-      expenseBreakdown.productionManager +
+      expenseBreakdown.fieldWorkExpenses +
+      expenseBreakdown.productionManagerFieldWork +
+      expenseBreakdown.productionManagerDataEntry +
+      expenseBreakdown.productionManagerBacAudit +
       expenseBreakdown.fixedSalaries +
       expenseBreakdown.weeklyExpenses +
       expenseBreakdown.employeeGratuity +
@@ -172,13 +173,15 @@ const Index = () => {
         (entry.virtualAudit * INCOME_RATES.virtualAudit) +
         WEEKLY_BOOKLET_INCOME;
 
-      const expenseBreakdown = calculateExpenses(totalNames, entry.fieldWork);
+      const expenseBreakdown = calculateExpenses(entry.fieldWork, entry.dataEntry, entry.bacAudit);
       const logistics = income * 0.03;
       const incentives = income * 0.02;
       
       const expenses = 
-        expenseBreakdown.perNameExpenses +
-        expenseBreakdown.productionManager +
+        expenseBreakdown.fieldWorkExpenses +
+        expenseBreakdown.productionManagerFieldWork +
+        expenseBreakdown.productionManagerDataEntry +
+        expenseBreakdown.productionManagerBacAudit +
         expenseBreakdown.fixedSalaries +
         expenseBreakdown.weeklyExpenses +
         expenseBreakdown.employeeGratuity +
@@ -321,9 +324,16 @@ const Index = () => {
                   weeklyIncome={metrics.weeklyIncome}
                   expenseData={(() => {
                     const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
-                    if (!currentWeek) return { perNameExpenses: 0, productionManager: 0, fixedSalaries: 0, weeklyExpenses: 0, employeeGratuity: 0 };
-                    const totalNames = currentWeek.fieldWork + currentWeek.dataEntry + currentWeek.bacAudit + currentWeek.metadataAudit + currentWeek.virtualAudit;
-                    return calculateExpenses(totalNames, currentWeek.fieldWork);
+                    if (!currentWeek) return { 
+                      fieldWorkExpenses: 0, 
+                      productionManagerFieldWork: 0, 
+                      productionManagerDataEntry: 0, 
+                      productionManagerBacAudit: 0, 
+                      fixedSalaries: 0, 
+                      weeklyExpenses: 0, 
+                      employeeGratuity: 0 
+                    };
+                    return calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
                   })()}
                   logistics={metrics.weeklyIncome * 0.03}
                   incentives={metrics.weeklyIncome * 0.02}
@@ -350,9 +360,16 @@ const Index = () => {
                 weeklyIncome={metrics.weeklyIncome}
                 expenseData={(() => {
                   const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
-                  if (!currentWeek) return { perNameExpenses: 0, productionManager: 0, fixedSalaries: 0, weeklyExpenses: 0, employeeGratuity: 0 };
-                  const totalNames = currentWeek.fieldWork + currentWeek.dataEntry + currentWeek.bacAudit + currentWeek.metadataAudit + currentWeek.virtualAudit;
-                  return calculateExpenses(totalNames, currentWeek.fieldWork);
+                  if (!currentWeek) return { 
+                    fieldWorkExpenses: 0, 
+                    productionManagerFieldWork: 0, 
+                    productionManagerDataEntry: 0, 
+                    productionManagerBacAudit: 0, 
+                    fixedSalaries: 0, 
+                    weeklyExpenses: 0, 
+                    employeeGratuity: 0 
+                  };
+                  return calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
                 })()}
                 logistics={metrics.weeklyIncome * 0.03}
                 incentives={metrics.weeklyIncome * 0.02}
