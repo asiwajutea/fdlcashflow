@@ -15,8 +15,10 @@ interface ExpenseBreakdownProps {
   fieldWorkNames: number;
   weeklyIncome: number;
   expenseData: {
-    perNameExpenses: number;
-    productionManager: number;
+    fieldWorkExpenses: number;
+    productionManagerFieldWork: number;
+    productionManagerDataEntry: number;
+    productionManagerBacAudit: number;
     fixedSalaries: number;
     weeklyExpenses: number;
     employeeGratuity: number;
@@ -42,8 +44,10 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
   };
 
   const totalExpenses = 
-    expenseData.perNameExpenses +
-    expenseData.productionManager +
+    expenseData.fieldWorkExpenses +
+    expenseData.productionManagerFieldWork +
+    expenseData.productionManagerDataEntry +
+    expenseData.productionManagerBacAudit +
     expenseData.fixedSalaries +
     expenseData.weeklyExpenses +
     expenseData.employeeGratuity +
@@ -53,15 +57,27 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
   const categories: ExpenseCategory[] = [
     {
       name: 'Field Staff Salaries',
-      amount: expenseData.perNameExpenses,
+      amount: expenseData.fieldWorkExpenses,
       icon: Users,
-      description: `₦61 per name × ${fieldWorkNames} field work names`
+      description: `₦56 per name × ${fieldWorkNames} field work names`
     },
     {
-      name: 'Production Management',
-      amount: expenseData.productionManager,
+      name: 'Production Manager (Field Work)',
+      amount: expenseData.productionManagerFieldWork,
       icon: Calculator,
-      description: `₦8 avg per name × ${totalNames} names`
+      description: `₦20 per name × ${fieldWorkNames} field work names`
+    },
+    {
+      name: 'Production Manager (Data Entry)',
+      amount: expenseData.productionManagerDataEntry,
+      icon: Calculator,
+      description: 'Based on data entry names'
+    },
+    {
+      name: 'Production Manager (BAC Audit)',
+      amount: expenseData.productionManagerBacAudit,
+      icon: Calculator,
+      description: 'Based on BAC audit names'
     },
     {
       name: 'Fixed Monthly Salaries',
