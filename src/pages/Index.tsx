@@ -29,7 +29,15 @@ const Index = () => {
   const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // Average weeks per month
 
   // Calculate expenses for given work type counts
-  const calculateExpenses = (fieldWorkNames: number, dataEntryNames: number = 0, bacAuditNames: number = 0) => {
+  const calculateExpenses = (fieldWorkNames: number, dataEntryNames: number = 0, bacAuditNames: number = 0): {
+    fieldWorkExpenses: number;
+    productionManagerFieldWork: number;
+    productionManagerDataEntry: number;
+    productionManagerBacAudit: number;
+    fixedSalaries: number;
+    weeklyExpenses: number;
+    employeeGratuity: number;
+  } => {
     // Field Work–Driven Expenses (based on field work names only)
     const fieldWorkSalaries = {
       fieldAgent: 25,
