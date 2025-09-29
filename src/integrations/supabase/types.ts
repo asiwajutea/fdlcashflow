@@ -14,7 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      ai_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_records: {
+        Row: {
+          bac_audit: number
+          booklet_income: number
+          created_at: string
+          data_entry: number
+          field_work: number
+          id: string
+          metadata_audit: number
+          net_cashflow: number
+          other_expenses: Json | null
+          total_expenses: number
+          total_income: number
+          updated_at: string
+          virtual_audit: number
+          week_number: number
+          year: number
+        }
+        Insert: {
+          bac_audit?: number
+          booklet_income?: number
+          created_at?: string
+          data_entry?: number
+          field_work?: number
+          id?: string
+          metadata_audit?: number
+          net_cashflow?: number
+          other_expenses?: Json | null
+          total_expenses?: number
+          total_income?: number
+          updated_at?: string
+          virtual_audit?: number
+          week_number: number
+          year: number
+        }
+        Update: {
+          bac_audit?: number
+          booklet_income?: number
+          created_at?: string
+          data_entry?: number
+          field_work?: number
+          id?: string
+          metadata_audit?: number
+          net_cashflow?: number
+          other_expenses?: Json | null
+          total_expenses?: number
+          total_income?: number
+          updated_at?: string
+          virtual_audit?: number
+          week_number?: number
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
