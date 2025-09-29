@@ -14,6 +14,17 @@ const Index = () => {
   const { toast } = useToast();
   const [weeklyDataEntries, setWeeklyDataEntries] = useState<WeeklyData[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
+  const [customExpenses, setCustomExpenses] = useState<{
+    fieldWorkExpenses?: number;
+    productionManagerFieldWork?: number;
+    productionManagerDataEntry?: number;
+    productionManagerBacAudit?: number;
+    fixedSalaries?: number;
+    weeklyExpenses?: number;
+    employeeGratuity?: number;
+    logistics?: number;
+    incentives?: number;
+  } | null>(null);
 
   // Income rates
   const INCOME_RATES = {
@@ -228,6 +239,9 @@ const Index = () => {
   const handleWeeklyDataSubmit = (data: WeeklyData) => {
     setWeeklyDataEntries(prev => [...prev, data]);
     
+    // Reset custom expenses when new data is entered
+    setCustomExpenses(null);
+    
     // Check for negative cashflow and alert
     const metrics = calculateMetrics();
     if (metrics.weeklyNetCashflow < 0) {
@@ -239,8 +253,70 @@ const Index = () => {
     }
   };
 
+  const handleExpenseChange = (updatedExpenses: {
+    fieldWorkExpenses: number;
+    productionManagerFieldWork: number;
+    productionManagerDataEntry: number;
+    productionManagerBacAudit: number;
+    fixedSalaries: number;
+    weeklyExpenses: number;
+    employeeGratuity: number;
+    logistics: number;
+    incentives: number;
+  }) => {
+    setCustomExpenses(updatedExpenses);
+  };
+
+  // Function to get current expense data (custom or calculated)
+  const getCurrentExpenseData = () => {
+    const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
+    if (!currentWeek) {
+      return {
+        fieldWorkExpenses: 0,
+        productionManagerFieldWork: 0,
+        productionManagerDataEntry: 0,
+        productionManagerBacAudit: 0,
+        fixedSalaries: 0,
+        weeklyExpenses: 0,
+        employeeGratuity: 0
+      };
+    }
+
+    const calculatedExpenses = calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
+    
+    if (customExpenses) {
+      return {
+        fieldWorkExpenses: customExpenses.fieldWorkExpenses ?? calculatedExpenses.fieldWorkExpenses,
+        productionManagerFieldWork: customExpenses.productionManagerFieldWork ?? calculatedExpenses.productionManagerFieldWork,
+        productionManagerDataEntry: customExpenses.productionManagerDataEntry ?? calculatedExpenses.productionManagerDataEntry,
+        productionManagerBacAudit: customExpenses.productionManagerBacAudit ?? calculatedExpenses.productionManagerBacAudit,
+        fixedSalaries: customExpenses.fixedSalaries ?? calculatedExpenses.fixedSalaries,
+        weeklyExpenses: customExpenses.weeklyExpenses ?? calculatedExpenses.weeklyExpenses,
+        employeeGratuity: customExpenses.employeeGratuity ?? calculatedExpenses.employeeGratuity
+      };
+    }
+
+    return calculatedExpenses;
+  };
+
+  // Function to get current logistics and incentives
+  const getCurrentLogisticsAndIncentives = () => {
+    if (customExpenses) {
+      return {
+        logistics: customExpenses.logistics ?? (metrics.weeklyIncome * 0.03),
+        incentives: customExpenses.incentives ?? (metrics.weeklyIncome * 0.02)
+      };
+    }
+    return {
+      logistics: metrics.weeklyIncome * 0.03,
+      incentives: metrics.weeklyIncome * 0.02
+    };
+  };
+
   const metrics = calculateMetrics();
   const chartData = generateChartData();
+  const currentExpenseData = getCurrentExpenseData();
+  const { logistics, incentives } = getCurrentLogisticsAndIncentives();
 
   return (
     <DashboardLayout title="Financial Dashboard">
@@ -330,21 +406,10 @@ const Index = () => {
                   }
                   fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0}
                   weeklyIncome={metrics.weeklyIncome}
-                  expenseData={(() => {
-                    const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
-                    if (!currentWeek) return { 
-                      fieldWorkExpenses: 0, 
-                      productionManagerFieldWork: 0, 
-                      productionManagerDataEntry: 0, 
-                      productionManagerBacAudit: 0, 
-                      fixedSalaries: 0, 
-                      weeklyExpenses: 0, 
-                      employeeGratuity: 0 
-                    };
-                    return calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
-                  })()}
-                  logistics={metrics.weeklyIncome * 0.03}
-                  incentives={metrics.weeklyIncome * 0.02}
+                  expenseData={currentExpenseData}
+                  logistics={logistics}
+                  incentives={incentives}
+                  onExpenseChange={handleExpenseChange}
                 />
               </div>
             )}
@@ -366,21 +431,10 @@ const Index = () => {
                 }
                 fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0}
                 weeklyIncome={metrics.weeklyIncome}
-                expenseData={(() => {
-                  const currentWeek = weeklyDataEntries[weeklyDataEntries.length - 1];
-                  if (!currentWeek) return { 
-                    fieldWorkExpenses: 0, 
-                    productionManagerFieldWork: 0, 
-                    productionManagerDataEntry: 0, 
-                    productionManagerBacAudit: 0, 
-                    fixedSalaries: 0, 
-                    weeklyExpenses: 0, 
-                    employeeGratuity: 0 
-                  };
-                  return calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
-                })()}
-                logistics={metrics.weeklyIncome * 0.03}
-                incentives={metrics.weeklyIncome * 0.02}
+                expenseData={currentExpenseData}
+                logistics={logistics}
+                incentives={incentives}
+                onExpenseChange={handleExpenseChange}
               />
             ) : (
               <Card className="financial-card p-8 text-center">
