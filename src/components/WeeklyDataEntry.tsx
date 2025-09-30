@@ -13,6 +13,7 @@ export interface WeeklyData {
   bacAudit: number;
   metadataAudit: number;
   virtualAudit: number;
+  bookletProduction: number;
 }
 
 interface WeeklyDataEntryProps {
@@ -25,6 +26,9 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
   initialData 
 }) => {
   const { toast } = useToast();
+  const MONTHLY_BOOKLET_INCOME = 65000;
+  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // ₦15,011.55 per week
+  
   const [formData, setFormData] = useState<WeeklyData>(
     initialData || {
       week: new Date().toISOString().slice(0, 10), // Current date in YYYY-MM-DD format
@@ -33,6 +37,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
       bacAudit: 0,
       metadataAudit: 0,
       virtualAudit: 0,
+      bookletProduction: Math.round(WEEKLY_BOOKLET_INCOME),
     }
   );
 
@@ -57,7 +62,8 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
       formData.dataEntry * rates.dataEntry +
       formData.bacAudit * rates.bacAudit +
       formData.metadataAudit * rates.metadataAudit +
-      formData.virtualAudit * rates.virtualAudit
+      formData.virtualAudit * rates.virtualAudit +
+      formData.bookletProduction
     );
   };
 
@@ -166,7 +172,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
               <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
             </div>
 
-            <div className="md:col-span-2">
+            <div>
               <Label htmlFor="virtualAudit" className="text-sm font-medium text-foreground mb-2 block">
                 Virtual Audit Names
               </Label>
@@ -180,6 +186,22 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 placeholder="0"
               />
               <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
+            </div>
+
+            <div>
+              <Label htmlFor="bookletProduction" className="text-sm font-medium text-foreground mb-2 block">
+                Booklet Production (Weekly)
+              </Label>
+              <Input
+                id="bookletProduction"
+                type="number"
+                min="0"
+                value={formData.bookletProduction}
+                onChange={(e) => handleInputChange('bookletProduction', e.target.value)}
+                className="w-full"
+                placeholder="15011"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Fixed income (₦65,000/month prorated)</p>
             </div>
           </div>
 
