@@ -27,6 +27,7 @@ const Index = () => {
     employeeGratuity?: number;
     logistics?: number;
     incentives?: number;
+    otherExpenses?: { name: string; amount: number }[];
   } | null>(null);
 
   // Income rates
@@ -215,6 +216,10 @@ const Index = () => {
     const expenseBreakdown = calculateExpenses(data.fieldWork, data.dataEntry, data.bacAudit);
     const logistics = weeklyIncome * 0.03;
     const incentives = weeklyIncome * 0.02;
+    
+    // Calculate other expenses total
+    const otherExpensesTotal = customExpenses?.otherExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
+    
     const weeklyExpenses = expenseBreakdown.fieldWorkExpenses + 
                           expenseBreakdown.productionManagerFieldWork + 
                           expenseBreakdown.productionManagerDataEntry + 
@@ -223,7 +228,8 @@ const Index = () => {
                           expenseBreakdown.weeklyExpenses + 
                           expenseBreakdown.employeeGratuity + 
                           logistics + 
-                          incentives;
+                          incentives +
+                          otherExpensesTotal;
 
     // Save to database
     try {
@@ -242,7 +248,8 @@ const Index = () => {
         booklet_income: data.bookletProduction || 0,
         total_income: weeklyIncome,
         total_expenses: weeklyExpenses,
-        net_cashflow: weeklyIncome - weeklyExpenses
+        net_cashflow: weeklyIncome - weeklyExpenses,
+        other_expenses: customExpenses?.otherExpenses || []
       });
 
       if (error) throw error;
@@ -283,6 +290,7 @@ const Index = () => {
     employeeGratuity: number;
     logistics: number;
     incentives: number;
+    otherExpenses: { name: string; amount: number }[];
   }) => {
     setCustomExpenses(updatedExpenses);
   };
@@ -397,7 +405,7 @@ const Index = () => {
 
             {/* Expense Overview */}
             {weeklyDataEntries.length > 0 && <div className="mt-6">
-                <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} onExpenseChange={handleExpenseChange} />
+                <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} otherExpenses={customExpenses?.otherExpenses || []} onExpenseChange={handleExpenseChange} />
               </div>}
           </TabsContent>
 
@@ -406,7 +414,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="expenses">
-            {weeklyDataEntries.length > 0 ? <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} onExpenseChange={handleExpenseChange} /> : <Card className="financial-card p-8 text-center">
+            {weeklyDataEntries.length > 0 ? <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} otherExpenses={customExpenses?.otherExpenses || []} onExpenseChange={handleExpenseChange} /> : <Card className="financial-card p-8 text-center">
                 <p className="text-muted-foreground">Enter weekly data to see expense breakdown</p>
               </Card>}
           </TabsContent>

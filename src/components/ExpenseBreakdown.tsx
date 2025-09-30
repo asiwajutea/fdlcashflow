@@ -3,13 +3,18 @@ import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Users, Building, Zap, Calculator, Gift, Truck, Trophy, Edit3, Check, X } from 'lucide-react';
+import { Users, Building, Zap, Calculator, Gift, Truck, Trophy, Edit3, Check, X, Plus, Trash2, DollarSign } from 'lucide-react';
 
 interface ExpenseCategory {
   name: string;
   amount: number;
   icon: React.ComponentType<any>;
   description: string;
+}
+
+interface OtherExpense {
+  name: string;
+  amount: number;
 }
 
 interface ExpenseBreakdownProps {
@@ -27,6 +32,7 @@ interface ExpenseBreakdownProps {
   };
   logistics: number;
   incentives: number;
+  otherExpenses?: OtherExpense[];
   onExpenseChange?: (updatedExpenses: {
     fieldWorkExpenses: number;
     productionManagerFieldWork: number;
@@ -37,6 +43,7 @@ interface ExpenseBreakdownProps {
     employeeGratuity: number;
     logistics: number;
     incentives: number;
+    otherExpenses: OtherExpense[];
   }) => void;
 }
 
@@ -47,6 +54,7 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
   expenseData,
   logistics,
   incentives,
+  otherExpenses = [],
   onExpenseChange
 }) => {
   const [editableExpenses, setEditableExpenses] = useState({
@@ -61,8 +69,10 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
     incentives
   });
   
+  const [editableOtherExpenses, setEditableOtherExpenses] = useState<OtherExpense[]>(otherExpenses);
   const [isEditing, setIsEditing] = useState(false);
   const [tempExpenses, setTempExpenses] = useState(editableExpenses);
+  const [tempOtherExpenses, setTempOtherExpenses] = useState<OtherExpense[]>(otherExpenses);
 
   // Update editable expenses when props change (automatic calculation)
   useEffect(() => {
@@ -80,8 +90,10 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
       };
       setEditableExpenses(newExpenses);
       setTempExpenses(newExpenses);
+      setEditableOtherExpenses(otherExpenses);
+      setTempOtherExpenses(otherExpenses);
     }
-  }, [expenseData, logistics, incentives, isEditing]);
+  }, [expenseData, logistics, incentives, otherExpenses, isEditing]);
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -92,14 +104,19 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
 
   const handleSaveChanges = () => {
     setEditableExpenses(tempExpenses);
+    setEditableOtherExpenses(tempOtherExpenses);
     setIsEditing(false);
     if (onExpenseChange) {
-      onExpenseChange(tempExpenses);
+      onExpenseChange({
+        ...tempExpenses,
+        otherExpenses: tempOtherExpenses
+      });
     }
   };
 
   const handleCancelChanges = () => {
     setTempExpenses(editableExpenses);
+    setTempOtherExpenses(editableOtherExpenses);
     setIsEditing(false);
   };
 
@@ -110,7 +127,28 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
     }));
   };
 
+  const handleAddOtherExpense = () => {
+    setTempOtherExpenses([...tempOtherExpenses, { name: '', amount: 0 }]);
+  };
+
+  const handleRemoveOtherExpense = (index: number) => {
+    setTempOtherExpenses(tempOtherExpenses.filter((_, i) => i !== index));
+  };
+
+  const handleOtherExpenseChange = (index: number, field: 'name' | 'amount', value: string | number) => {
+    const updated = [...tempOtherExpenses];
+    if (field === 'name') {
+      updated[index].name = value as string;
+    } else {
+      updated[index].amount = typeof value === 'number' ? value : parseFloat(value as string) || 0;
+    }
+    setTempOtherExpenses(updated);
+  };
+
   const currentExpenses = isEditing ? tempExpenses : editableExpenses;
+  const currentOtherExpenses = isEditing ? tempOtherExpenses : editableOtherExpenses;
+  const otherExpensesTotal = currentOtherExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+  
   const totalExpenses = 
     currentExpenses.fieldWorkExpenses +
     currentExpenses.productionManagerFieldWork +
@@ -120,7 +158,8 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
     currentExpenses.weeklyExpenses +
     currentExpenses.employeeGratuity +
     currentExpenses.logistics +
-    currentExpenses.incentives;
+    currentExpenses.incentives +
+    otherExpensesTotal;
 
   const categories: (ExpenseCategory & { field: keyof typeof currentExpenses })[] = [
     {
@@ -272,6 +311,87 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
             </div>
           );
         })}
+      </div>
+
+      {/* Other Expenses Section */}
+      <div className="mt-6 pt-6 border-t border-border">
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="text-sm font-semibold text-foreground">Other Expenses</h4>
+          {isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddOtherExpense}
+              className="flex items-center space-x-1"
+            >
+              <Plus className="h-3 w-3" />
+              <span>Add</span>
+            </Button>
+          )}
+        </div>
+
+        {currentOtherExpenses.length > 0 ? (
+          <div className="space-y-3">
+            {currentOtherExpenses.map((expense, index) => {
+              const percentage = totalExpenses > 0 ? (expense.amount / totalExpenses) * 100 : 0;
+              
+              return (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="bg-primary/10 p-2 rounded-lg">
+                        <DollarSign className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        {isEditing ? (
+                          <Input
+                            type="text"
+                            value={expense.name}
+                            onChange={(e) => handleOtherExpenseChange(index, 'name', e.target.value)}
+                            placeholder="Expense name"
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <p className="text-sm font-medium text-foreground">{expense.name || 'Unnamed Expense'}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="text-right">
+                        {isEditing ? (
+                          <Input
+                            type="number"
+                            value={expense.amount}
+                            onChange={(e) => handleOtherExpenseChange(index, 'amount', parseFloat(e.target.value) || 0)}
+                            className="w-24 h-8 text-right text-sm"
+                            min="0"
+                            step="100"
+                          />
+                        ) : (
+                          <p className="text-sm font-semibold text-foreground">{formatCurrency(expense.amount)}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">{percentage.toFixed(1)}%</p>
+                      </div>
+                      {isEditing && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveOtherExpense(index)}
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <Progress value={percentage} className="h-1.5" />
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">No additional expenses</p>
+        )}
       </div>
 
       <div className="mt-6 pt-4 border-t border-border">
