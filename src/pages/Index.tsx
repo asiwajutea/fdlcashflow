@@ -4,11 +4,13 @@ import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
 import { FinancialCharts } from '@/components/FinancialCharts';
 import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
+import { HistoryView } from '@/components/HistoryView';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, FileText, Plus, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 const Index = () => {
   const {
     toast
@@ -199,8 +201,64 @@ const Index = () => {
       incomeVsExpenses
     };
   };
-  const handleWeeklyDataSubmit = (data: WeeklyData) => {
+  const handleWeeklyDataSubmit = async (data: WeeklyData) => {
     setWeeklyDataEntries(prev => [...prev, data]);
+
+    // Calculate metrics for this week
+    const weeklyIncome = data.fieldWork * INCOME_RATES.fieldWork + 
+                        data.dataEntry * INCOME_RATES.dataEntry + 
+                        data.bacAudit * INCOME_RATES.bacAudit + 
+                        data.metadataAudit * INCOME_RATES.metadataAudit + 
+                        data.virtualAudit * INCOME_RATES.virtualAudit + 
+                        (data.bookletProduction || 0);
+
+    const expenseBreakdown = calculateExpenses(data.fieldWork, data.dataEntry, data.bacAudit);
+    const logistics = weeklyIncome * 0.03;
+    const incentives = weeklyIncome * 0.02;
+    const weeklyExpenses = expenseBreakdown.fieldWorkExpenses + 
+                          expenseBreakdown.productionManagerFieldWork + 
+                          expenseBreakdown.productionManagerDataEntry + 
+                          expenseBreakdown.productionManagerBacAudit + 
+                          expenseBreakdown.fixedSalaries + 
+                          expenseBreakdown.weeklyExpenses + 
+                          expenseBreakdown.employeeGratuity + 
+                          logistics + 
+                          incentives;
+
+    // Save to database
+    try {
+      const weekDate = new Date(data.week);
+      const weekNumber = Math.ceil((weekDate.getDate()) / 7);
+      const year = weekDate.getFullYear();
+
+      const { error } = await supabase.from('weekly_records').insert({
+        week_number: weekNumber,
+        year: year,
+        field_work: data.fieldWork,
+        data_entry: data.dataEntry,
+        bac_audit: data.bacAudit,
+        metadata_audit: data.metadataAudit,
+        virtual_audit: data.virtualAudit,
+        booklet_income: data.bookletProduction || 0,
+        total_income: weeklyIncome,
+        total_expenses: weeklyExpenses,
+        net_cashflow: weeklyIncome - weeklyExpenses
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Weekly data saved to history"
+      });
+    } catch (error) {
+      console.error('Error saving weekly data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save data to history",
+        variant: "destructive"
+      });
+    }
 
     // Reset custom expenses when new data is entered
     setCustomExpenses(null);
@@ -302,11 +360,12 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data-entry">Income</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
+            <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
           </TabsList>
 
@@ -354,6 +413,10 @@ const Index = () => {
 
           <TabsContent value="charts">
             <FinancialCharts data={chartData} />
+          </TabsContent>
+
+          <TabsContent value="history">
+            <HistoryView />
           </TabsContent>
 
           <TabsContent value="ai-assistant">
