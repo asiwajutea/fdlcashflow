@@ -6,6 +6,7 @@ import { FinancialCharts } from '@/components/FinancialCharts';
 import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
 import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
+import { BudgetCalculator } from '@/components/BudgetCalculator';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -369,10 +370,11 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data-entry">Income</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="budget">Budget</TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
@@ -438,6 +440,10 @@ const Index = () => {
                 <p className="text-muted-foreground">Enter weekly data to see expense breakdown</p>
               </Card>
             )}
+          </TabsContent>
+
+          <TabsContent value="budget">
+            <BudgetCalculator />
           </TabsContent>
 
           <TabsContent value="charts">
