@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CalendarDays, Save, Calculator } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 export interface WeeklyData {
   week: string;
@@ -15,17 +14,6 @@ export interface WeeklyData {
   metadataAudit: number;
   virtualAudit: number;
   bookletProduction: number;
-  rateConfigId?: string;
-}
-
-interface RateConfig {
-  id: string;
-  field_work_rate: number;
-  virtual_audit_rate: number;
-  data_entry_rate: number;
-  bac_audit_rate: number;
-  metadata_audit_rate: number;
-  booklet_rate: number;
 }
 
 interface WeeklyDataEntryProps {
@@ -38,13 +26,12 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
   initialData 
 }) => {
   const { toast } = useToast();
-  const [rateConfig, setRateConfig] = useState<RateConfig | null>(null);
   const MONTHLY_BOOKLET_INCOME = 65000;
-  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33;
+  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // ₦15,011.55 per week
   
   const [formData, setFormData] = useState<WeeklyData>(
     initialData || {
-      week: new Date().toISOString().slice(0, 10),
+      week: new Date().toISOString().slice(0, 10), // Current date in YYYY-MM-DD format
       fieldWork: 0,
       dataEntry: 0,
       bacAudit: 0,
@@ -54,36 +41,6 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
     }
   );
 
-  useEffect(() => {
-    fetchCurrentRates();
-  }, []);
-
-  const fetchCurrentRates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("rate_configurations")
-        .select("*")
-        .order("effective_from", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error) throw error;
-      setRateConfig(data);
-    } catch (error) {
-      console.error("Error fetching rates:", error);
-      // Use default rates if fetch fails
-      setRateConfig({
-        id: '',
-        field_work_rate: 90,
-        virtual_audit_rate: 0,
-        data_entry_rate: 0,
-        bac_audit_rate: 0,
-        metadata_audit_rate: 0,
-        booklet_rate: 0,
-      });
-    }
-  };
-
   const handleInputChange = (field: keyof WeeklyData, value: string | number) => {
     setFormData(prev => ({
       ...prev,
@@ -92,24 +49,27 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
   };
 
   const calculateIncome = () => {
-    if (!rateConfig) return 0;
+    const rates = {
+      fieldWork: 90,
+      dataEntry: 15,
+      bacAudit: 5,
+      metadataAudit: 5,
+      virtualAudit: 5,
+    };
 
     return (
-      formData.fieldWork * rateConfig.field_work_rate +
-      formData.dataEntry * rateConfig.data_entry_rate +
-      formData.bacAudit * rateConfig.bac_audit_rate +
-      formData.metadataAudit * rateConfig.metadata_audit_rate +
-      formData.virtualAudit * rateConfig.virtual_audit_rate +
+      formData.fieldWork * rates.fieldWork +
+      formData.dataEntry * rates.dataEntry +
+      formData.bacAudit * rates.bacAudit +
+      formData.metadataAudit * rates.metadataAudit +
+      formData.virtualAudit * rates.virtualAudit +
       formData.bookletProduction
     );
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onDataSubmit({
-      ...formData,
-      rateConfigId: rateConfig?.id,
-    });
+    onDataSubmit(formData);
     toast({
       title: "Weekly Data Saved",
       description: `Data for week ${formData.week} has been successfully saved.`,
@@ -161,7 +121,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.field_work_rate || 90} per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦90 per name</p>
             </div>
 
             <div>
@@ -177,7 +137,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.data_entry_rate || 0} per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦15 per name</p>
             </div>
 
             <div>
@@ -193,7 +153,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.bac_audit_rate || 0} per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
             </div>
 
             <div>
@@ -209,7 +169,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.metadata_audit_rate || 0} per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
             </div>
 
             <div>
@@ -225,7 +185,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.virtual_audit_rate || 0} per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
             </div>
 
             <div>
