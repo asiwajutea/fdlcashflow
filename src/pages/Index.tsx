@@ -4,6 +4,7 @@ import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
 import { FinancialCharts } from '@/components/FinancialCharts';
 import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
+import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -413,10 +414,30 @@ const Index = () => {
             <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} />
           </TabsContent>
 
-          <TabsContent value="expenses">
-            {weeklyDataEntries.length > 0 ? <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} otherExpenses={customExpenses?.otherExpenses || []} onExpenseChange={handleExpenseChange} /> : <Card className="financial-card p-8 text-center">
+          <TabsContent value="expenses" className="space-y-6">
+            {weeklyDataEntries.length > 0 ? (
+              <>
+                <ExpenseBreakdown 
+                  totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + 
+                             weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + 
+                             weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + 
+                             weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + 
+                             weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} 
+                  fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} 
+                  weeklyIncome={metrics.weeklyIncome} 
+                  expenseData={currentExpenseData} 
+                  logistics={logistics} 
+                  incentives={incentives} 
+                  otherExpenses={customExpenses?.otherExpenses || []} 
+                  onExpenseChange={handleExpenseChange} 
+                />
+                <MonthlySummary />
+              </>
+            ) : (
+              <Card className="financial-card p-8 text-center">
                 <p className="text-muted-foreground">Enter weekly data to see expense breakdown</p>
-              </Card>}
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="charts">
