@@ -7,6 +7,7 @@ import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
 import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
 import { BudgetCalculator } from '@/components/BudgetCalculator';
+import { RateSettings } from '@/components/RateSettings';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -251,7 +252,8 @@ const Index = () => {
         total_income: weeklyIncome,
         total_expenses: weeklyExpenses,
         net_cashflow: weeklyIncome - weeklyExpenses,
-        other_expenses: customExpenses?.otherExpenses || []
+        other_expenses: customExpenses?.otherExpenses || [],
+        rate_config_id: data.rateConfigId
       });
 
       if (error) throw error;
@@ -370,11 +372,12 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data-entry">Income</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="settings">Rates</TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
@@ -444,6 +447,10 @@ const Index = () => {
 
           <TabsContent value="budget">
             <BudgetCalculator />
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <RateSettings />
           </TabsContent>
 
           <TabsContent value="charts">
