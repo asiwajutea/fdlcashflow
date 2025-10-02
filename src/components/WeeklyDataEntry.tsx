@@ -19,15 +19,17 @@ export interface WeeklyData {
 interface WeeklyDataEntryProps {
   onDataSubmit: (data: WeeklyData) => void;
   initialData?: WeeklyData;
+  rateConfig?: any;
 }
 
 export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({ 
   onDataSubmit, 
-  initialData 
+  initialData,
+  rateConfig 
 }) => {
   const { toast } = useToast();
-  const MONTHLY_BOOKLET_INCOME = 65000;
-  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // ₦15,011.55 per week
+  const MONTHLY_BOOKLET_INCOME = rateConfig?.booklet_monthly_income || 65000;
+  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // Prorated weekly
   
   const [formData, setFormData] = useState<WeeklyData>(
     initialData || {
@@ -50,11 +52,11 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
 
   const calculateIncome = () => {
     const rates = {
-      fieldWork: 90,
-      dataEntry: 15,
-      bacAudit: 5,
-      metadataAudit: 5,
-      virtualAudit: 5,
+      fieldWork: rateConfig?.field_work_rate || 90,
+      dataEntry: rateConfig?.data_entry_rate || 15,
+      bacAudit: rateConfig?.bac_audit_rate || 5,
+      metadataAudit: rateConfig?.metadata_audit_rate || 5,
+      virtualAudit: rateConfig?.virtual_audit_rate || 5,
     };
 
     return (
@@ -121,7 +123,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦90 per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.field_work_rate || 90} per name</p>
             </div>
 
             <div>
@@ -137,7 +139,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦15 per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.data_entry_rate || 15} per name</p>
             </div>
 
             <div>
@@ -153,7 +155,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.bac_audit_rate || 5} per name</p>
             </div>
 
             <div>
@@ -169,7 +171,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.metadata_audit_rate || 5} per name</p>
             </div>
 
             <div>
@@ -185,7 +187,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 className="w-full"
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground mt-1">₦5 per name</p>
+              <p className="text-xs text-muted-foreground mt-1">₦{rateConfig?.virtual_audit_rate || 5} per name</p>
             </div>
 
             <div>
@@ -199,9 +201,9 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
                 value={formData.bookletProduction}
                 onChange={(e) => handleInputChange('bookletProduction', e.target.value)}
                 className="w-full"
-                placeholder="15011"
+                placeholder={Math.round(WEEKLY_BOOKLET_INCOME).toString()}
               />
-              <p className="text-xs text-muted-foreground mt-1">Fixed income (₦65,000/month prorated)</p>
+              <p className="text-xs text-muted-foreground mt-1">Fixed income (₦{MONTHLY_BOOKLET_INCOME.toLocaleString()}/month prorated weekly)</p>
             </div>
           </div>
 

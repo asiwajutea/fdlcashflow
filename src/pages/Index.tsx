@@ -420,7 +420,7 @@ const Index = () => {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} />
+              <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
               
               <Card className="financial-card p-6">
                 <div className="flex items-center space-x-3 mb-4">
@@ -451,7 +451,7 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="data-entry">
-            <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} />
+            <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
           </TabsContent>
 
           <TabsContent value="expenses" className="space-y-6">
