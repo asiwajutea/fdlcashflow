@@ -7,6 +7,7 @@ import { ExpenseBreakdown } from '@/components/ExpenseBreakdown';
 import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
 import { BudgetCalculator } from '@/components/BudgetCalculator';
+import { RateSettings } from '@/components/RateSettings';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -33,7 +34,33 @@ const Index = () => {
   } | null>(null);
 
   // Income rates
-  const INCOME_RATES = {
+  const [currentRateConfig, setCurrentRateConfig] = useState<any>(null);
+
+  // Fetch current rate configuration
+  useEffect(() => {
+    const fetchRates = async () => {
+      const { data, error } = await supabase
+        .from('rate_configurations')
+        .select('*')
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setCurrentRateConfig(data);
+      }
+    };
+    fetchRates();
+  }, []);
+
+  // Income rates from database
+  const INCOME_RATES = currentRateConfig ? {
+    fieldWork: currentRateConfig.field_work_rate,
+    dataEntry: currentRateConfig.data_entry_rate,
+    bacAudit: currentRateConfig.bac_audit_rate,
+    metadataAudit: currentRateConfig.metadata_audit_rate,
+    virtualAudit: currentRateConfig.virtual_audit_rate
+  } : {
     fieldWork: 90,
     dataEntry: 15,
     bacAudit: 5,
@@ -42,10 +69,10 @@ const Index = () => {
   };
 
   // Monthly fixed income (prorated weekly)
-  const MONTHLY_BOOKLET_INCOME = 65000;
-  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33; // Average weeks per month
+  const MONTHLY_BOOKLET_INCOME = currentRateConfig?.booklet_monthly_income || 65000;
+  const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33;
 
-  // Calculate expenses for given work type counts
+  // Calculate expenses using rates from database
   const calculateExpenses = (fieldWorkNames: number, dataEntryNames: number = 0, bacAuditNames: number = 0): {
     fieldWorkExpenses: number;
     productionManagerFieldWork: number;
@@ -55,64 +82,73 @@ const Index = () => {
     weeklyExpenses: number;
     employeeGratuity: number;
   } => {
-    // Field Work–Driven Expenses (based on field work names only)
-    const fieldWorkSalaries = {
-      fieldAgent: 25,
-      fieldManager: 10,
-      bookingAgent: 5,
-      fieldRelation: 3,
-      clerks: 10,
-      qaManager: 3
-    };
+    if (!currentRateConfig) {
+      return {
+        fieldWorkExpenses: 0,
+        productionManagerFieldWork: 0,
+        productionManagerDataEntry: 0,
+        productionManagerBacAudit: 0,
+        fixedSalaries: 0,
+        weeklyExpenses: 0,
+        employeeGratuity: 0
+      };
+    }
 
-    // Production Manager rates per work type
-    const productionManagerRates = {
-      fieldWork: 20,
-      // ₦20 per field work name
-      dataEntry: 2,
-      // ₦2 per data entry name  
-      bacAudit: 2 // ₦2 per BAC audit name
-    };
+    // Field Staff Salaries (per name)
+    const fieldStaffSalariesPerName = 
+      currentRateConfig.field_agent_rate +
+      currentRateConfig.field_manager_rate +
+      currentRateConfig.booking_agent_rate +
+      currentRateConfig.field_relation_rate +
+      currentRateConfig.field_misc_rate;
+
+    const fieldWorkExpenses = fieldWorkNames * fieldStaffSalariesPerName;
+
+    // Data Entry expenses (per name)
+    const dataEntryPerName = 
+      currentRateConfig.data_entry_clerks_rate +
+      currentRateConfig.qa_manager_rate +
+      currentRateConfig.data_entry_misc_rate;
+
+    const dataEntryExpenses = dataEntryNames * dataEntryPerName;
+
+    // Production Manager costs per work type
+    const productionManagerFieldWork = fieldWorkNames * currentRateConfig.pm_field_work_rate;
+    const productionManagerDataEntry = dataEntryNames * currentRateConfig.pm_data_entry_rate;
+    const productionManagerBacAudit = bacAuditNames * currentRateConfig.pm_bac_audit_rate;
 
     // Fixed monthly salaries (prorated weekly)
-    const fixedMonthlySalaries = {
-      fieldRelationSupervisor: 80000 / 4.33,
-      administrativeAssistant: 45000 / 4.33,
-      fieldRelationOfficers: 100000 / 4.33 // 2 people
-    };
+    const fixedSalaries = (
+      currentRateConfig.field_relation_supervisor_salary +
+      currentRateConfig.administrative_assistant_salary +
+      currentRateConfig.field_relation_officers_salary
+    ) / 4.33;
 
-    // Other weekly expenses
-    const weeklyExpenses = {
-      powerPlant: 15000,
-      dataSubscriptionOffice: 5000,
-      dataSupport: 5000 * 10 / 4.33 // Assuming 10 staff members, monthly cost
-    };
-
-    // Calculate field work expenses (based on field work names only)
-    const fieldWorkExpenseRate = Object.values(fieldWorkSalaries).reduce((sum, rate) => sum + rate, 0);
-    const fieldWorkExpenses = fieldWorkNames * fieldWorkExpenseRate;
-
-    // Calculate production manager costs per work type
-    const productionManagerFieldWork = fieldWorkNames * productionManagerRates.fieldWork;
-    const productionManagerDataEntry = dataEntryNames * productionManagerRates.dataEntry;
-    const productionManagerBacAudit = bacAuditNames * productionManagerRates.bacAudit;
+    // Weekly expenses (prorated monthly costs)
+    const weeklyExpenses = (
+      currentRateConfig.power_plant_monthly +
+      currentRateConfig.office_data_subscription_monthly +
+      currentRateConfig.staff_data_support_monthly
+    ) / 4.33;
 
     // Total salaries for gratuity calculation
-    const totalSalaries = fieldWorkExpenses + productionManagerFieldWork + productionManagerDataEntry + productionManagerBacAudit + Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0);
+    const totalSalaries = 
+      fieldWorkExpenses + 
+      dataEntryExpenses +
+      productionManagerFieldWork + 
+      productionManagerDataEntry + 
+      productionManagerBacAudit + 
+      fixedSalaries;
 
-    // Additional expenses as percentages
-    const employeeGratuity = totalSalaries * 0.075;
-
-    // Note: Logistics and Incentives are based on total monthly income, 
-    // so we'll calculate them separately in the main calculation
+    const employeeGratuity = totalSalaries * currentRateConfig.employee_gratuity_rate;
 
     return {
       fieldWorkExpenses,
       productionManagerFieldWork,
       productionManagerDataEntry,
       productionManagerBacAudit,
-      fixedSalaries: Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0),
-      weeklyExpenses: Object.values(weeklyExpenses).reduce((sum, expense) => sum + expense, 0),
+      fixedSalaries,
+      weeklyExpenses,
       employeeGratuity
     };
   };
@@ -138,9 +174,9 @@ const Index = () => {
     const totalNames = currentWeek.fieldWork + currentWeek.dataEntry + currentWeek.bacAudit + currentWeek.metadataAudit + currentWeek.virtualAudit;
     const expenseBreakdown = calculateExpenses(currentWeek.fieldWork, currentWeek.dataEntry, currentWeek.bacAudit);
 
-    // Calculate logistics and incentives based on weekly income (approximated)
-    const logistics = weeklyIncome * 0.03;
-    const incentives = weeklyIncome * 0.02;
+    // Calculate logistics and incentives using rates from config
+    const logistics = currentRateConfig ? weeklyIncome * currentRateConfig.logistics_rate : weeklyIncome * 0.03;
+    const incentives = currentRateConfig ? weeklyIncome * currentRateConfig.incentives_rate : weeklyIncome * 0.02;
     const weeklyExpenses = expenseBreakdown.fieldWorkExpenses + expenseBreakdown.productionManagerFieldWork + expenseBreakdown.productionManagerDataEntry + expenseBreakdown.productionManagerBacAudit + expenseBreakdown.fixedSalaries + expenseBreakdown.weeklyExpenses + expenseBreakdown.employeeGratuity + logistics + incentives;
 
     // Calculate monthly totals (multiply by average weeks per month)
@@ -162,8 +198,8 @@ const Index = () => {
       const totalNames = entry.fieldWork + entry.dataEntry + entry.bacAudit + entry.metadataAudit + entry.virtualAudit;
       const income = entry.fieldWork * INCOME_RATES.fieldWork + entry.dataEntry * INCOME_RATES.dataEntry + entry.bacAudit * INCOME_RATES.bacAudit + entry.metadataAudit * INCOME_RATES.metadataAudit + entry.virtualAudit * INCOME_RATES.virtualAudit + (entry.bookletProduction || 0);
       const expenseBreakdown = calculateExpenses(entry.fieldWork, entry.dataEntry, entry.bacAudit);
-      const logistics = income * 0.03;
-      const incentives = income * 0.02;
+      const logistics = currentRateConfig ? income * currentRateConfig.logistics_rate : income * 0.03;
+      const incentives = currentRateConfig ? income * currentRateConfig.incentives_rate : income * 0.02;
       const expenses = expenseBreakdown.fieldWorkExpenses + expenseBreakdown.productionManagerFieldWork + expenseBreakdown.productionManagerDataEntry + expenseBreakdown.productionManagerBacAudit + expenseBreakdown.fixedSalaries + expenseBreakdown.weeklyExpenses + expenseBreakdown.employeeGratuity + logistics + incentives;
       return {
         week: `Week ${index + 1}`,
@@ -216,8 +252,8 @@ const Index = () => {
                         (data.bookletProduction || 0);
 
     const expenseBreakdown = calculateExpenses(data.fieldWork, data.dataEntry, data.bacAudit);
-    const logistics = weeklyIncome * 0.03;
-    const incentives = weeklyIncome * 0.02;
+    const logistics = currentRateConfig ? weeklyIncome * currentRateConfig.logistics_rate : weeklyIncome * 0.03;
+    const incentives = currentRateConfig ? weeklyIncome * currentRateConfig.incentives_rate : weeklyIncome * 0.02;
     
     // Calculate other expenses total
     const otherExpensesTotal = customExpenses?.otherExpenses?.reduce((sum, exp) => sum + exp.amount, 0) || 0;
@@ -251,7 +287,8 @@ const Index = () => {
         total_income: weeklyIncome,
         total_expenses: weeklyExpenses,
         net_cashflow: weeklyIncome - weeklyExpenses,
-        other_expenses: customExpenses?.otherExpenses || []
+        other_expenses: customExpenses?.otherExpenses || [],
+        rate_config_id: currentRateConfig?.id
       });
 
       if (error) throw error;
@@ -370,11 +407,12 @@ const Index = () => {
 
         {/* Main Content Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="data-entry">Income</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
+            <TabsTrigger value="rates">Rates</TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
             <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
@@ -444,6 +482,10 @@ const Index = () => {
 
           <TabsContent value="budget">
             <BudgetCalculator />
+          </TabsContent>
+
+          <TabsContent value="rates">
+            <RateSettings />
           </TabsContent>
 
           <TabsContent value="charts">

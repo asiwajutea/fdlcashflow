@@ -70,6 +70,126 @@ export type Database = {
           },
         ]
       }
+      rate_configurations: {
+        Row: {
+          administrative_assistant_salary: number
+          bac_audit_rate: number
+          booking_agent_rate: number
+          booklet_monthly_income: number
+          booklet_rate: number
+          created_at: string
+          data_entry_clerks_rate: number
+          data_entry_misc_rate: number
+          data_entry_rate: number
+          effective_from: string
+          employee_gratuity: number
+          employee_gratuity_rate: number
+          field_agent_rate: number
+          field_manager_rate: number
+          field_misc_rate: number
+          field_relation_officers_salary: number
+          field_relation_rate: number
+          field_relation_supervisor_salary: number
+          field_work_rate: number
+          fixed_monthly_salaries: number
+          id: string
+          incentives: number
+          incentives_rate: number
+          logistics: number
+          logistics_rate: number
+          metadata_audit_rate: number
+          office_data_subscription_monthly: number
+          operations_utilities: number
+          pm_bac_audit_rate: number
+          pm_data_entry_rate: number
+          pm_field_work_rate: number
+          power_plant_monthly: number
+          production_manager_salary: number
+          qa_manager_rate: number
+          staff_data_support_monthly: number
+          updated_at: string
+          virtual_audit_rate: number
+        }
+        Insert: {
+          administrative_assistant_salary?: number
+          bac_audit_rate?: number
+          booking_agent_rate?: number
+          booklet_monthly_income?: number
+          booklet_rate?: number
+          created_at?: string
+          data_entry_clerks_rate?: number
+          data_entry_misc_rate?: number
+          data_entry_rate?: number
+          effective_from?: string
+          employee_gratuity?: number
+          employee_gratuity_rate?: number
+          field_agent_rate?: number
+          field_manager_rate?: number
+          field_misc_rate?: number
+          field_relation_officers_salary?: number
+          field_relation_rate?: number
+          field_relation_supervisor_salary?: number
+          field_work_rate?: number
+          fixed_monthly_salaries?: number
+          id?: string
+          incentives?: number
+          incentives_rate?: number
+          logistics?: number
+          logistics_rate?: number
+          metadata_audit_rate?: number
+          office_data_subscription_monthly?: number
+          operations_utilities?: number
+          pm_bac_audit_rate?: number
+          pm_data_entry_rate?: number
+          pm_field_work_rate?: number
+          power_plant_monthly?: number
+          production_manager_salary?: number
+          qa_manager_rate?: number
+          staff_data_support_monthly?: number
+          updated_at?: string
+          virtual_audit_rate?: number
+        }
+        Update: {
+          administrative_assistant_salary?: number
+          bac_audit_rate?: number
+          booking_agent_rate?: number
+          booklet_monthly_income?: number
+          booklet_rate?: number
+          created_at?: string
+          data_entry_clerks_rate?: number
+          data_entry_misc_rate?: number
+          data_entry_rate?: number
+          effective_from?: string
+          employee_gratuity?: number
+          employee_gratuity_rate?: number
+          field_agent_rate?: number
+          field_manager_rate?: number
+          field_misc_rate?: number
+          field_relation_officers_salary?: number
+          field_relation_rate?: number
+          field_relation_supervisor_salary?: number
+          field_work_rate?: number
+          fixed_monthly_salaries?: number
+          id?: string
+          incentives?: number
+          incentives_rate?: number
+          logistics?: number
+          logistics_rate?: number
+          metadata_audit_rate?: number
+          office_data_subscription_monthly?: number
+          operations_utilities?: number
+          pm_bac_audit_rate?: number
+          pm_data_entry_rate?: number
+          pm_field_work_rate?: number
+          power_plant_monthly?: number
+          production_manager_salary?: number
+          qa_manager_rate?: number
+          staff_data_support_monthly?: number
+          updated_at?: string
+          virtual_audit_rate?: number
+        }
+        Relationships: []
+      }
       weekly_records: {
         Row: {
           bac_audit: number
@@ -81,6 +201,7 @@ export type Database = {
           metadata_audit: number
           net_cashflow: number
           other_expenses: Json | null
+          rate_config_id: string | null
           total_expenses: number
           total_income: number
           updated_at: string
@@ -98,6 +219,7 @@ export type Database = {
           metadata_audit?: number
           net_cashflow?: number
           other_expenses?: Json | null
+          rate_config_id?: string | null
           total_expenses?: number
           total_income?: number
           updated_at?: string
@@ -115,6 +237,7 @@ export type Database = {
           metadata_audit?: number
           net_cashflow?: number
           other_expenses?: Json | null
+          rate_config_id?: string | null
           total_expenses?: number
           total_income?: number
           updated_at?: string
@@ -122,7 +245,15 @@ export type Database = {
           week_number?: number
           year?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "weekly_records_rate_config_id_fkey"
+            columns: ["rate_config_id"]
+            isOneToOne: false
+            referencedRelation: "rate_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
