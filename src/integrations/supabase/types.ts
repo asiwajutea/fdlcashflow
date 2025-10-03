@@ -70,6 +70,41 @@ export type Database = {
           },
         ]
       }
+      rate_change_history: {
+        Row: {
+          change_summary: string | null
+          changed_at: string
+          id: string
+          new_config: Json | null
+          previous_config: Json | null
+          rate_config_id: string
+        }
+        Insert: {
+          change_summary?: string | null
+          changed_at?: string
+          id?: string
+          new_config?: Json | null
+          previous_config?: Json | null
+          rate_config_id: string
+        }
+        Update: {
+          change_summary?: string | null
+          changed_at?: string
+          id?: string
+          new_config?: Json | null
+          previous_config?: Json | null
+          rate_config_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rate_change_history_rate_config_id_fkey"
+            columns: ["rate_config_id"]
+            isOneToOne: false
+            referencedRelation: "rate_configurations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rate_configurations: {
         Row: {
           administrative_assistant_salary: number

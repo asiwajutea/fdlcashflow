@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Calculator, TrendingUp, TrendingDown } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const BudgetCalculator = () => {
   const [projections, setProjections] = useState({
@@ -14,8 +15,31 @@ export const BudgetCalculator = () => {
     bookletProduction: 0,
   });
 
-  // Income rates
-  const INCOME_RATES = {
+  const [rateConfig, setRateConfig] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchRates = async () => {
+      const { data, error } = await supabase
+        .from('rate_configurations')
+        .select('*')
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && data) {
+        setRateConfig(data);
+      }
+    };
+    fetchRates();
+  }, []);
+
+  const INCOME_RATES = rateConfig ? {
+    fieldWork: rateConfig.field_work_rate,
+    dataEntry: rateConfig.data_entry_rate,
+    bacAudit: rateConfig.bac_audit_rate,
+    metadataAudit: rateConfig.metadata_audit_rate,
+    virtualAudit: rateConfig.virtual_audit_rate
+  } : {
     fieldWork: 90,
     dataEntry: 15,
     bacAudit: 5,
@@ -23,56 +47,71 @@ export const BudgetCalculator = () => {
     virtualAudit: 5
   };
 
-  const MONTHLY_BOOKLET_INCOME = 65000;
+  const MONTHLY_BOOKLET_INCOME = rateConfig?.booklet_monthly_income || 65000;
   const WEEKLY_BOOKLET_INCOME = MONTHLY_BOOKLET_INCOME / 4.33;
 
-  // Calculate expenses for given work type counts
   const calculateExpenses = (fieldWorkNames: number, dataEntryNames: number = 0, bacAuditNames: number = 0) => {
-    const fieldWorkSalaries = {
-      fieldAgent: 25,
-      fieldManager: 10,
-      bookingAgent: 5,
-      fieldRelation: 3,
-      clerks: 10,
-      qaManager: 3
-    };
+    if (!rateConfig) {
+      return {
+        fieldWorkExpenses: 0,
+        productionManagerFieldWork: 0,
+        productionManagerDataEntry: 0,
+        productionManagerBacAudit: 0,
+        fixedSalaries: 0,
+        weeklyExpenses: 0,
+        employeeGratuity: 0
+      };
+    }
 
-    const productionManagerRates = {
-      fieldWork: 20,
-      dataEntry: 2,
-      bacAudit: 2
-    };
+    const fieldStaffSalariesPerName = 
+      rateConfig.field_agent_rate +
+      rateConfig.field_manager_rate +
+      rateConfig.booking_agent_rate +
+      rateConfig.field_relation_rate +
+      rateConfig.field_misc_rate;
 
-    const fixedMonthlySalaries = {
-      fieldRelationSupervisor: 80000 / 4.33,
-      administrativeAssistant: 45000 / 4.33,
-      fieldRelationOfficers: 100000 / 4.33
-    };
+    const fieldWorkExpenses = fieldWorkNames * fieldStaffSalariesPerName;
 
-    const weeklyExpenses = {
-      powerPlant: 15000,
-      dataSubscriptionOffice: 5000,
-      dataSupport: 5000 * 10 / 4.33
-    };
+    const dataEntryPerName = 
+      rateConfig.data_entry_clerks_rate +
+      rateConfig.qa_manager_rate +
+      rateConfig.data_entry_misc_rate;
 
-    const fieldWorkExpenseRate = Object.values(fieldWorkSalaries).reduce((sum, rate) => sum + rate, 0);
-    const fieldWorkExpenses = fieldWorkNames * fieldWorkExpenseRate;
+    const dataEntryExpenses = dataEntryNames * dataEntryPerName;
 
-    const productionManagerFieldWork = fieldWorkNames * productionManagerRates.fieldWork;
-    const productionManagerDataEntry = dataEntryNames * productionManagerRates.dataEntry;
-    const productionManagerBacAudit = bacAuditNames * productionManagerRates.bacAudit;
+    const productionManagerFieldWork = fieldWorkNames * rateConfig.pm_field_work_rate;
+    const productionManagerDataEntry = dataEntryNames * rateConfig.pm_data_entry_rate;
+    const productionManagerBacAudit = bacAuditNames * rateConfig.pm_bac_audit_rate;
 
-    const totalSalaries = fieldWorkExpenses + productionManagerFieldWork + productionManagerDataEntry + productionManagerBacAudit + Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0);
+    const fixedSalaries = (
+      rateConfig.field_relation_supervisor_salary +
+      rateConfig.administrative_assistant_salary +
+      rateConfig.field_relation_officers_salary
+    ) / 4.33;
 
-    const employeeGratuity = totalSalaries * 0.075;
+    const weeklyExpenses = (
+      rateConfig.power_plant_monthly +
+      rateConfig.office_data_subscription_monthly +
+      rateConfig.staff_data_support_monthly
+    ) / 4.33;
+
+    const totalSalaries = 
+      fieldWorkExpenses + 
+      dataEntryExpenses +
+      productionManagerFieldWork + 
+      productionManagerDataEntry + 
+      productionManagerBacAudit + 
+      fixedSalaries;
+
+    const employeeGratuity = totalSalaries * rateConfig.employee_gratuity_rate;
 
     return {
       fieldWorkExpenses,
       productionManagerFieldWork,
       productionManagerDataEntry,
       productionManagerBacAudit,
-      fixedSalaries: Object.values(fixedMonthlySalaries).reduce((sum, salary) => sum + salary, 0),
-      weeklyExpenses: Object.values(weeklyExpenses).reduce((sum, expense) => sum + expense, 0),
+      fixedSalaries,
+      weeklyExpenses,
       employeeGratuity
     };
   };
@@ -92,8 +131,8 @@ export const BudgetCalculator = () => {
       projections.bacAudit
     );
 
-    const logistics = weeklyIncome * 0.03;
-    const incentives = weeklyIncome * 0.02;
+    const logistics = rateConfig ? weeklyIncome * rateConfig.logistics_rate : weeklyIncome * 0.03;
+    const incentives = rateConfig ? weeklyIncome * rateConfig.incentives_rate : weeklyIncome * 0.02;
     
     const weeklyExpenses = 
       expenseBreakdown.fieldWorkExpenses + 
@@ -122,7 +161,7 @@ export const BudgetCalculator = () => {
         incentives
       }
     };
-  }, [projections]);
+  }, [projections, rateConfig]);
 
   const handleInputChange = (field: keyof typeof projections, value: string) => {
     const numValue = parseInt(value) || 0;
@@ -135,6 +174,10 @@ export const BudgetCalculator = () => {
       currency: 'NGN'
     }).format(amount);
   };
+
+  const logisticsRate = rateConfig ? (rateConfig.logistics_rate * 100) : 3;
+  const incentivesRate = rateConfig ? (rateConfig.incentives_rate * 100) : 2;
+  const gratuityRate = rateConfig ? (rateConfig.employee_gratuity_rate * 100) : 7.5;
 
   return (
     <div className="space-y-6">
@@ -221,7 +264,7 @@ export const BudgetCalculator = () => {
               min="0"
               value={projections.bookletProduction || ''}
               onChange={(e) => handleInputChange('bookletProduction', e.target.value)}
-              placeholder="0"
+              placeholder={Math.round(WEEKLY_BOOKLET_INCOME).toString()}
             />
             <p className="text-xs text-muted-foreground mt-1">Monthly fixed: ₦{MONTHLY_BOOKLET_INCOME.toLocaleString()}</p>
           </div>
@@ -304,23 +347,23 @@ export const BudgetCalculator = () => {
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.productionManagerBacAudit)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Fixed Monthly Salaries</span>
+            <span className="text-muted-foreground">Fixed Monthly Salaries (Prorated)</span>
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.fixedSalaries)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Operations & Utilities</span>
+            <span className="text-muted-foreground">Operations & Utilities (Prorated)</span>
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.weeklyExpenses)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Employee Gratuity (7.5%)</span>
+            <span className="text-muted-foreground">Employee Gratuity ({gratuityRate.toFixed(1)}%)</span>
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.employeeGratuity)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Logistics (3%)</span>
+            <span className="text-muted-foreground">Logistics ({logisticsRate.toFixed(1)}%)</span>
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.logistics)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-muted-foreground">Incentives (2%)</span>
+            <span className="text-muted-foreground">Incentives ({incentivesRate.toFixed(1)}%)</span>
             <span className="font-semibold text-foreground">{formatCurrency(projectedMetrics.expenseBreakdown.incentives)}</span>
           </div>
           <div className="border-t pt-3 mt-3 flex justify-between items-center">

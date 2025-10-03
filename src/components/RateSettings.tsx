@@ -91,16 +91,38 @@ export const RateSettings = () => {
     setSaving(true);
 
     try {
-      // Create a new rate configuration (preserves history)
-      const { error } = await supabase
+      // Get previous config for history
+      const { data: previousConfig } = await supabase
         .from('rate_configurations')
-        .insert({
-          ...rates,
-          id: undefined, // Let database generate new ID
-          effective_from: new Date().toISOString()
-        });
+        .select('*')
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Create a new rate configuration (preserves history)
+      const formData = {
+        ...rates,
+        id: undefined, // Let database generate new ID
+        effective_from: new Date().toISOString()
+      };
+
+      const { data: newConfig, error } = await supabase
+        .from('rate_configurations')
+        .insert(formData)
+        .select()
+        .single();
 
       if (error) throw error;
+
+      // Record the rate change in history
+      if (newConfig) {
+        await supabase.from('rate_change_history').insert({
+          rate_config_id: newConfig.id,
+          change_summary: 'Rate configuration updated',
+          previous_config: previousConfig,
+          new_config: newConfig
+        });
+      }
 
       toast({
         title: "Success",

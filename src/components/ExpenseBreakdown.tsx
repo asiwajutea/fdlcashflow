@@ -33,6 +33,7 @@ interface ExpenseBreakdownProps {
   logistics: number;
   incentives: number;
   otherExpenses?: OtherExpense[];
+  rateConfig?: any;
   onExpenseChange?: (updatedExpenses: {
     fieldWorkExpenses: number;
     productionManagerFieldWork: number;
@@ -55,6 +56,7 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
   logistics,
   incentives,
   otherExpenses = [],
+  rateConfig,
   onExpenseChange
 }) => {
   const [editableExpenses, setEditableExpenses] = useState({
@@ -161,68 +163,80 @@ export const ExpenseBreakdown: React.FC<ExpenseBreakdownProps> = ({
     currentExpenses.incentives +
     otherExpensesTotal;
 
+  const fieldStaffRate = rateConfig ? (
+    rateConfig.field_agent_rate + 
+    rateConfig.field_manager_rate + 
+    rateConfig.booking_agent_rate + 
+    rateConfig.field_relation_rate + 
+    rateConfig.field_misc_rate
+  ) : 56;
+
+  const logisticsRate = rateConfig ? (rateConfig.logistics_rate * 100) : 3;
+  const incentivesRate = rateConfig ? (rateConfig.incentives_rate * 100) : 2;
+  const gratuityRate = rateConfig ? (rateConfig.employee_gratuity_rate * 100) : 7.5;
+
   const categories: (ExpenseCategory & { field: keyof typeof currentExpenses })[] = [
     {
       name: 'Field Staff Salaries',
       amount: currentExpenses.fieldWorkExpenses,
       icon: Users,
-      description: `₦56 per name × ${fieldWorkNames} field work names`,
+      description: `₦${fieldStaffRate.toFixed(0)} per name × ${fieldWorkNames} field work names`,
       field: 'fieldWorkExpenses'
     },
     {
       name: 'Production Manager (Field Work)',
       amount: currentExpenses.productionManagerFieldWork,
       icon: Calculator,
-      description: `₦20 per name × ${fieldWorkNames} field work names`,
+      description: `₦${rateConfig?.pm_field_work_rate || 20} per name × ${fieldWorkNames} field work names`,
       field: 'productionManagerFieldWork'
     },
     {
       name: 'Production Manager (Data Entry)',
       amount: currentExpenses.productionManagerDataEntry,
       icon: Calculator,
-      description: 'Based on data entry names',
+      description: `₦${rateConfig?.pm_data_entry_rate || 2} per data entry name`,
       field: 'productionManagerDataEntry'
     },
     {
       name: 'Production Manager (BAC Audit)',
       amount: currentExpenses.productionManagerBacAudit,
       icon: Calculator,
-      description: 'Based on BAC audit names',
+      description: `₦${rateConfig?.pm_bac_audit_rate || 2} per BAC audit name`,
       field: 'productionManagerBacAudit'
     },
     {
       name: 'Fixed Monthly Salaries',
       amount: currentExpenses.fixedSalaries,
       icon: Building,
-      description: 'Supervisors & Admin (prorated)',
+      description: 'Supervisors & Admin (prorated weekly)',
       field: 'fixedSalaries'
     },
     {
       name: 'Operations & Utilities',
       amount: currentExpenses.weeklyExpenses,
       icon: Zap,
-      description: 'Power, data, support costs',
+      description: 'Power, office & staff data (prorated weekly)',
       field: 'weeklyExpenses'
     },
     {
       name: 'Employee Gratuity',
       amount: currentExpenses.employeeGratuity,
       icon: Gift,
-      description: '7.5% of total salaries',
+      description: `${gratuityRate.toFixed(1)}% of total salaries`,
       field: 'employeeGratuity'
     },
     {
       name: 'Logistics',
       amount: currentExpenses.logistics,
       icon: Truck,
-      description: '3% of weekly income',
+      description: `${logisticsRate.toFixed(1)}% of weekly income`,
       field: 'logistics'
     },
     {
       name: 'Incentives',
       amount: currentExpenses.incentives,
       icon: Trophy,
-      description: '2% of weekly income',
+      description: `${incentivesRate.toFixed(1)}% of weekly income`,
       field: 'incentives'
     }
   ];

@@ -446,7 +446,7 @@ const Index = () => {
 
             {/* Expense Overview */}
             {weeklyDataEntries.length > 0 && <div className="mt-6">
-                <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} otherExpenses={customExpenses?.otherExpenses || []} onExpenseChange={handleExpenseChange} />
+                <ExpenseBreakdown totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.metadataAudit + weeklyDataEntries[weeklyDataEntries.length - 1]?.virtualAudit || 0} fieldWorkNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork || 0} weeklyIncome={metrics.weeklyIncome} expenseData={currentExpenseData} logistics={logistics} incentives={incentives} otherExpenses={customExpenses?.otherExpenses || []} rateConfig={currentRateConfig} onExpenseChange={handleExpenseChange} />
               </div>}
           </TabsContent>
 
@@ -457,7 +457,7 @@ const Index = () => {
           <TabsContent value="expenses" className="space-y-6">
             {weeklyDataEntries.length > 0 ? (
               <>
-                <ExpenseBreakdown 
+              <ExpenseBreakdown 
                   totalNames={weeklyDataEntries[weeklyDataEntries.length - 1]?.fieldWork + 
                              weeklyDataEntries[weeklyDataEntries.length - 1]?.dataEntry + 
                              weeklyDataEntries[weeklyDataEntries.length - 1]?.bacAudit + 
@@ -468,7 +468,8 @@ const Index = () => {
                   expenseData={currentExpenseData} 
                   logistics={logistics} 
                   incentives={incentives} 
-                  otherExpenses={customExpenses?.otherExpenses || []} 
+                  otherExpenses={customExpenses?.otherExpenses || []}
+                  rateConfig={currentRateConfig}
                   onExpenseChange={handleExpenseChange} 
                 />
                 <MonthlySummary />
