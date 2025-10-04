@@ -100,9 +100,9 @@ export const RateSettings = () => {
         .single();
 
       // Create a new rate configuration (preserves history)
+      const { id: _, ...ratesWithoutId } = rates;
       const formData = {
-        ...rates,
-        id: undefined, // Let database generate new ID
+        ...ratesWithoutId,
         effective_from: new Date().toISOString()
       };
 
@@ -114,11 +114,27 @@ export const RateSettings = () => {
 
       if (error) throw error;
 
-      // Record the rate change in history
+      // Create detailed change summary
+      const changes: string[] = [];
+      if (previousConfig) {
+        Object.keys(rates).forEach(key => {
+          if (key !== 'id' && key !== 'created_at' && key !== 'updated_at' && key !== 'effective_from') {
+            const oldValue = previousConfig[key];
+            const newValue = rates[key as keyof RateConfig];
+            if (oldValue !== newValue) {
+              changes.push(`${key}: ₦${oldValue} → ₦${newValue}`);
+            }
+          }
+        });
+      }
+
+      // Record the rate change in history with all rate details
       if (newConfig) {
         await supabase.from('rate_change_history').insert({
           rate_config_id: newConfig.id,
-          change_summary: 'Rate configuration updated',
+          change_summary: changes.length > 0 
+            ? `Updated ${changes.length} rate(s)` 
+            : 'Initial rate configuration',
           previous_config: previousConfig,
           new_config: newConfig
         });

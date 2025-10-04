@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
@@ -11,13 +12,22 @@ import { RateSettings } from '@/components/RateSettings';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, FileText, Plus, AlertCircle } from 'lucide-react';
+import { MessageSquare, FileText, Plus, AlertCircle, LogOut } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { getISOWeek } from '@/utils/weekUtils';
 const Index = () => {
-  const {
-    toast
-  } = useToast();
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const { user, role, loading, signOut } = useAuth();
+
+  // Redirect to auth if not logged in
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
   const [weeklyDataEntries, setWeeklyDataEntries] = useState<WeeklyData[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [customExpenses, setCustomExpenses] = useState<{
@@ -272,8 +282,7 @@ const Index = () => {
     // Save to database
     try {
       const weekDate = new Date(data.week);
-      const weekNumber = Math.ceil((weekDate.getDate()) / 7);
-      const year = weekDate.getFullYear();
+      const { week: weekNumber, year } = getISOWeek(weekDate);
 
       const { error } = await supabase.from('weekly_records').insert({
         week_number: weekNumber,
@@ -295,13 +304,13 @@ const Index = () => {
 
       toast({
         title: "Success",
-        description: "Weekly data saved to history"
+        description: `Week ${weekNumber}, ${year} data saved successfully`
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving weekly data:', error);
       toast({
         title: "Error",
-        description: "Failed to save data to history",
+        description: error.message || "Failed to save data to history",
         variant: "destructive"
       });
     }
@@ -383,8 +392,36 @@ const Index = () => {
     logistics,
     incentives
   } = getCurrentLogisticsAndIncentives();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate('/auth');
+  };
+
   return <DashboardLayout title="Financial Dashboard">
       <div className="space-y-8">
+        {/* User Info & Logout */}
+        <Card className="financial-card p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Logged in as</p>
+              <p className="font-semibold text-foreground">{user?.email}</p>
+              <p className="text-xs text-primary capitalize">Role: {role}</p>
+            </div>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              <LogOut className="h-4 w-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+        </Card>
+
         {/* Metrics Overview */}
         <MetricCards data={metrics} />
 
@@ -412,10 +449,14 @@ const Index = () => {
             <TabsTrigger value="data-entry">Income</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="rates">Rates</TabsTrigger>
+            <TabsTrigger value="rates" disabled={role === 'guest'}>
+              Rates {role === 'guest' && '🔒'}
+            </TabsTrigger>
             <TabsTrigger value="charts">Analytics</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="ai-assistant">AI Assistant</TabsTrigger>
+            <TabsTrigger value="ai-assistant" disabled={role === 'guest'}>
+              AI Assistant {role === 'guest' && '🔒'}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
@@ -485,8 +526,14 @@ const Index = () => {
             <BudgetCalculator />
           </TabsContent>
 
-          <TabsContent value="rates">
-            <RateSettings />
+          <TabsContent value="rates" className="space-y-6">
+            {role === 'admin' ? (
+              <RateSettings />
+            ) : (
+              <Card className="financial-card p-8 text-center">
+                <p className="text-muted-foreground">Access restricted to administrators</p>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="charts">
@@ -497,28 +544,24 @@ const Index = () => {
             <HistoryView />
           </TabsContent>
 
-          <TabsContent value="ai-assistant">
-            <Card className="financial-card p-8 text-center">
-              <div className="max-w-md mx-auto space-y-4">
-                <div className="bg-primary/10 p-3 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-                  <MessageSquare className="h-8 w-8 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold text-foreground">AI Financial Assistant</h3>
-                <p className="text-muted-foreground">
-                  Get intelligent insights about your financial data, ask questions about cashflow trends, 
-                  and receive recommendations for optimizing your expenses.
-                </p>
-                <div className="bg-warning-background border border-warning/20 rounded-lg p-4 text-left">
-                  <p className="text-sm text-warning-foreground">
-                    <strong>Note:</strong> The AI Assistant requires a backend connection. 
-                    Connect to Supabase to enable this feature and unlock powerful financial insights.
+          <TabsContent value="ai-assistant" className="space-y-6">
+            {role === 'admin' ? (
+              <Card className="financial-card p-8 text-center">
+                <div className="max-w-md mx-auto space-y-4">
+                  <div className="bg-primary/10 p-3 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
+                    <MessageSquare className="h-8 w-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-foreground">AI Financial Assistant</h3>
+                  <p className="text-muted-foreground">
+                    AI assistant feature coming soon. This will help analyze financial data and provide insights.
                   </p>
                 </div>
-                <Button className="bg-gradient-primary hover:bg-primary-dark" disabled>
-                  Connect Supabase to Enable AI
-                </Button>
-              </div>
-            </Card>
+              </Card>
+            ) : (
+              <Card className="financial-card p-8 text-center">
+                <p className="text-muted-foreground">Access restricted to administrators</p>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
