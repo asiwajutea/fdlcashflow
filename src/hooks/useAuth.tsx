@@ -20,11 +20,15 @@ export const useAuth = () => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         // Fetch user role
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', session.user.id)
-          .single();
+          .maybeSingle();
+
+        if (roleError) {
+          console.error('Error fetching role:', roleError);
+        }
 
         setProfile({
           user: session.user,
@@ -34,23 +38,33 @@ export const useAuth = () => {
       } else {
         setProfile({ user: null, role: null, loading: false });
       }
+    }).catch((error) => {
+      console.error('Error getting session:', error);
+      setProfile({ user: null, role: null, loading: false });
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         if (session?.user) {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', session.user.id)
-            .single();
+          // Use setTimeout to defer the role fetch
+          setTimeout(async () => {
+            const { data: roleData, error: roleError } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .maybeSingle();
 
-          setProfile({
-            user: session.user,
-            role: roleData?.role || null,
-            loading: false
-          });
+            if (roleError) {
+              console.error('Error fetching role:', roleError);
+            }
+
+            setProfile({
+              user: session.user,
+              role: roleData?.role || null,
+              loading: false
+            });
+          }, 0);
         } else {
           setProfile({ user: null, role: null, loading: false });
         }
