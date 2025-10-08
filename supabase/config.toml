@@ -1,4 +1,1 @@
 project_id = "elqwtrwrsbvgezhemrwn"
-
-[functions.setup-users]
-verify_jwt = false

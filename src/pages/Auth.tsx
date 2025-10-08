@@ -48,10 +48,9 @@ const Auth = () => {
       });
       navigate('/');
     } catch (error: any) {
-      console.error('Login error:', error);
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials",
+        description: "Invalid credentials. Please check your email, password, and access code.",
         variant: "destructive"
       });
     } finally {
