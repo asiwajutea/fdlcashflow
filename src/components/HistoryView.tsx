@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { History, TrendingUp, TrendingDown, DollarSign, Settings } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, DollarSign, Settings, Edit } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { EditWeeklyRecordDialog } from './EditWeeklyRecordDialog';
 
 interface HistoryRecord {
   id: string;
@@ -43,6 +44,8 @@ export const HistoryView: React.FC = () => {
     endDate: '',
     viewType: 'all'
   });
+  const [editingRecord, setEditingRecord] = useState<HistoryRecord | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -138,6 +141,15 @@ export const HistoryView: React.FC = () => {
   const totalIncome = filteredRecords.reduce((sum, record) => sum + record.total_income, 0);
   const totalExpenses = filteredRecords.reduce((sum, record) => sum + record.total_expenses, 0);
   const totalNetCashflow = totalIncome - totalExpenses;
+
+  const handleEditClick = (record: HistoryRecord) => {
+    setEditingRecord(record);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditSuccess = () => {
+    fetchRecords();
+  };
 
   return (
     <div className="space-y-6">
@@ -253,6 +265,7 @@ export const HistoryView: React.FC = () => {
                       <TableHead className="text-right">Income</TableHead>
                       <TableHead className="text-right">Expenses</TableHead>
                       <TableHead className="text-right">Net Cashflow</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -275,6 +288,15 @@ export const HistoryView: React.FC = () => {
                         </TableCell>
                         <TableCell className={`text-right font-semibold ${record.net_cashflow >= 0 ? 'text-success' : 'text-danger'}`}>
                           {formatCurrency(record.net_cashflow)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(record)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -341,6 +363,13 @@ export const HistoryView: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <EditWeeklyRecordDialog
+        record={editingRecord}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onSuccess={handleEditSuccess}
+      />
     </div>
   );
 };
