@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
-import { History, TrendingUp, TrendingDown, DollarSign, Settings, Edit } from 'lucide-react';
+import { History, TrendingUp, TrendingDown, DollarSign, Settings, Edit, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EditWeeklyRecordDialog } from './EditWeeklyRecordDialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface HistoryRecord {
   id: string;
@@ -46,6 +48,7 @@ export const HistoryView: React.FC = () => {
   });
   const [editingRecord, setEditingRecord] = useState<HistoryRecord | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const { toast } = useToast();
 
   const fetchRecords = async () => {
     setLoading(true);
@@ -149,6 +152,31 @@ export const HistoryView: React.FC = () => {
 
   const handleEditSuccess = () => {
     fetchRecords();
+  };
+
+  const handleDeleteRecord = async (record: HistoryRecord) => {
+    try {
+      const { error } = await supabase
+        .from('weekly_records')
+        .delete()
+        .eq('id', record.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Record deleted',
+        description: `Week ${record.week_number}, ${record.year} has been deleted successfully.`,
+      });
+
+      fetchRecords();
+    } catch (error) {
+      console.error('Error deleting record:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete record. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -290,13 +318,43 @@ export const HistoryView: React.FC = () => {
                           {formatCurrency(record.net_cashflow)}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleEditClick(record)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditClick(record)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                >
+                                  <Trash2 className="h-4 w-4 text-danger" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Delete Record</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to permanently delete Week {record.week_number}, {record.year}? 
+                                    This action cannot be undone and will remove all associated data.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDeleteRecord(record)}
+                                    className="bg-danger hover:bg-danger/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
