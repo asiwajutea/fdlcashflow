@@ -16,7 +16,7 @@ import { MessageSquare, FileText, Plus, AlertCircle, LogOut } from 'lucide-react
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getISOWeek } from '@/utils/weekUtils';
+import { getISOWeek, getCurrentWeekRange } from '@/utils/weekUtils';
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ const Index = () => {
     expenses: number;
   }>({ income: 0, expenses: 0 });
 
-  // Fetch current rate configuration and latest weekly record
+  // Fetch current rate configuration and current week's record
   useEffect(() => {
     const fetchInitialData = async () => {
       // Fetch rate configuration
@@ -67,25 +67,27 @@ const Index = () => {
         setCurrentRateConfig(rateData);
       }
 
-      // Fetch the most recent weekly record
-      const { data: latestRecord, error: recordError } = await supabase
+      // Get current week (Sunday to Saturday)
+      const { week: currentWeek, year: currentYear } = getCurrentWeekRange();
+
+      // Fetch the current week's record
+      const { data: currentWeekRecord, error: recordError } = await supabase
         .from('weekly_records')
         .select('*')
-        .order('year', { ascending: false })
-        .order('week_number', { ascending: false })
-        .limit(1)
+        .eq('year', currentYear)
+        .eq('week_number', currentWeek)
         .maybeSingle();
 
-      if (!recordError && latestRecord) {
+      if (!recordError && currentWeekRecord) {
         // Convert database record to WeeklyData format
         const weekData: WeeklyData = {
-          week: new Date().toISOString().split('T')[0], // Use current date as placeholder
-          fieldWork: latestRecord.field_work || 0,
-          dataEntry: latestRecord.data_entry || 0,
-          bacAudit: latestRecord.bac_audit || 0,
-          metadataAudit: latestRecord.metadata_audit || 0,
-          virtualAudit: latestRecord.virtual_audit || 0,
-          bookletProduction: latestRecord.booklet_income || 0
+          week: new Date().toISOString().split('T')[0],
+          fieldWork: currentWeekRecord.field_work || 0,
+          dataEntry: currentWeekRecord.data_entry || 0,
+          bacAudit: currentWeekRecord.bac_audit || 0,
+          metadataAudit: currentWeekRecord.metadata_audit || 0,
+          virtualAudit: currentWeekRecord.virtual_audit || 0,
+          bookletProduction: currentWeekRecord.booklet_income || 0
         };
         setWeeklyDataEntries([weekData]);
       }

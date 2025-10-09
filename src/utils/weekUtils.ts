@@ -15,3 +15,11 @@ export const getISOWeek = (date: Date): { week: number; year: number } => {
   
   return { week, year };
 };
+
+/**
+ * Get the current week's date range (Sunday to Saturday)
+ */
+export const getCurrentWeekRange = (): { week: number; year: number } => {
+  const today = new Date();
+  return getISOWeek(today);
+};
