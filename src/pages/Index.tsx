@@ -52,21 +52,46 @@ const Index = () => {
     expenses: number;
   }>({ income: 0, expenses: 0 });
 
-  // Fetch current rate configuration
+  // Fetch current rate configuration and latest weekly record
   useEffect(() => {
-    const fetchRates = async () => {
-      const { data, error } = await supabase
+    const fetchInitialData = async () => {
+      // Fetch rate configuration
+      const { data: rateData, error: rateError } = await supabase
         .from('rate_configurations')
         .select('*')
         .order('effective_from', { ascending: false })
         .limit(1)
         .single();
 
-      if (!error && data) {
-        setCurrentRateConfig(data);
+      if (!rateError && rateData) {
+        setCurrentRateConfig(rateData);
+      }
+
+      // Fetch the most recent weekly record
+      const { data: latestRecord, error: recordError } = await supabase
+        .from('weekly_records')
+        .select('*')
+        .order('year', { ascending: false })
+        .order('week_number', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!recordError && latestRecord) {
+        // Convert database record to WeeklyData format
+        const weekData: WeeklyData = {
+          week: new Date().toISOString().split('T')[0], // Use current date as placeholder
+          fieldWork: latestRecord.field_work || 0,
+          dataEntry: latestRecord.data_entry || 0,
+          bacAudit: latestRecord.bac_audit || 0,
+          metadataAudit: latestRecord.metadata_audit || 0,
+          virtualAudit: latestRecord.virtual_audit || 0,
+          bookletProduction: latestRecord.booklet_income || 0
+        };
+        setWeeklyDataEntries([weekData]);
       }
     };
-    fetchRates();
+    
+    fetchInitialData();
   }, []);
 
   // Fetch monthly financial data from actual records
