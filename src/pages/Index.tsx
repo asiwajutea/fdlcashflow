@@ -45,6 +45,12 @@ const Index = () => {
 
   // Income rates
   const [currentRateConfig, setCurrentRateConfig] = useState<any>(null);
+  
+  // Monthly financial data from actual records
+  const [monthlyFinancials, setMonthlyFinancials] = useState<{
+    income: number;
+    expenses: number;
+  }>({ income: 0, expenses: 0 });
 
   // Fetch current rate configuration
   useEffect(() => {
@@ -62,6 +68,35 @@ const Index = () => {
     };
     fetchRates();
   }, []);
+
+  // Fetch monthly financial data from actual records
+  useEffect(() => {
+    const fetchMonthlyData = async () => {
+      const currentDate = new Date();
+      const currentYear = currentDate.getFullYear();
+      const currentMonth = currentDate.getMonth() + 1; // 1-12
+      
+      // Calculate approximate week range for current month
+      // Week 1-4 = Jan, Week 5-8 = Feb, etc.
+      const startWeek = Math.floor((currentMonth - 1) * 4.33) + 1;
+      const endWeek = Math.floor(currentMonth * 4.33);
+      
+      const { data: monthlyRecords, error } = await supabase
+        .from('weekly_records')
+        .select('total_income, total_expenses')
+        .eq('year', currentYear)
+        .gte('week_number', startWeek)
+        .lte('week_number', endWeek);
+
+      if (monthlyRecords && monthlyRecords.length > 0) {
+        const totalIncome = monthlyRecords.reduce((sum, record) => sum + Number(record.total_income || 0), 0);
+        const totalExpenses = monthlyRecords.reduce((sum, record) => sum + Number(record.total_expenses || 0), 0);
+        setMonthlyFinancials({ income: totalIncome, expenses: totalExpenses });
+      }
+    };
+    
+    fetchMonthlyData();
+  }, [weeklyDataEntries]); // Recalculate when weekly data changes
 
   // Income rates from database
   const INCOME_RATES = currentRateConfig ? {
@@ -189,9 +224,10 @@ const Index = () => {
     const incentives = currentRateConfig ? weeklyIncome * currentRateConfig.incentives_rate : weeklyIncome * 0.02;
     const weeklyExpenses = expenseBreakdown.fieldWorkExpenses + expenseBreakdown.productionManagerFieldWork + expenseBreakdown.productionManagerDataEntry + expenseBreakdown.productionManagerBacAudit + expenseBreakdown.fixedSalaries + expenseBreakdown.weeklyExpenses + expenseBreakdown.employeeGratuity + logistics + incentives;
 
-    // Calculate monthly totals (multiply by average weeks per month)
-    const monthlyIncome = weeklyIncome * 4.33;
-    const monthlyExpenses = weeklyExpenses * 4.33;
+    // Use actual monthly data from database if available, otherwise estimate
+    const monthlyIncome = monthlyFinancials.income > 0 ? monthlyFinancials.income : weeklyIncome * 4.33;
+    const monthlyExpenses = monthlyFinancials.expenses > 0 ? monthlyFinancials.expenses : weeklyExpenses * 4.33;
+    
     return {
       weeklyIncome,
       weeklyExpenses,
