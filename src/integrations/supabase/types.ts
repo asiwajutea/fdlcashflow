@@ -70,6 +70,142 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string | null
+          designation: string
+          employee_id: string
+          full_name: string
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string | null
+          designation: string
+          employee_id: string
+          full_name: string
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string | null
+          designation?: string
+          employee_id?: string
+          full_name?: string
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      invoice_line_items: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string
+          id: string
+          invoice_id: string
+          item_type: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description: string
+          id?: string
+          invoice_id: string
+          item_type: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string
+          id?: string
+          invoice_id?: string
+          item_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string | null
+          date_issued: string
+          down_payment: number
+          egf: number
+          employee_id: string
+          gross_payment: number
+          id: string
+          invoice_number: string
+          month: number
+          net_payment: number
+          outstanding_iou: number
+          slip_number: string
+          total_deductions: number
+          total_monthly_income: number
+          total_savings: number
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          date_issued: string
+          down_payment?: number
+          egf?: number
+          employee_id: string
+          gross_payment?: number
+          id?: string
+          invoice_number: string
+          month: number
+          net_payment?: number
+          outstanding_iou?: number
+          slip_number: string
+          total_deductions?: number
+          total_monthly_income?: number
+          total_savings?: number
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          date_issued?: string
+          down_payment?: number
+          egf?: number
+          employee_id?: string
+          gross_payment?: number
+          id?: string
+          invoice_number?: string
+          month?: number
+          net_payment?: number
+          outstanding_iou?: number
+          slip_number?: string
+          total_deductions?: number
+          total_monthly_income?: number
+          total_savings?: number
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null

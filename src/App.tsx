@@ -6,6 +6,10 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import InvoiceGenerator from "./pages/InvoiceGenerator";
+import InvoiceList from "./pages/InvoiceList";
+import InvoiceStatistics from "./pages/InvoiceStatistics";
+import EmployeeManagement from "./pages/EmployeeManagement";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +22,10 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
+          <Route path="/generate-invoice" element={<InvoiceGenerator />} />
+          <Route path="/invoices" element={<InvoiceList />} />
+          <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
+          <Route path="/employees" element={<EmployeeManagement />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

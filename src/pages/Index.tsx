@@ -12,7 +12,7 @@ import { RateSettings } from '@/components/RateSettings';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, FileText, Plus, AlertCircle, LogOut } from 'lucide-react';
+import { MessageSquare, FileText, Plus, AlertCircle, LogOut, Receipt } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -532,6 +532,10 @@ const Index = () => {
                   <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
                 </div>
                 <div className="space-y-3">
+                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/generate-invoice')}>
+                    <Receipt className="h-4 w-4" />
+                    Generate Invoice
+                  </Button>
                   <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('charts')}>
                     View Analytics Dashboard
                   </Button>
