@@ -27,7 +27,7 @@ interface LineItem {
 }
 
 const InvoiceGenerator = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -56,12 +56,14 @@ const InvoiceGenerator = () => {
   const [showPreview, setShowPreview] = useState(false);
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/auth');
       return;
     }
-    fetchEmployees();
-  }, [user, navigate]);
+    if (user) {
+      fetchEmployees();
+    }
+  }, [user, loading, navigate]);
 
   const fetchEmployees = async () => {
     const { data, error } = await supabase
