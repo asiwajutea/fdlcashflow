@@ -18,6 +18,7 @@ interface Employee {
   designation: string;
   bank_name: string | null;
   account_number: string | null;
+  email: string | null;
 }
 
 const EmployeeManagement = () => {
@@ -33,7 +34,8 @@ const EmployeeManagement = () => {
     full_name: '',
     designation: '',
     bank_name: '',
-    account_number: ''
+    account_number: '',
+    email: ''
   });
 
   useEffect(() => {
@@ -70,17 +72,19 @@ const EmployeeManagement = () => {
         full_name: employee.full_name,
         designation: employee.designation,
         bank_name: employee.bank_name || '',
-        account_number: employee.account_number || ''
+        account_number: employee.account_number || '',
+        email: employee.email || ''
       });
     } else {
       setEditingEmployee(null);
-      setFormData({
-        employee_id: '',
-        full_name: '',
-        designation: '',
-        bank_name: '',
-        account_number: ''
-      });
+    setFormData({
+      employee_id: '',
+      full_name: '',
+      designation: '',
+      bank_name: '',
+      account_number: '',
+      email: ''
+    });
     }
     setIsDialogOpen(true);
   };

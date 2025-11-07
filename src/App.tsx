@@ -10,6 +10,8 @@ import InvoiceGenerator from "./pages/InvoiceGenerator";
 import InvoiceList from "./pages/InvoiceList";
 import InvoiceStatistics from "./pages/InvoiceStatistics";
 import EmployeeManagement from "./pages/EmployeeManagement";
+import BulkInvoiceGenerator from "./pages/BulkInvoiceGenerator";
+import CompanySettings from "./pages/CompanySettings";
 
 const queryClient = new QueryClient();
 
@@ -23,9 +25,11 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
           <Route path="/generate-invoice" element={<InvoiceGenerator />} />
+          <Route path="/bulk-invoice" element={<BulkInvoiceGenerator />} />
           <Route path="/invoices" element={<InvoiceList />} />
           <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
           <Route path="/employees" element={<EmployeeManagement />} />
+          <Route path="/company-settings" element={<CompanySettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

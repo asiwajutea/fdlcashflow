@@ -70,12 +70,49 @@ export type Database = {
           },
         ]
       }
+      company_settings: {
+        Row: {
+          company_address: string
+          company_email: string | null
+          company_name: string
+          company_phone: string
+          created_at: string
+          id: string
+          invoice_footer: string | null
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_address?: string
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string
+          created_at?: string
+          id?: string
+          invoice_footer?: string | null
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_address?: string
+          company_email?: string | null
+          company_name?: string
+          company_phone?: string
+          created_at?: string
+          id?: string
+          invoice_footer?: string | null
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           account_number: string | null
           bank_name: string | null
           created_at: string | null
           designation: string
+          email: string | null
           employee_id: string
           full_name: string
           id: string
@@ -86,6 +123,7 @@ export type Database = {
           bank_name?: string | null
           created_at?: string | null
           designation: string
+          email?: string | null
           employee_id: string
           full_name: string
           id?: string
@@ -96,6 +134,7 @@ export type Database = {
           bank_name?: string | null
           created_at?: string | null
           designation?: string
+          email?: string | null
           employee_id?: string
           full_name?: string
           id?: string
