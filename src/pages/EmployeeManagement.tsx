@@ -22,7 +22,7 @@ interface Employee {
 }
 
 const EmployeeManagement = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -39,12 +39,14 @@ const EmployeeManagement = () => {
   });
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/auth');
       return;
     }
-    fetchEmployees();
-  }, [user, navigate]);
+    if (user) {
+      fetchEmployees();
+    }
+  }, [user, loading, navigate]);
 
   const fetchEmployees = async () => {
     const { data, error } = await supabase

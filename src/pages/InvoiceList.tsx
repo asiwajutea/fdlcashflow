@@ -36,7 +36,7 @@ interface Invoice {
 }
 
 const InvoiceList = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -49,12 +49,14 @@ const InvoiceList = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/auth');
       return;
     }
-    fetchInvoices();
-  }, [user, navigate]);
+    if (user) {
+      fetchInvoices();
+    }
+  }, [user, loading, navigate]);
 
   useEffect(() => {
     filterInvoices();
