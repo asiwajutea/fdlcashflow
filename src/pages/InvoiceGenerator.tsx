@@ -38,11 +38,18 @@ const InvoiceGenerator = () => {
   const [dateIssued, setDateIssued] = useState(new Date().toISOString().split('T')[0]);
   
   const [earnings, setEarnings] = useState<LineItem[]>([
-    { id: '1', description: '', amount: '' }
+    { id: '1', description: 'Salary', amount: '' },
+    { id: '2', description: 'Data/Airtime Bonus', amount: '' },
+    { id: '3', description: 'Personal Bonus', amount: '' },
+    { id: '4', description: 'Outstanding Payment(s)', amount: '' }
   ]);
   
   const [deductions, setDeductions] = useState<LineItem[]>([
-    { id: '1', description: 'Tax', amount: '' }
+    { id: '1', description: 'Tax', amount: '' },
+    { id: '2', description: 'Salary Advance (IOU)', amount: '' },
+    { id: '3', description: 'Deduction for Prior Incorrect Payment', amount: '' },
+    { id: '4', description: 'Penalty Charge(s)', amount: '' },
+    { id: '5', description: 'Down Payment', amount: '' }
   ]);
   
   const [additionalFields, setAdditionalFields] = useState({
@@ -51,6 +58,8 @@ const InvoiceGenerator = () => {
     downPayment: '',
     egf: ''
   });
+
+  const [previousTotalSavings, setPreviousTotalSavings] = useState(0);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -64,6 +73,32 @@ const InvoiceGenerator = () => {
       fetchEmployees();
     }
   }, [user, loading, navigate]);
+
+  // Fetch previous total savings when employee is selected
+  useEffect(() => {
+    if (selectedEmployee) {
+      fetchPreviousTotalSavings();
+    }
+  }, [selectedEmployee, month, year]);
+
+  const fetchPreviousTotalSavings = async () => {
+    if (!selectedEmployee) return;
+    
+    // Get the most recent invoice for this employee before the current month/year
+    const { data, error } = await supabase
+      .from('invoices')
+      .select('total_savings')
+      .eq('employee_id', selectedEmployee.id)
+      .order('year', { ascending: false })
+      .order('month', { ascending: false })
+      .limit(1);
+    
+    if (!error && data && data.length > 0) {
+      setPreviousTotalSavings(data[0].total_savings || 0);
+    } else {
+      setPreviousTotalSavings(0);
+    }
+  };
 
   const fetchEmployees = async () => {
     const { data, error } = await supabase
@@ -110,7 +145,28 @@ const InvoiceGenerator = () => {
       items.map(item => item.id === id ? { ...item, [field]: value } : item);
     
     if (type === 'earnings') {
-      setEarnings(updateFn(earnings));
+      const updatedEarnings = updateFn(earnings);
+      setEarnings(updatedEarnings);
+      
+      // Auto-calculate Tax (0.05% of gross payment) and EGF (7.5% of gross payment)
+      if (field === 'amount') {
+        const grossPayment = updatedEarnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+        const taxAmount = (grossPayment * 0.0005).toFixed(2); // 0.05%
+        const egfAmount = (grossPayment * 0.075).toFixed(2); // 7.5%
+        const totalMonthlyIncome = (grossPayment + parseFloat(egfAmount)).toFixed(2);
+        
+        // Update Tax deduction automatically
+        setDeductions(prev => prev.map(item => 
+          item.description === 'Tax' ? { ...item, amount: taxAmount } : item
+        ));
+        
+        // Update EGF and Total Monthly Income
+        setAdditionalFields(prev => ({
+          ...prev,
+          egf: egfAmount,
+          totalMonthlyIncome: totalMonthlyIncome
+        }));
+      }
     } else {
       setDeductions(updateFn(deductions));
     }
@@ -120,7 +176,8 @@ const InvoiceGenerator = () => {
     const grossPayment = earnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const totalDeductions = deductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const netPayment = grossPayment - totalDeductions;
-    const totalSavings = (parseFloat(additionalFields.downPayment) || 0) + (parseFloat(additionalFields.egf) || 0);
+    // Total Savings = Previous Total Savings + current EGF
+    const totalSavings = previousTotalSavings + (parseFloat(additionalFields.egf) || 0);
     
     return { grossPayment, totalDeductions, netPayment, totalSavings };
   };
@@ -133,8 +190,9 @@ const InvoiceGenerator = () => {
 
   const generateSlipNumber = () => {
     const monthStr = month.toString().padStart(2, '0');
-    const yearStr = year.toString().slice(2);
-    return `${yearStr}${monthStr}FDLC${yearStr}${monthStr}-${selectedEmployee?.employee_id || '000'}A`;
+    const yearStr = year.toString();
+    const monthName = new Date(year, month - 1).toLocaleString('default', { month: 'short' }).toUpperCase();
+    return `FDL-${selectedEmployee?.employee_id || '000'}-${monthName}${yearStr}`;
   };
 
   const handlePreview = () => {
@@ -242,14 +300,26 @@ const InvoiceGenerator = () => {
       // Reset form
       setShowPreview(false);
       setSelectedEmployee(null);
-      setEarnings([{ id: '1', description: '', amount: '' }]);
-      setDeductions([{ id: '1', description: 'Tax', amount: '' }]);
+      setEarnings([
+        { id: '1', description: 'Salary', amount: '' },
+        { id: '2', description: 'Data/Airtime Bonus', amount: '' },
+        { id: '3', description: 'Personal Bonus', amount: '' },
+        { id: '4', description: 'Outstanding Payment(s)', amount: '' }
+      ]);
+      setDeductions([
+        { id: '1', description: 'Tax', amount: '' },
+        { id: '2', description: 'Salary Advance (IOU)', amount: '' },
+        { id: '3', description: 'Deduction for Prior Incorrect Payment', amount: '' },
+        { id: '4', description: 'Penalty Charge(s)', amount: '' },
+        { id: '5', description: 'Down Payment', amount: '' }
+      ]);
       setAdditionalFields({
         totalMonthlyIncome: '',
         outstandingIou: '',
         downPayment: '',
         egf: ''
       });
+      setPreviousTotalSavings(0);
 
     } catch (error) {
       console.error('Error generating invoice:', error);
@@ -457,11 +527,12 @@ const InvoiceGenerator = () => {
             {/* Additional Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Total Monthly Income</Label>
+                <Label>Total Monthly Income (Auto-calculated)</Label>
                 <Input
                   type="number"
                   value={additionalFields.totalMonthlyIncome}
-                  onChange={(e) => setAdditionalFields({...additionalFields, totalMonthlyIncome: e.target.value})}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
               <div className="space-y-2">
@@ -481,17 +552,24 @@ const InvoiceGenerator = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>EGF (Employee Gratuity Fund)</Label>
+                <Label>EGF (Employee Gratuity Fund) - Auto-calculated (7.5%)</Label>
                 <Input
                   type="number"
                   value={additionalFields.egf}
-                  onChange={(e) => setAdditionalFields({...additionalFields, egf: e.target.value})}
+                  readOnly
+                  className="bg-muted"
                 />
               </div>
             </div>
 
+            {previousTotalSavings > 0 && (
+              <div className="text-sm text-muted-foreground">
+                Previous Total Savings: ₦{previousTotalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              </div>
+            )}
+
             <div className="text-right font-semibold">
-              Total Savings: ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              Total Savings (Previous + EGF): ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
             </div>
 
             <div className="flex justify-end gap-2">

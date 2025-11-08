@@ -1,3 +1,5 @@
+import fdlLogo from '@/assets/fdl-logo.jpg';
+
 interface InvoiceTemplateProps {
   employee: {
     employee_id: string;
@@ -58,9 +60,12 @@ export const InvoiceTemplate = ({
           </h1>
           <h2 className="text-2xl font-bold text-gray-700">FOOTPRINTS DYNASTY</h2>
         </div>
-        <div className="text-right">
-          <p className="font-semibold">RC:1554073</p>
-          <p className="text-sm mt-2">Date Issued: {formattedDate}</p>
+        <div className="flex flex-col items-end gap-2">
+          <img src={fdlLogo} alt="Footprints Dynasty Logo" className="h-16 w-auto" />
+          <div className="text-right">
+            <p className="font-semibold">RC:1554073</p>
+            <p className="text-sm mt-1">Date Issued: {formattedDate}</p>
+          </div>
         </div>
       </div>
 

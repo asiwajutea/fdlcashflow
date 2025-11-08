@@ -47,6 +47,10 @@ const InvoiceList = () => {
   const [filterYear, setFilterYear] = useState('all');
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoiceLineItems, setSelectedInvoiceLineItems] = useState<{
+    earnings: Array<{ description: string; amount: string }>;
+    deductions: Array<{ description: string; amount: string }>;
+  }>({ earnings: [], deductions: [] });
 
   useEffect(() => {
     if (!loading && !user) {
@@ -113,7 +117,6 @@ const InvoiceList = () => {
 
   const handleDownloadInvoice = async (invoice: Invoice) => {
     setIsDownloading(true);
-    setSelectedInvoice(invoice);
 
     try {
       // Fetch line items
@@ -137,6 +140,10 @@ const InvoiceList = () => {
           description: item.description,
           amount: item.amount.toString()
         })) || [];
+
+      // Store line items and invoice for rendering
+      setSelectedInvoiceLineItems({ earnings, deductions });
+      setSelectedInvoice(invoice);
 
       // Wait for DOM to update
       setTimeout(async () => {
@@ -258,6 +265,7 @@ const InvoiceList = () => {
                   <TableHead className="text-right">Gross Payment</TableHead>
                   <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Net Payment</TableHead>
+                  <TableHead className="text-right">Total Savings</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -283,6 +291,9 @@ const InvoiceList = () => {
                     <TableCell className="text-right font-semibold">
                       ₦{invoice.net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </TableCell>
+                    <TableCell className="text-right">
+                      ₦{invoice.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </TableCell>
                     <TableCell>
                       <Button
                         size="sm"
@@ -299,7 +310,7 @@ const InvoiceList = () => {
                 ))}
                 {filteredInvoices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No invoices found
                     </TableCell>
                   </TableRow>
@@ -323,8 +334,8 @@ const InvoiceList = () => {
               month={selectedInvoice.month}
               year={selectedInvoice.year}
               dateIssued={selectedInvoice.date_issued}
-              earnings={[]} // Will be populated from line items
-              deductions={[]} // Will be populated from line items
+              earnings={selectedInvoiceLineItems.earnings}
+              deductions={selectedInvoiceLineItems.deductions}
               totals={{
                 grossPayment: selectedInvoice.gross_payment,
                 totalDeductions: selectedInvoice.total_deductions,
