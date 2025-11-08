@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,8 +30,12 @@ const InvoiceGenerator = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const editInvoiceId = searchParams.get('edit');
   
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -73,6 +77,13 @@ const InvoiceGenerator = () => {
       fetchEmployees();
     }
   }, [user, loading, navigate]);
+
+  // Load invoice data if in edit mode
+  useEffect(() => {
+    if (editInvoiceId && employees.length > 0) {
+      loadInvoiceForEditing(editInvoiceId);
+    }
+  }, [editInvoiceId, employees]);
 
   // Fetch previous total savings when employee is selected
   useEffect(() => {
@@ -116,6 +127,88 @@ const InvoiceGenerator = () => {
     }
     
     setEmployees(data || []);
+  };
+
+  const loadInvoiceForEditing = async (invoiceId: string) => {
+    try {
+      // Fetch invoice data
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          employees (
+            id,
+            employee_id,
+            full_name,
+            designation
+          )
+        `)
+        .eq('id', invoiceId)
+        .single();
+
+      if (invoiceError) throw invoiceError;
+
+      // Fetch line items
+      const { data: lineItems, error: lineItemsError } = await supabase
+        .from('invoice_line_items')
+        .select('*')
+        .eq('invoice_id', invoiceId);
+
+      if (lineItemsError) throw lineItemsError;
+
+      // Set invoice data
+      setIsEditMode(true);
+      setEditingInvoiceId(invoiceId);
+      setSelectedEmployee(invoiceData.employees as Employee);
+      setMonth(invoiceData.month);
+      setYear(invoiceData.year);
+      setDateIssued(invoiceData.date_issued);
+
+      // Set earnings
+      const earningsData = lineItems
+        ?.filter(item => item.item_type === 'earning')
+        .map((item, idx) => ({
+          id: (idx + 1).toString(),
+          description: item.description,
+          amount: item.amount.toString()
+        })) || [];
+      setEarnings(earningsData.length > 0 ? earningsData : [
+        { id: '1', description: 'Salary', amount: '' }
+      ]);
+
+      // Set deductions
+      const deductionsData = lineItems
+        ?.filter(item => item.item_type === 'deduction')
+        .map((item, idx) => ({
+          id: (idx + 1).toString(),
+          description: item.description,
+          amount: item.amount.toString()
+        })) || [];
+      setDeductions(deductionsData.length > 0 ? deductionsData : [
+        { id: '1', description: 'Tax', amount: '' }
+      ]);
+
+      // Set additional fields
+      setAdditionalFields({
+        totalMonthlyIncome: invoiceData.total_monthly_income.toString(),
+        outstandingIou: invoiceData.outstanding_iou.toString(),
+        downPayment: invoiceData.down_payment.toString(),
+        egf: invoiceData.egf.toString()
+      });
+
+      toast({
+        title: "Invoice Loaded",
+        description: "You are now editing an existing invoice"
+      });
+
+    } catch (error: any) {
+      console.error('Error loading invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load invoice for editing",
+        variant: "destructive"
+      });
+    }
   };
 
   const addLineItem = (type: 'earnings' | 'deductions') => {
@@ -176,8 +269,8 @@ const InvoiceGenerator = () => {
     const grossPayment = earnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const totalDeductions = deductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
     const netPayment = grossPayment - totalDeductions;
-    // Total Savings = Previous Total Savings + current EGF
-    const totalSavings = previousTotalSavings + (parseFloat(additionalFields.egf) || 0);
+    // Total Savings = Previous Total Savings + current EGF + Down Payment
+    const totalSavings = previousTotalSavings + (parseFloat(additionalFields.egf) || 0) + (parseFloat(additionalFields.downPayment) || 0);
     
     return { grossPayment, totalDeductions, netPayment, totalSavings };
   };
@@ -228,29 +321,67 @@ const InvoiceGenerator = () => {
       const invoiceNumber = generateInvoiceNumber();
       const slipNumber = generateSlipNumber();
 
-      // Save to database
-      const { data: invoiceData, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-          employee_id: selectedEmployee.id,
-          invoice_number: invoiceNumber,
-          slip_number: slipNumber,
-          month,
-          year,
-          date_issued: dateIssued,
-          gross_payment: totals.grossPayment,
-          total_deductions: totals.totalDeductions,
-          net_payment: totals.netPayment,
-          total_monthly_income: parseFloat(additionalFields.totalMonthlyIncome) || 0,
-          outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
-          down_payment: parseFloat(additionalFields.downPayment) || 0,
-          egf: parseFloat(additionalFields.egf) || 0,
-          total_savings: totals.totalSavings
-        })
-        .select()
-        .single();
+      let invoiceData;
 
-      if (invoiceError) throw invoiceError;
+      if (isEditMode && editingInvoiceId) {
+        // Update existing invoice
+        const { data: updatedInvoice, error: updateError } = await supabase
+          .from('invoices')
+          .update({
+            employee_id: selectedEmployee.id,
+            month,
+            year,
+            date_issued: dateIssued,
+            gross_payment: totals.grossPayment,
+            total_deductions: totals.totalDeductions,
+            net_payment: totals.netPayment,
+            total_monthly_income: parseFloat(additionalFields.totalMonthlyIncome) || 0,
+            outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
+            down_payment: parseFloat(additionalFields.downPayment) || 0,
+            egf: parseFloat(additionalFields.egf) || 0,
+            total_savings: totals.totalSavings
+          })
+          .eq('id', editingInvoiceId)
+          .select()
+          .single();
+
+        if (updateError) throw updateError;
+        invoiceData = updatedInvoice;
+
+        // Delete existing line items
+        const { error: deleteError } = await supabase
+          .from('invoice_line_items')
+          .delete()
+          .eq('invoice_id', editingInvoiceId);
+
+        if (deleteError) throw deleteError;
+
+      } else {
+        // Create new invoice
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('invoices')
+          .insert({
+            employee_id: selectedEmployee.id,
+            invoice_number: invoiceNumber,
+            slip_number: slipNumber,
+            month,
+            year,
+            date_issued: dateIssued,
+            gross_payment: totals.grossPayment,
+            total_deductions: totals.totalDeductions,
+            net_payment: totals.netPayment,
+            total_monthly_income: parseFloat(additionalFields.totalMonthlyIncome) || 0,
+            outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
+            down_payment: parseFloat(additionalFields.downPayment) || 0,
+            egf: parseFloat(additionalFields.egf) || 0,
+            total_savings: totals.totalSavings
+          })
+          .select()
+          .single();
+
+        if (invoiceError) throw invoiceError;
+        invoiceData = newInvoice;
+      }
 
       // Save line items
       const lineItems = [
@@ -294,12 +425,16 @@ const InvoiceGenerator = () => {
 
       toast({
         title: "Success",
-        description: "Invoice generated and saved successfully"
+        description: isEditMode ? "Invoice updated successfully" : "Invoice generated and saved successfully"
       });
 
-      // Reset form
-      setShowPreview(false);
-      setSelectedEmployee(null);
+      // Navigate back to invoice list or reset form
+      if (isEditMode) {
+        navigate('/invoices');
+      } else {
+        // Reset form
+        setShowPreview(false);
+        setSelectedEmployee(null);
       setEarnings([
         { id: '1', description: 'Salary', amount: '' },
         { id: '2', description: 'Data/Airtime Bonus', amount: '' },
@@ -318,8 +453,11 @@ const InvoiceGenerator = () => {
         outstandingIou: '',
         downPayment: '',
         egf: ''
-      });
-      setPreviousTotalSavings(0);
+        });
+        setPreviousTotalSavings(0);
+        setIsEditMode(false);
+        setEditingInvoiceId(null);
+      }
 
     } catch (error) {
       console.error('Error generating invoice:', error);
@@ -359,7 +497,7 @@ const InvoiceGenerator = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Generate Invoice</CardTitle>
+            <CardTitle>{isEditMode ? 'Edit Invoice' : 'Generate Invoice'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Employee Selection */}
@@ -569,7 +707,7 @@ const InvoiceGenerator = () => {
             )}
 
             <div className="text-right font-semibold">
-              Total Savings (Previous + EGF): ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+              Total Savings (Previous + EGF + Down Payment): ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
             </div>
 
             <div className="flex justify-end gap-2">
@@ -610,7 +748,7 @@ const InvoiceGenerator = () => {
                   className="gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  {isGenerating ? 'Generating...' : 'Save & Download PDF'}
+                  {isGenerating ? (isEditMode ? 'Updating...' : 'Generating...') : (isEditMode ? 'Update & Download PDF' : 'Save & Download PDF')}
                 </Button>
               </div>
             </CardContent>

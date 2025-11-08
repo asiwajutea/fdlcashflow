@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, ArrowLeft, FileText, BarChart } from 'lucide-react';
+import { Download, ArrowLeft, FileText, BarChart, Pencil, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -46,6 +46,7 @@ const InvoiceList = () => {
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterYear, setFilterYear] = useState('all');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoiceLineItems, setSelectedInvoiceLineItems] = useState<{
     earnings: Array<{ description: string; amount: string }>;
@@ -187,6 +188,54 @@ const InvoiceList = () => {
     }
   };
 
+  const handleEditInvoice = (invoice: Invoice) => {
+    navigate(`/generate-invoice?edit=${invoice.id}`);
+  };
+
+  const handleDeleteInvoice = async (invoice: Invoice) => {
+    if (!confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      // Delete line items first
+      const { error: lineItemsError } = await supabase
+        .from('invoice_line_items')
+        .delete()
+        .eq('invoice_id', invoice.id);
+
+      if (lineItemsError) throw lineItemsError;
+
+      // Delete invoice
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id);
+
+      if (invoiceError) throw invoiceError;
+
+      toast({
+        title: "Success",
+        description: "Invoice deleted successfully"
+      });
+
+      // Refresh the list
+      fetchInvoices();
+
+    } catch (error: any) {
+      console.error('Error deleting invoice:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete invoice",
+        variant: "destructive"
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const uniqueYears = Array.from(new Set(invoices.map(inv => inv.year))).sort((a, b) => b - a);
 
   return (
@@ -295,16 +344,38 @@ const InvoiceList = () => {
                       ₦{invoice.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDownloadInvoice(invoice)}
-                        disabled={isDownloading}
-                        className="gap-2"
-                      >
-                        <Download className="h-4 w-4" />
-                        Download
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDownloadInvoice(invoice)}
+                          disabled={isDownloading || isDeleting}
+                          className="gap-1"
+                        >
+                          <Download className="h-4 w-4" />
+                          Download
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditInvoice(invoice)}
+                          disabled={isDownloading || isDeleting}
+                          className="gap-1"
+                        >
+                          <Pencil className="h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteInvoice(invoice)}
+                          disabled={isDownloading || isDeleting}
+                          className="gap-1 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
