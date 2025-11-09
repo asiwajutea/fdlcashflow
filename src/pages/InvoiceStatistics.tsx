@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, TrendingUp } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Download } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
@@ -38,6 +38,35 @@ const InvoiceStatistics = () => {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [employees, setEmployees] = useState<Array<{id: string, full_name: string}>>([]);
   const [years, setYears] = useState<number[]>([]);
+
+  const exportToCSV = () => {
+    // Export employee stats to CSV
+    const headers = ['Employee ID', 'Employee Name', 'Total Invoices', 'Total Gross Payment', 'Total Deductions', 'Total Net Payment', 'Average Payment'];
+    const rows = employeeStats.map(stat => [
+      stat.employee_id,
+      stat.employee_name,
+      stat.total_invoices,
+      stat.total_gross_payment,
+      stat.total_deductions,
+      stat.total_net_payment,
+      stat.average_payment
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `invoice_statistics_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   useEffect(() => {
     if (!user) {
@@ -294,8 +323,12 @@ const InvoiceStatistics = () => {
 
         {/* Employee Statistics Table */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Employee Payment Statistics</CardTitle>
+            <Button onClick={exportToCSV} variant="outline" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export to CSV
+            </Button>
           </CardHeader>
           <CardContent>
             <Table>

@@ -110,7 +110,8 @@ const EmployeeManagement = () => {
             full_name: formData.full_name,
             designation: formData.designation,
             bank_name: formData.bank_name || null,
-            account_number: formData.account_number || null
+            account_number: formData.account_number || null,
+            email: formData.email || null
           })
           .eq('id', editingEmployee.id);
 
@@ -128,7 +129,8 @@ const EmployeeManagement = () => {
             full_name: formData.full_name,
             designation: formData.designation,
             bank_name: formData.bank_name || null,
-            account_number: formData.account_number || null
+            account_number: formData.account_number || null,
+            email: formData.email || null
           });
 
         if (error) throw error;
@@ -182,14 +184,23 @@ const EmployeeManagement = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => navigate('/')}
+              className="gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to Dashboard
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => navigate('/generate-invoice')}
+              className="gap-2"
+            >
+              Generate Invoice
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -204,6 +215,7 @@ const EmployeeManagement = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>SN</TableHead>
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Full Name</TableHead>
                   <TableHead>Designation</TableHead>
@@ -213,8 +225,9 @@ const EmployeeManagement = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map((employee) => (
+                {employees.map((employee, index) => (
                   <TableRow key={employee.id}>
+                    <TableCell>{index + 1}</TableCell>
                     <TableCell>{employee.employee_id}</TableCell>
                     <TableCell>{employee.full_name}</TableCell>
                     <TableCell>{employee.designation}</TableCell>
@@ -242,7 +255,7 @@ const EmployeeManagement = () => {
                 ))}
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No employees found. Add your first employee to get started.
                     </TableCell>
                   </TableRow>
@@ -298,6 +311,15 @@ const EmployeeManagement = () => {
                   value={formData.account_number}
                   onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
                   placeholder="e.g., 1234567890"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email Address</Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="e.g., employee@example.com"
                 />
               </div>
             </div>

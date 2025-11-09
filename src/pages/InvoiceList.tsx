@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, ArrowLeft, FileText, BarChart, Pencil, Trash2 } from 'lucide-react';
+import { Download, ArrowLeft, FileText, BarChart, Pencil, Trash2, FileArchive } from 'lucide-react';
+import JSZip from 'jszip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -47,7 +48,9 @@ const InvoiceList = () => {
   const [filterYear, setFilterYear] = useState('all');
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExportingZip, setIsExportingZip] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [selectedInvoicesForZip, setSelectedInvoicesForZip] = useState<Set<string>>(new Set());
   const [selectedInvoiceLineItems, setSelectedInvoiceLineItems] = useState<{
     earnings: Array<{ description: string; amount: string }>;
     deductions: Array<{ description: string; amount: string }>;
@@ -236,6 +239,127 @@ const InvoiceList = () => {
     }
   };
 
+  const toggleInvoiceSelection = (invoiceId: string) => {
+    const newSelected = new Set(selectedInvoicesForZip);
+    if (newSelected.has(invoiceId)) {
+      newSelected.delete(invoiceId);
+    } else {
+      newSelected.add(invoiceId);
+    }
+    setSelectedInvoicesForZip(newSelected);
+  };
+
+  const handleExportMultipleAsZip = async () => {
+    if (selectedInvoicesForZip.size === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one invoice to export",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsExportingZip(true);
+    const zip = new JSZip();
+
+    try {
+      for (const invoiceId of selectedInvoicesForZip) {
+        const invoice = invoices.find(inv => inv.id === invoiceId);
+        if (!invoice) continue;
+
+        // Fetch line items
+        const { data: lineItems, error } = await supabase
+          .from('invoice_line_items')
+          .select('*')
+          .eq('invoice_id', invoice.id);
+
+        if (error) throw error;
+
+        const earnings = lineItems
+          ?.filter(item => item.item_type === 'earning')
+          .map(item => ({
+            description: item.description,
+            amount: item.amount.toString()
+          })) || [];
+
+        const deductions = lineItems
+          ?.filter(item => item.item_type === 'deduction')
+          .map(item => ({
+            description: item.description,
+            amount: item.amount.toString()
+          })) || [];
+
+        // Create a temporary container for rendering
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'fixed';
+        tempDiv.style.left = '-9999px';
+        tempDiv.id = `temp-invoice-${invoice.id}`;
+        document.body.appendChild(tempDiv);
+
+        // Render the invoice template (we'll use a simple approach here)
+        // In production, you might want to use ReactDOM.render
+        tempDiv.innerHTML = document.getElementById('invoice-download-template')?.innerHTML || '';
+
+        const canvas = await html2canvas(tempDiv, {
+          scale: 2,
+          logging: false,
+          useCORS: true
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const pdfBlob = pdf.output('blob');
+
+        // Add to ZIP
+        zip.file(`${invoice.invoice_number}.pdf`, pdfBlob);
+
+        // Clean up
+        document.body.removeChild(tempDiv);
+      }
+
+      // Generate and download ZIP
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const url = window.URL.createObjectURL(zipBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `invoices_${new Date().toISOString().split('T')[0]}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `Exported ${selectedInvoicesForZip.size} invoices as ZIP`
+      });
+
+      setSelectedInvoicesForZip(new Set());
+
+    } catch (error: any) {
+      console.error('Error exporting invoices as ZIP:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export invoices as ZIP",
+        variant: "destructive"
+      });
+    } finally {
+      setIsExportingZip(false);
+    }
+  };
+
+  // Calculate summary stats based on filtered invoices
+  const summaryStats = {
+    totalInvoices: filteredInvoices.length,
+    uniqueEmployees: new Set(filteredInvoices.map(inv => inv.employees.employee_id)).size,
+    totalGross: filteredInvoices.reduce((sum, inv) => sum + inv.gross_payment, 0),
+    totalDeductions: filteredInvoices.reduce((sum, inv) => sum + inv.total_deductions, 0),
+    totalSavings: filteredInvoices.reduce((sum, inv) => sum + inv.total_savings, 0)
+  };
+
   const uniqueYears = Array.from(new Set(invoices.map(inv => inv.year))).sort((a, b) => b - a);
 
   return (
@@ -262,9 +386,69 @@ const InvoiceList = () => {
           </div>
         </div>
 
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{summaryStats.totalInvoices}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Employees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{summaryStats.uniqueEmployees}</div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Gross</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">
+                ₦{summaryStats.totalGross.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">
+                ₦{summaryStats.totalDeductions.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Savings</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-xl font-bold">
+                ₦{summaryStats.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Invoice History</CardTitle>
+            {selectedInvoicesForZip.size > 0 && (
+              <Button onClick={handleExportMultipleAsZip} disabled={isExportingZip} className="gap-2">
+                <FileArchive className="h-4 w-4" />
+                {isExportingZip ? 'Exporting...' : `Export ${selectedInvoicesForZip.size} as ZIP`}
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Filters */}
@@ -308,6 +492,20 @@ const InvoiceList = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvoicesForZip.size === filteredInvoices.length && filteredInvoices.length > 0}
+                      onChange={() => {
+                        if (selectedInvoicesForZip.size === filteredInvoices.length) {
+                          setSelectedInvoicesForZip(new Set());
+                        } else {
+                          setSelectedInvoicesForZip(new Set(filteredInvoices.map(inv => inv.id)));
+                        }
+                      }}
+                      className="cursor-pointer"
+                    />
+                  </TableHead>
                   <TableHead>Invoice Number</TableHead>
                   <TableHead>Employee</TableHead>
                   <TableHead>Month/Year</TableHead>
@@ -321,6 +519,14 @@ const InvoiceList = () => {
               <TableBody>
                 {filteredInvoices.map((invoice) => (
                   <TableRow key={invoice.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedInvoicesForZip.has(invoice.id)}
+                        onChange={() => toggleInvoiceSelection(invoice.id)}
+                        className="cursor-pointer"
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                     <TableCell>
                       <div>
@@ -381,7 +587,7 @@ const InvoiceList = () => {
                 ))}
                 {filteredInvoices.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground">
                       No invoices found
                     </TableCell>
                   </TableRow>
