@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Download, ArrowLeft, FileText, BarChart, Pencil, Trash2, FileArchive } from 'lucide-react';
+import { Download, ArrowLeft, FileText, BarChart, Pencil, Trash2, FileArchive, Receipt, Users, DollarSign, TrendingDown, PiggyBank } from 'lucide-react';
 import JSZip from 'jszip';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import jsPDF from 'jspdf';
@@ -388,27 +388,36 @@ const InvoiceList = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card>
+          <Card className="border-l-4 border-l-primary">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
+                <Receipt className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{summaryStats.totalInvoices}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Employees</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Employees</CardTitle>
+                <Users className="h-5 w-5 text-blue-500" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{summaryStats.uniqueEmployees}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-green-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Gross</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Gross</CardTitle>
+                <DollarSign className="h-5 w-5 text-green-500" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
@@ -417,9 +426,12 @@ const InvoiceList = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-orange-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+                <TrendingDown className="h-5 w-5 text-orange-500" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
@@ -428,9 +440,12 @@ const InvoiceList = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-l-purple-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Savings</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total Savings</CardTitle>
+                <PiggyBank className="h-5 w-5 text-purple-500" />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
@@ -463,7 +478,7 @@ const InvoiceList = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by month" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="all">All Months</SelectItem>
                   {Array.from({ length: 12 }, (_, i) => (
                     <SelectItem key={i + 1} value={(i + 1).toString()}>
@@ -477,7 +492,7 @@ const InvoiceList = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by year" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-background z-50">
                   <SelectItem value="all">All Years</SelectItem>
                   {uniqueYears.map(year => (
                     <SelectItem key={year} value={year.toString()}>

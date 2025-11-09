@@ -28,7 +28,7 @@ interface MonthlyData {
 }
 
 const InvoiceStatistics = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -69,12 +69,14 @@ const InvoiceStatistics = () => {
   };
 
   useEffect(() => {
-    if (!user) {
+    if (!loading && !user) {
       navigate('/auth');
       return;
     }
-    fetchData();
-  }, [user, navigate, selectedEmployee, selectedYear]);
+    if (user) {
+      fetchData();
+    }
+  }, [user, loading, navigate, selectedEmployee, selectedYear]);
 
   const fetchData = async () => {
     // Fetch employees

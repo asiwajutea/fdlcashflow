@@ -96,13 +96,15 @@ const BulkInvoiceGenerator = () => {
   const generateInvoiceNumber = (employeeId: string) => {
     const monthStr = month.toString().padStart(2, '0');
     const yearStr = year.toString().slice(2);
-    return `${yearStr}${monthStr}FDL${yearStr}${monthStr}-${employeeId}`;
+    const timestamp = Date.now().toString().slice(-4);
+    return `${yearStr}${monthStr}FDL${yearStr}${monthStr}-${employeeId}-${timestamp}`;
   };
 
   const generateSlipNumber = (employeeId: string) => {
     const monthStr = month.toString().padStart(2, '0');
     const yearStr = year.toString().slice(2);
-    return `${yearStr}${monthStr}FDLC${yearStr}${monthStr}-${employeeId}A`;
+    const timestamp = Date.now().toString().slice(-4);
+    return `${yearStr}${monthStr}FDLC${yearStr}${monthStr}-${employeeId}A-${timestamp}`;
   };
 
   const handleBulkGenerate = async () => {
