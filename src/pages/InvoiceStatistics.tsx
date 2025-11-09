@@ -268,7 +268,7 @@ const InvoiceStatistics = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{totalStats.total_gross_payment.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
+                ₦{totalStats.total_gross_payment.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </CardContent>
           </Card>
@@ -279,7 +279,7 @@ const InvoiceStatistics = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{totalStats.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
+                ₦{totalStats.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </CardContent>
           </Card>
@@ -290,7 +290,7 @@ const InvoiceStatistics = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                ₦{totalStats.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 0 })}
+                ₦{totalStats.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </CardContent>
           </Card>
