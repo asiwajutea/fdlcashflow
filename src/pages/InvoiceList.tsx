@@ -13,7 +13,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { InvoiceTemplate } from '@/components/InvoiceTemplate';
-
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -35,12 +34,15 @@ interface Invoice {
     designation: string;
   };
 }
-
 const InvoiceList = () => {
-  const { user, loading } = useAuth();
+  const {
+    user,
+    loading
+  } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  
+  const {
+    toast
+  } = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,10 +54,18 @@ const InvoiceList = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [selectedInvoicesForZip, setSelectedInvoicesForZip] = useState<Set<string>>(new Set());
   const [selectedInvoiceLineItems, setSelectedInvoiceLineItems] = useState<{
-    earnings: Array<{ description: string; amount: string }>;
-    deductions: Array<{ description: string; amount: string }>;
-  }>({ earnings: [], deductions: [] });
-
+    earnings: Array<{
+      description: string;
+      amount: string;
+    }>;
+    deductions: Array<{
+      description: string;
+      amount: string;
+    }>;
+  }>({
+    earnings: [],
+    deductions: []
+  });
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
@@ -65,26 +75,27 @@ const InvoiceList = () => {
       fetchInvoices();
     }
   }, [user, loading, navigate]);
-
   useEffect(() => {
     filterInvoices();
   }, [invoices, searchTerm, filterMonth, filterYear]);
-
   const fetchInvoices = async () => {
-    const { data, error } = await supabase
-      .from('invoices')
-      .select(`
+    const {
+      data,
+      error
+    } = await supabase.from('invoices').select(`
         *,
         employees (
           employee_id,
           full_name,
           designation
         )
-      `)
-      .order('year', { ascending: false })
-      .order('month', { ascending: false })
-      .order('date_issued', { ascending: false });
-    
+      `).order('year', {
+      ascending: false
+    }).order('month', {
+      ascending: false
+    }).order('date_issued', {
+      ascending: false
+    });
     if (error) {
       toast({
         title: "Error",
@@ -93,60 +104,44 @@ const InvoiceList = () => {
       });
       return;
     }
-    
     setInvoices(data || []);
   };
-
   const filterInvoices = () => {
     let filtered = [...invoices];
-
     if (searchTerm) {
-      filtered = filtered.filter(inv =>
-        inv.employees.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        inv.employees.employee_id.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      filtered = filtered.filter(inv => inv.employees.full_name.toLowerCase().includes(searchTerm.toLowerCase()) || inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) || inv.employees.employee_id.toLowerCase().includes(searchTerm.toLowerCase()));
     }
-
     if (filterMonth !== 'all') {
       filtered = filtered.filter(inv => inv.month === parseInt(filterMonth));
     }
-
     if (filterYear !== 'all') {
       filtered = filtered.filter(inv => inv.year === parseInt(filterYear));
     }
-
     setFilteredInvoices(filtered);
   };
-
   const handleDownloadInvoice = async (invoice: Invoice) => {
     setIsDownloading(true);
-
     try {
       // Fetch line items
-      const { data: lineItems, error } = await supabase
-        .from('invoice_line_items')
-        .select('*')
-        .eq('invoice_id', invoice.id);
-
+      const {
+        data: lineItems,
+        error
+      } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', invoice.id);
       if (error) throw error;
-
-      const earnings = lineItems
-        ?.filter(item => item.item_type === 'earning')
-        .map(item => ({
-          description: item.description,
-          amount: item.amount.toString()
-        })) || [];
-
-      const deductions = lineItems
-        ?.filter(item => item.item_type === 'deduction')
-        .map(item => ({
-          description: item.description,
-          amount: item.amount.toString()
-        })) || [];
+      const earnings = lineItems?.filter(item => item.item_type === 'earning').map(item => ({
+        description: item.description,
+        amount: item.amount.toString()
+      })) || [];
+      const deductions = lineItems?.filter(item => item.item_type === 'deduction').map(item => ({
+        description: item.description,
+        amount: item.amount.toString()
+      })) || [];
 
       // Store line items and invoice for rendering
-      setSelectedInvoiceLineItems({ earnings, deductions });
+      setSelectedInvoiceLineItems({
+        earnings,
+        deductions
+      });
       setSelectedInvoice(invoice);
 
       // Wait for DOM to update
@@ -155,30 +150,24 @@ const InvoiceList = () => {
         if (!element) {
           throw new Error('Invoice template not found');
         }
-
         const canvas = await html2canvas(element, {
           scale: 2,
           logging: false,
           useCORS: true
         });
-
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
+        const pdfHeight = canvas.height * pdfWidth / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         pdf.save(`${invoice.invoice_number}.pdf`);
-
         setSelectedInvoice(null);
         setIsDownloading(false);
-
         toast({
           title: "Success",
           description: "Invoice downloaded successfully"
         });
       }, 100);
-
     } catch (error: any) {
       console.error('Error downloading invoice:', error);
       toast({
@@ -190,35 +179,26 @@ const InvoiceList = () => {
       setSelectedInvoice(null);
     }
   };
-
   const handleEditInvoice = (invoice: Invoice) => {
     navigate(`/generate-invoice?edit=${invoice.id}`);
   };
-
   const handleDeleteInvoice = async (invoice: Invoice) => {
     if (!confirm(`Are you sure you want to delete invoice ${invoice.invoice_number}? This action cannot be undone.`)) {
       return;
     }
-
     setIsDeleting(true);
-
     try {
       // Delete line items first
-      const { error: lineItemsError } = await supabase
-        .from('invoice_line_items')
-        .delete()
-        .eq('invoice_id', invoice.id);
-
+      const {
+        error: lineItemsError
+      } = await supabase.from('invoice_line_items').delete().eq('invoice_id', invoice.id);
       if (lineItemsError) throw lineItemsError;
 
       // Delete invoice
-      const { error: invoiceError } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoice.id);
-
+      const {
+        error: invoiceError
+      } = await supabase.from('invoices').delete().eq('id', invoice.id);
       if (invoiceError) throw invoiceError;
-
       toast({
         title: "Success",
         description: "Payslip deleted successfully"
@@ -226,7 +206,6 @@ const InvoiceList = () => {
 
       // Refresh the list
       fetchInvoices();
-
     } catch (error: any) {
       console.error('Error deleting invoice:', error);
       toast({
@@ -238,7 +217,6 @@ const InvoiceList = () => {
       setIsDeleting(false);
     }
   };
-
   const toggleInvoiceSelection = (invoiceId: string) => {
     const newSelected = new Set(selectedInvoicesForZip);
     if (newSelected.has(invoiceId)) {
@@ -248,7 +226,6 @@ const InvoiceList = () => {
     }
     setSelectedInvoicesForZip(newSelected);
   };
-
   const handleExportMultipleAsZip = async () => {
     if (selectedInvoicesForZip.size === 0) {
       toast({
@@ -258,36 +235,27 @@ const InvoiceList = () => {
       });
       return;
     }
-
     setIsExportingZip(true);
     const zip = new JSZip();
-
     try {
       for (const invoiceId of selectedInvoicesForZip) {
         const invoice = invoices.find(inv => inv.id === invoiceId);
         if (!invoice) continue;
 
         // Fetch line items
-        const { data: lineItems, error } = await supabase
-          .from('invoice_line_items')
-          .select('*')
-          .eq('invoice_id', invoice.id);
-
+        const {
+          data: lineItems,
+          error
+        } = await supabase.from('invoice_line_items').select('*').eq('invoice_id', invoice.id);
         if (error) throw error;
-
-        const earnings = lineItems
-          ?.filter(item => item.item_type === 'earning')
-          .map(item => ({
-            description: item.description,
-            amount: item.amount.toString()
-          })) || [];
-
-        const deductions = lineItems
-          ?.filter(item => item.item_type === 'deduction')
-          .map(item => ({
-            description: item.description,
-            amount: item.amount.toString()
-          })) || [];
+        const earnings = lineItems?.filter(item => item.item_type === 'earning').map(item => ({
+          description: item.description,
+          amount: item.amount.toString()
+        })) || [];
+        const deductions = lineItems?.filter(item => item.item_type === 'deduction').map(item => ({
+          description: item.description,
+          amount: item.amount.toString()
+        })) || [];
 
         // Create a temporary container for rendering
         const tempDiv = document.createElement('div');
@@ -299,18 +267,15 @@ const InvoiceList = () => {
         // Render the invoice template (we'll use a simple approach here)
         // In production, you might want to use ReactDOM.render
         tempDiv.innerHTML = document.getElementById('invoice-download-template')?.innerHTML || '';
-
         const canvas = await html2canvas(tempDiv, {
           scale: 2,
           logging: false,
           useCORS: true
         });
-
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-
+        const pdfHeight = canvas.height * pdfWidth / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
         const pdfBlob = pdf.output('blob');
 
@@ -322,7 +287,9 @@ const InvoiceList = () => {
       }
 
       // Generate and download ZIP
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      const zipBlob = await zip.generateAsync({
+        type: 'blob'
+      });
       const url = window.URL.createObjectURL(zipBlob);
       const link = document.createElement('a');
       link.href = url;
@@ -331,14 +298,11 @@ const InvoiceList = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-
       toast({
         title: "Success",
         description: `Exported ${selectedInvoicesForZip.size} invoices as ZIP`
       });
-
       setSelectedInvoicesForZip(new Set());
-
     } catch (error: any) {
       console.error('Error exporting invoices as ZIP:', error);
       toast({
@@ -359,18 +323,11 @@ const InvoiceList = () => {
     totalDeductions: filteredInvoices.reduce((sum, inv) => sum + inv.total_deductions, 0),
     totalSavings: filteredInvoices.reduce((sum, inv) => sum + inv.total_savings, 0)
   };
-
   const uniqueYears = Array.from(new Set(invoices.map(inv => inv.year))).sort((a, b) => b - a);
-
-  return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
+  return <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/')}
-            className="gap-2"
-          >
+          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Generate Payslip
           </Button>
@@ -387,73 +344,7 @@ const InvoiceList = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Total Payslips</p>
-                <p className="text-2xl font-bold text-primary">{filteredInvoices.length}</p>
-              </div>
-              <div className="p-3 rounded-full bg-primary/10">
-                <Receipt className="h-6 w-6 text-primary" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Employees</p>
-                <p className="text-2xl font-bold text-success">{summaryStats.uniqueEmployees}</p>
-              </div>
-              <div className="p-3 rounded-full bg-success-background">
-                <Users className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Total Gross</p>
-                <p className="text-2xl font-bold text-warning">
-                  ₦{summaryStats.totalGross.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-warning-background">
-                <DollarSign className="h-6 w-6 text-warning" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Total Deductions</p>
-                <p className="text-2xl font-bold text-danger">
-                  ₦{summaryStats.totalDeductions.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-danger-background">
-                <TrendingDown className="h-6 w-6 text-danger" />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <p className="text-sm font-medium text-muted-foreground mb-1">Total Savings</p>
-                <p className="text-2xl font-bold text-success">
-                  ₦{summaryStats.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-              </div>
-              <div className="p-3 rounded-full bg-success-background">
-                <PiggyBank className="h-6 w-6 text-success" />
-              </div>
-            </div>
-          </Card>
-        </div>
+        
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="border-l-4 border-l-primary">
             <CardHeader className="pb-2">
@@ -488,7 +379,9 @@ const InvoiceList = () => {
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
-                ₦{summaryStats.totalGross.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+                ₦{summaryStats.totalGross.toLocaleString('en-NG', {
+                minimumFractionDigits: 0
+              })}
               </div>
             </CardContent>
           </Card>
@@ -502,7 +395,9 @@ const InvoiceList = () => {
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
-                ₦{summaryStats.totalDeductions.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+                ₦{summaryStats.totalDeductions.toLocaleString('en-NG', {
+                minimumFractionDigits: 0
+              })}
               </div>
             </CardContent>
           </Card>
@@ -516,7 +411,9 @@ const InvoiceList = () => {
             </CardHeader>
             <CardContent>
               <div className="text-xl font-bold">
-                ₦{summaryStats.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 0 })}
+                ₦{summaryStats.totalSavings.toLocaleString('en-NG', {
+                minimumFractionDigits: 0
+              })}
               </div>
             </CardContent>
           </Card>
@@ -525,21 +422,15 @@ const InvoiceList = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Payslip History</CardTitle>
-            {selectedInvoicesForZip.size > 0 && (
-              <Button onClick={handleExportMultipleAsZip} disabled={isExportingZip} className="gap-2">
+            {selectedInvoicesForZip.size > 0 && <Button onClick={handleExportMultipleAsZip} disabled={isExportingZip} className="gap-2">
                 <FileArchive className="h-4 w-4" />
                 {isExportingZip ? 'Exporting...' : `Export ${selectedInvoicesForZip.size} as ZIP`}
-              </Button>
-            )}
+              </Button>}
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input
-                placeholder="Search by name, ID, or invoice number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <Input placeholder="Search by name, ID, or invoice number..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
               
               <Select value={filterMonth} onValueChange={setFilterMonth}>
                 <SelectTrigger>
@@ -547,11 +438,13 @@ const InvoiceList = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="all">All Months</SelectItem>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <SelectItem key={i + 1} value={(i + 1).toString()}>
-                      {new Date(2000, i).toLocaleString('default', { month: 'long' })}
-                    </SelectItem>
-                  ))}
+                  {Array.from({
+                  length: 12
+                }, (_, i) => <SelectItem key={i + 1} value={(i + 1).toString()}>
+                      {new Date(2000, i).toLocaleString('default', {
+                    month: 'long'
+                  })}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
 
@@ -561,11 +454,9 @@ const InvoiceList = () => {
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="all">All Years</SelectItem>
-                  {uniqueYears.map(year => (
-                    <SelectItem key={year} value={year.toString()}>
+                  {uniqueYears.map(year => <SelectItem key={year} value={year.toString()}>
                       {year}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -575,18 +466,13 @@ const InvoiceList = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
-                    <input
-                      type="checkbox"
-                      checked={selectedInvoicesForZip.size === filteredInvoices.length && filteredInvoices.length > 0}
-                      onChange={() => {
-                        if (selectedInvoicesForZip.size === filteredInvoices.length) {
-                          setSelectedInvoicesForZip(new Set());
-                        } else {
-                          setSelectedInvoicesForZip(new Set(filteredInvoices.map(inv => inv.id)));
-                        }
-                      }}
-                      className="cursor-pointer"
-                    />
+                    <input type="checkbox" checked={selectedInvoicesForZip.size === filteredInvoices.length && filteredInvoices.length > 0} onChange={() => {
+                    if (selectedInvoicesForZip.size === filteredInvoices.length) {
+                      setSelectedInvoicesForZip(new Set());
+                    } else {
+                      setSelectedInvoicesForZip(new Set(filteredInvoices.map(inv => inv.id)));
+                    }
+                  }} className="cursor-pointer" />
                   </TableHead>
                   <TableHead>Invoice Number</TableHead>
                   <TableHead>Employee</TableHead>
@@ -599,15 +485,9 @@ const InvoiceList = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
+                {filteredInvoices.map(invoice => <TableRow key={invoice.id}>
                     <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selectedInvoicesForZip.has(invoice.id)}
-                        onChange={() => toggleInvoiceSelection(invoice.id)}
-                        className="cursor-pointer"
-                      />
+                      <input type="checkbox" checked={selectedInvoicesForZip.has(invoice.id)} onChange={() => toggleInvoiceSelection(invoice.id)} className="cursor-pointer" />
                     </TableCell>
                     <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                     <TableCell>
@@ -617,102 +497,76 @@ const InvoiceList = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {new Date(invoice.year, invoice.month - 1).toLocaleString('default', { month: 'short' })} {invoice.year}
+                      {new Date(invoice.year, invoice.month - 1).toLocaleString('default', {
+                    month: 'short'
+                  })} {invoice.year}
                     </TableCell>
                     <TableCell className="text-right">
-                      ₦{invoice.gross_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                      ₦{invoice.gross_payment.toLocaleString('en-NG', {
+                    minimumFractionDigits: 2
+                  })}
                     </TableCell>
                     <TableCell className="text-right">
-                      ₦{invoice.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                      ₦{invoice.total_deductions.toLocaleString('en-NG', {
+                    minimumFractionDigits: 2
+                  })}
                     </TableCell>
                     <TableCell className="text-right font-semibold">
-                      ₦{invoice.net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                      ₦{invoice.net_payment.toLocaleString('en-NG', {
+                    minimumFractionDigits: 2
+                  })}
                     </TableCell>
                     <TableCell className="text-right">
-                      ₦{invoice.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                      ₦{invoice.total_savings.toLocaleString('en-NG', {
+                    minimumFractionDigits: 2
+                  })}
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDownloadInvoice(invoice)}
-                          disabled={isDownloading || isDeleting}
-                          className="gap-1"
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => handleDownloadInvoice(invoice)} disabled={isDownloading || isDeleting} className="gap-1">
                           <Download className="h-4 w-4" />
                           Download
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditInvoice(invoice)}
-                          disabled={isDownloading || isDeleting}
-                          className="gap-1"
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => handleEditInvoice(invoice)} disabled={isDownloading || isDeleting} className="gap-1">
                           <Pencil className="h-4 w-4" />
                           Edit
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteInvoice(invoice)}
-                          disabled={isDownloading || isDeleting}
-                          className="gap-1 text-destructive hover:text-destructive"
-                        >
+                        <Button size="sm" variant="ghost" onClick={() => handleDeleteInvoice(invoice)} disabled={isDownloading || isDeleting} className="gap-1 text-destructive hover:text-destructive">
                           <Trash2 className="h-4 w-4" />
                           Delete
                         </Button>
                       </div>
                     </TableCell>
-                  </TableRow>
-                ))}
-                {filteredInvoices.length === 0 && (
-                  <TableRow>
+                  </TableRow>)}
+                {filteredInvoices.length === 0 && <TableRow>
                     <TableCell colSpan={9} className="text-center text-muted-foreground">
                       No invoices found
                     </TableCell>
-                  </TableRow>
-                )}
+                  </TableRow>}
               </TableBody>
             </Table>
           </CardContent>
         </Card>
 
         {/* Hidden Invoice Template for Download */}
-        {selectedInvoice && (
-          <div className="fixed top-0 left-[-9999px]" id="invoice-download-template">
-            <InvoiceTemplate
-              employee={{
-                employee_id: selectedInvoice.employees.employee_id,
-                full_name: selectedInvoice.employees.full_name,
-                designation: selectedInvoice.employees.designation
-              }}
-              invoiceNumber={selectedInvoice.invoice_number}
-              slipNumber={selectedInvoice.slip_number}
-              month={selectedInvoice.month}
-              year={selectedInvoice.year}
-              dateIssued={selectedInvoice.date_issued}
-              earnings={selectedInvoiceLineItems.earnings}
-              deductions={selectedInvoiceLineItems.deductions}
-              totals={{
-                grossPayment: selectedInvoice.gross_payment,
-                totalDeductions: selectedInvoice.total_deductions,
-                netPayment: selectedInvoice.net_payment,
-                totalSavings: selectedInvoice.total_savings
-              }}
-              additionalFields={{
-                totalMonthlyIncome: selectedInvoice.total_monthly_income.toString(),
-                outstandingIou: selectedInvoice.outstanding_iou.toString(),
-                downPayment: selectedInvoice.down_payment.toString(),
-                egf: selectedInvoice.egf.toString()
-              }}
-            />
-          </div>
-        )}
+        {selectedInvoice && <div className="fixed top-0 left-[-9999px]" id="invoice-download-template">
+            <InvoiceTemplate employee={{
+          employee_id: selectedInvoice.employees.employee_id,
+          full_name: selectedInvoice.employees.full_name,
+          designation: selectedInvoice.employees.designation
+        }} invoiceNumber={selectedInvoice.invoice_number} slipNumber={selectedInvoice.slip_number} month={selectedInvoice.month} year={selectedInvoice.year} dateIssued={selectedInvoice.date_issued} earnings={selectedInvoiceLineItems.earnings} deductions={selectedInvoiceLineItems.deductions} totals={{
+          grossPayment: selectedInvoice.gross_payment,
+          totalDeductions: selectedInvoice.total_deductions,
+          netPayment: selectedInvoice.net_payment,
+          totalSavings: selectedInvoice.total_savings
+        }} additionalFields={{
+          totalMonthlyIncome: selectedInvoice.total_monthly_income.toString(),
+          outstandingIou: selectedInvoice.outstanding_iou.toString(),
+          downPayment: selectedInvoice.down_payment.toString(),
+          egf: selectedInvoice.egf.toString()
+        }} />
+          </div>}
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default InvoiceList;
