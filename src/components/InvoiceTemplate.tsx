@@ -45,10 +45,11 @@ export const InvoiceTemplate = ({
   additionalFields
 }: InvoiceTemplateProps) => {
   const [companySettings, setCompanySettings] = React.useState<any>(null);
-
   React.useEffect(() => {
     const fetchCompanySettings = async () => {
-      const { data } = await fetch('https://elqwtrwrsbvgezhemrwn.supabase.co/rest/v1/company_settings?select=*', {
+      const {
+        data
+      } = await fetch('https://elqwtrwrsbvgezhemrwn.supabase.co/rest/v1/company_settings?select=*', {
         headers: {
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU',
           'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU'
@@ -60,7 +61,6 @@ export const InvoiceTemplate = ({
     };
     fetchCompanySettings();
   }, []);
-
   const monthName = new Date(year, month - 1).toLocaleString('default', {
     month: 'long'
   });
@@ -100,19 +100,15 @@ export const InvoiceTemplate = ({
           </div>
         </div>
 
-        <div>
+        <div className="text-right">
           <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">Employer's Details</h3>
           <div className="text-sm">
             <p className="font-semibold">{companySettings?.company_name || 'FOOTPRINTS DYNASTY LTD'}</p>
-            {companySettings?.company_address ? (
-              <p className="whitespace-pre-line">{companySettings.company_address}</p>
-            ) : (
-              <>
+            {companySettings?.company_address ? <p className="whitespace-pre-line">{companySettings.company_address}</p> : <>
                 <p>Floor 6, Cocoa House, Dugbe</p>
                 <p>Ibadan, Oyo State</p>
                 <p>Nigeria</p>
-              </>
-            )}
+              </>}
             {companySettings?.company_phone && <p>Tel: {companySettings.company_phone}</p>}
             {companySettings?.company_email && <p>Email: {companySettings.company_email}</p>}
           </div>
@@ -208,8 +204,7 @@ export const InvoiceTemplate = ({
       <div className="border-t-2 border-gray-300 pt-4 text-xs space-y-2">
         <h4 className="font-bold text-sm">Payment Details</h4>
         <p>
-          {companySettings?.invoice_footer || 
-            'Payment would be made to employee\'s bank account provided during application within the next 5 days upon the receipt of this slip. This is a payslip and might be subjected to review. For concerns, contact your supervisor.'}
+          {companySettings?.invoice_footer || 'Payment would be made to employee\'s bank account provided during application within the next 5 days upon the receipt of this slip. This is a payslip and might be subjected to review. For concerns, contact your supervisor.'}
         </p>
         <p className="italic text-gray-600 mt-4">
           This is a system generated payslip by {companySettings?.company_name || 'Footprints Dynasty Ltd (FDL)'} and doesn't require signature
