@@ -1,3 +1,4 @@
+import React from 'react';
 import fdlLogo from '@/assets/fdl-logo.jpg';
 interface InvoiceTemplateProps {
   employee: {
@@ -43,6 +44,23 @@ export const InvoiceTemplate = ({
   totals,
   additionalFields
 }: InvoiceTemplateProps) => {
+  const [companySettings, setCompanySettings] = React.useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchCompanySettings = async () => {
+      const { data } = await fetch('https://elqwtrwrsbvgezhemrwn.supabase.co/rest/v1/company_settings?select=*', {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU'
+        }
+      }).then(res => res.json());
+      if (data && data.length > 0) {
+        setCompanySettings(data[0]);
+      }
+    };
+    fetchCompanySettings();
+  }, []);
+
   const monthName = new Date(year, month - 1).toLocaleString('default', {
     month: 'long'
   });
@@ -58,14 +76,13 @@ export const InvoiceTemplate = ({
       <div className="flex justify-between items-start mb-6 border-b-2 border-gray-800 pb-4">
         <div>
           <h1 className="text-xl font-bold mb-1">
-            INVOICE FOR {monthName.toUpperCase()} {year}
+            PAYSLIP FOR {monthName.toUpperCase()} {year}
           </h1>
-          <h2 className="text-2xl font-bold text-gray-700">FOOTPRINTS DYNASTY</h2>
+          <h2 className="text-2xl font-bold text-gray-700">{companySettings?.company_name || 'FOOTPRINTS DYNASTY'}</h2>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <img src={fdlLogo} alt="Footprints Dynasty Logo" className="h-48 w-auto" />
+          <img src={companySettings?.logo_url || fdlLogo} alt="Company Logo" className="h-72 w-auto" />
           <div className="text-right">
-            
             <p className="text-sm mt-1">Date Issued: {formattedDate}</p>
           </div>
         </div>
@@ -86,10 +103,18 @@ export const InvoiceTemplate = ({
         <div>
           <h3 className="font-bold text-lg mb-2 border-b border-gray-300 pb-1">Employer's Details</h3>
           <div className="text-sm">
-            <p className="font-semibold">FOOTPRINTS DYNASTY LTD,</p>
-            <p>Floor 6, Cocoa House, Dugbe</p>
-            <p>Ibadan, Oyo State</p>
-            <p>Nigeria</p>
+            <p className="font-semibold">{companySettings?.company_name || 'FOOTPRINTS DYNASTY LTD'}</p>
+            {companySettings?.company_address ? (
+              <p className="whitespace-pre-line">{companySettings.company_address}</p>
+            ) : (
+              <>
+                <p>Floor 6, Cocoa House, Dugbe</p>
+                <p>Ibadan, Oyo State</p>
+                <p>Nigeria</p>
+              </>
+            )}
+            {companySettings?.company_phone && <p>Tel: {companySettings.company_phone}</p>}
+            {companySettings?.company_email && <p>Email: {companySettings.company_email}</p>}
           </div>
         </div>
       </div>
@@ -166,7 +191,7 @@ export const InvoiceTemplate = ({
             minimumFractionDigits: 2
           })}</p>
         </div>
-        <div>
+        <div className="text-right">
           <p><span className="font-semibold">Down Payment:</span> ₦{parseFloat(additionalFields.downPayment || '0').toLocaleString('en-NG', {
             minimumFractionDigits: 2
           })}</p>
@@ -183,11 +208,11 @@ export const InvoiceTemplate = ({
       <div className="border-t-2 border-gray-300 pt-4 text-xs space-y-2">
         <h4 className="font-bold text-sm">Payment Details</h4>
         <p>
-          Payment would be made to employee's bank account provided during application within the next 5 days upon the receipt of this slip. 
-          This is an invoice and might be subjected to review. For concerns, contact your supervisor.
+          {companySettings?.invoice_footer || 
+            'Payment would be made to employee\'s bank account provided during application within the next 5 days upon the receipt of this slip. This is a payslip and might be subjected to review. For concerns, contact your supervisor.'}
         </p>
         <p className="italic text-gray-600 mt-4">
-          This is a system generated payslip by Footprints Dynasty Ltd (FDL) and doesn't require signature
+          This is a system generated payslip by {companySettings?.company_name || 'Footprints Dynasty Ltd (FDL)'} and doesn't require signature
         </p>
       </div>
     </div>;

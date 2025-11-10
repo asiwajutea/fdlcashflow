@@ -28,11 +28,11 @@
     --danger-background: 0 84% 96%;
     --danger-foreground: 0 84% 30%;
     
-    /* Warning - Orange */
-    --warning: 38 95% 56%;
-    --warning-light: 38 95% 66%;
-    --warning-background: 38 95% 96%;
-    --warning-foreground: 38 95% 26%;
+    /* Warning - Orange (Brand Color) */
+    --warning: 25 95% 53%;
+    --warning-light: 25 95% 63%;
+    --warning-background: 25 95% 96%;
+    --warning-foreground: 25 95% 23%;
     
     /* Neutral System */
     --muted: 220 15% 95%;

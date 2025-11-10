@@ -153,7 +153,7 @@ const EmployeeManagement = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this employee? This will also delete all their invoices.')) {
+    if (!confirm('Are you sure you want to delete this employee? This will also delete all their payslips.')) {
       return;
     }
 

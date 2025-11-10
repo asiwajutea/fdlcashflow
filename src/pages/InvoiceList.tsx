@@ -221,7 +221,7 @@ const InvoiceList = () => {
 
       toast({
         title: "Success",
-        description: "Invoice deleted successfully"
+        description: "Payslip deleted successfully"
       });
 
       // Refresh the list
@@ -253,7 +253,7 @@ const InvoiceList = () => {
     if (selectedInvoicesForZip.size === 0) {
       toast({
         title: "Error",
-        description: "Please select at least one invoice to export",
+        description: "Please select at least one payslip to export",
         variant: "destructive"
       });
       return;
@@ -372,21 +372,88 @@ const InvoiceList = () => {
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Dashboard
+            Back to Generate Payslip
           </Button>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => navigate('/invoice-statistics')}>
+            <Button variant="outline" onClick={() => navigate('/statistics')}>
               <BarChart className="h-4 w-4 mr-2" />
               View Statistics
             </Button>
             <Button onClick={() => navigate('/generate-invoice')}>
               <FileText className="h-4 w-4 mr-2" />
-              Generate Invoice
+              Generate Payslip
             </Button>
           </div>
         </div>
 
         {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
+          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Payslips</p>
+                <p className="text-2xl font-bold text-primary">{filteredInvoices.length}</p>
+              </div>
+              <div className="p-3 rounded-full bg-primary/10">
+                <Receipt className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Employees</p>
+                <p className="text-2xl font-bold text-success">{summaryStats.uniqueEmployees}</p>
+              </div>
+              <div className="p-3 rounded-full bg-success-background">
+                <Users className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Gross</p>
+                <p className="text-2xl font-bold text-warning">
+                  ₦{summaryStats.totalGross.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-warning-background">
+                <DollarSign className="h-6 w-6 text-warning" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Deductions</p>
+                <p className="text-2xl font-bold text-danger">
+                  ₦{summaryStats.totalDeductions.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-danger-background">
+                <TrendingDown className="h-6 w-6 text-danger" />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
+            <div className="flex items-center justify-between">
+              <div className="flex-1">
+                <p className="text-sm font-medium text-muted-foreground mb-1">Total Savings</p>
+                <p className="text-2xl font-bold text-success">
+                  ₦{summaryStats.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+              </div>
+              <div className="p-3 rounded-full bg-success-background">
+                <PiggyBank className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </Card>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <Card className="border-l-4 border-l-primary">
             <CardHeader className="pb-2">
@@ -457,7 +524,7 @@ const InvoiceList = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Invoice History</CardTitle>
+            <CardTitle>Payslip History</CardTitle>
             {selectedInvoicesForZip.size > 0 && (
               <Button onClick={handleExportMultipleAsZip} disabled={isExportingZip} className="gap-2">
                 <FileArchive className="h-4 w-4" />

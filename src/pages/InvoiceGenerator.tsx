@@ -197,15 +197,15 @@ const InvoiceGenerator = () => {
       });
 
       toast({
-        title: "Invoice Loaded",
-        description: "You are now editing an existing invoice"
+        title: "Payslip Loaded",
+        description: "You are now editing an existing payslip"
       });
 
     } catch (error: any) {
       console.error('Error loading invoice:', error);
       toast({
         title: "Error",
-        description: "Failed to load invoice for editing",
+        description: "Failed to load payslip for editing",
         variant: "destructive"
       });
     }
@@ -425,7 +425,7 @@ const InvoiceGenerator = () => {
 
       toast({
         title: "Success",
-        description: isEditMode ? "Invoice updated successfully" : "Invoice generated and saved successfully"
+        description: isEditMode ? "Payslip updated successfully" : "Payslip generated and saved successfully"
       });
 
       // Navigate back to invoice list or reset form
@@ -461,11 +461,11 @@ const InvoiceGenerator = () => {
 
     } catch (error) {
       console.error('Error generating invoice:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate invoice",
-        variant: "destructive"
-      });
+        toast({
+          title: "Error",
+          description: "Failed to generate payslip",
+          variant: "destructive"
+        });
     } finally {
       setIsGenerating(false);
     }
@@ -487,7 +487,7 @@ const InvoiceGenerator = () => {
           </Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => navigate('/invoices')}>
-              View All Invoices
+              View All Payslips
             </Button>
             <Button variant="outline" onClick={() => navigate('/employees')}>
               Manage Employees
@@ -497,7 +497,7 @@ const InvoiceGenerator = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>{isEditMode ? 'Edit Invoice' : 'Generate Invoice'}</CardTitle>
+            <CardTitle>{isEditMode ? 'Edit Payslip' : 'Generate Payslip'}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Employee Selection */}
@@ -712,7 +712,7 @@ const InvoiceGenerator = () => {
 
             <div className="flex justify-end gap-2">
               <Button onClick={handlePreview} disabled={!selectedEmployee}>
-                Preview Invoice
+                Preview Payslip
               </Button>
             </div>
           </CardContent>
@@ -722,7 +722,7 @@ const InvoiceGenerator = () => {
         {showPreview && selectedEmployee && (
           <Card>
             <CardHeader>
-              <CardTitle>Invoice Preview</CardTitle>
+              <CardTitle>Payslip Preview</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <InvoiceTemplate
@@ -741,6 +741,143 @@ const InvoiceGenerator = () => {
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setShowPreview(false)}>
                   Cancel
+                </Button>
+                <Button
+                  onClick={async () => {
+                    if (!selectedEmployee) return;
+                    setIsGenerating(true);
+                    try {
+                      const totals = calculateTotals();
+                      const invoiceNumber = generateInvoiceNumber();
+                      const slipNumber = generateSlipNumber();
+
+                      let invoiceData;
+
+                      if (isEditMode && editingInvoiceId) {
+                        const { data: updatedInvoice, error: updateError } = await supabase
+                          .from('invoices')
+                          .update({
+                            employee_id: selectedEmployee.id,
+                            month,
+                            year,
+                            date_issued: dateIssued,
+                            gross_payment: totals.grossPayment,
+                            total_deductions: totals.totalDeductions,
+                            net_payment: totals.netPayment,
+                            total_monthly_income: parseFloat(additionalFields.totalMonthlyIncome) || 0,
+                            outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
+                            down_payment: parseFloat(additionalFields.downPayment) || 0,
+                            egf: parseFloat(additionalFields.egf) || 0,
+                            total_savings: totals.totalSavings
+                          })
+                          .eq('id', editingInvoiceId)
+                          .select()
+                          .single();
+
+                        if (updateError) throw updateError;
+                        invoiceData = updatedInvoice;
+
+                        const { error: deleteError } = await supabase
+                          .from('invoice_line_items')
+                          .delete()
+                          .eq('invoice_id', editingInvoiceId);
+
+                        if (deleteError) throw deleteError;
+                      } else {
+                        const { data: newInvoice, error: invoiceError } = await supabase
+                          .from('invoices')
+                          .insert({
+                            employee_id: selectedEmployee.id,
+                            invoice_number: invoiceNumber,
+                            slip_number: slipNumber,
+                            month,
+                            year,
+                            date_issued: dateIssued,
+                            gross_payment: totals.grossPayment,
+                            total_deductions: totals.totalDeductions,
+                            net_payment: totals.netPayment,
+                            total_monthly_income: parseFloat(additionalFields.totalMonthlyIncome) || 0,
+                            outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
+                            down_payment: parseFloat(additionalFields.downPayment) || 0,
+                            egf: parseFloat(additionalFields.egf) || 0,
+                            total_savings: totals.totalSavings
+                          })
+                          .select()
+                          .single();
+
+                        if (invoiceError) throw invoiceError;
+                        invoiceData = newInvoice;
+                      }
+
+                      const lineItems = [
+                        ...earnings.filter(e => e.description && e.amount).map(e => ({
+                          invoice_id: invoiceData.id,
+                          item_type: 'earning' as const,
+                          description: e.description,
+                          amount: parseFloat(e.amount)
+                        })),
+                        ...deductions.filter(d => d.description && d.amount).map(d => ({
+                          invoice_id: invoiceData.id,
+                          item_type: 'deduction' as const,
+                          description: d.description,
+                          amount: parseFloat(d.amount)
+                        }))
+                      ];
+
+                      const { error: itemsError } = await supabase
+                        .from('invoice_line_items')
+                        .insert(lineItems);
+
+                      if (itemsError) throw itemsError;
+
+                      toast({
+                        title: "Success",
+                        description: isEditMode ? "Payslip updated successfully" : "Payslip saved successfully"
+                      });
+
+                      if (isEditMode) {
+                        navigate('/invoices');
+                      } else {
+                        setShowPreview(false);
+                        setSelectedEmployee(null);
+                        setEarnings([
+                          { id: '1', description: 'Salary', amount: '' },
+                          { id: '2', description: 'Data/Airtime Bonus', amount: '' },
+                          { id: '3', description: 'Personal Bonus', amount: '' },
+                          { id: '4', description: 'Outstanding Payment(s)', amount: '' }
+                        ]);
+                        setDeductions([
+                          { id: '1', description: 'Tax', amount: '' },
+                          { id: '2', description: 'Salary Advance (IOU)', amount: '' },
+                          { id: '3', description: 'Deduction for Prior Incorrect Payment', amount: '' },
+                          { id: '4', description: 'Penalty Charge(s)', amount: '' },
+                          { id: '5', description: 'Down Payment', amount: '' }
+                        ]);
+                        setAdditionalFields({
+                          totalMonthlyIncome: '',
+                          outstandingIou: '',
+                          downPayment: '',
+                          egf: ''
+                        });
+                        setPreviousTotalSavings(0);
+                        setIsEditMode(false);
+                        setEditingInvoiceId(null);
+                      }
+                    } catch (error) {
+                      console.error('Error saving payslip:', error);
+                      toast({
+                        title: "Error",
+                        description: "Failed to save payslip",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setIsGenerating(false);
+                    }
+                  }}
+                  disabled={isGenerating}
+                  variant="outline"
+                >
+                  {isGenerating ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Only' : 'Save Only')}
                 </Button>
                 <Button
                   onClick={handleSaveAndDownload}

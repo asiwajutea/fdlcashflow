@@ -198,7 +198,7 @@ const BulkInvoiceGenerator = () => {
 
       toast({
         title: "Bulk Generation Complete",
-        description: `Successfully generated ${successCount} invoices${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+        description: `Successfully generated ${successCount} payslips${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
       });
 
       // Reset
@@ -236,7 +236,7 @@ const BulkInvoiceGenerator = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Bulk Invoice Generation</CardTitle>
+            <CardTitle>Bulk Payslip Generation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {/* Period Selection */}
@@ -323,7 +323,7 @@ const BulkInvoiceGenerator = () => {
                 onCheckedChange={(checked) => setSendEmails(checked as boolean)}
               />
               <Label htmlFor="send-emails" className="text-sm font-normal cursor-pointer">
-                Send invoices via email to employees (requires email addresses)
+                Send payslips via email to employees (requires email addresses)
               </Label>
             </div>
 
@@ -335,7 +335,7 @@ const BulkInvoiceGenerator = () => {
                 className="gap-2"
               >
                 <Download className="h-4 w-4" />
-                {isGenerating ? 'Generating...' : `Generate ${selectedEmployees.size} Invoice${selectedEmployees.size !== 1 ? 's' : ''}`}
+                {isGenerating ? 'Generating...' : `Generate ${selectedEmployees.size} Payslip${selectedEmployees.size !== 1 ? 's' : ''}`}
               </Button>
             </div>
           </CardContent>
