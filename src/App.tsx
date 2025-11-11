@@ -28,6 +28,7 @@ const App = () => (
           <Route path="/bulk-invoice" element={<BulkInvoiceGenerator />} />
           <Route path="/invoices" element={<InvoiceList />} />
           <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
+          <Route path="/statistics" element={<InvoiceStatistics />} />
           <Route path="/employees" element={<EmployeeManagement />} />
           <Route path="/company-settings" element={<CompanySettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

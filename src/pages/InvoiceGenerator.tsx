@@ -405,14 +405,18 @@ const InvoiceGenerator = () => {
 
       if (itemsError) throw itemsError;
 
-      // Generate PDF
+      // Generate PDF - wait a bit for template to fully render
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const element = document.getElementById('invoice-template');
       if (!element) throw new Error('Invoice template not found');
 
       const canvas = await html2canvas(element, {
         scale: 2,
         logging: false,
-        useCORS: true
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
       });
 
       const imgData = canvas.toDataURL('image/png');

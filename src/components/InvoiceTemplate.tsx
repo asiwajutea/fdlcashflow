@@ -1,5 +1,6 @@
 import React from 'react';
 import fdlLogo from '@/assets/fdl-logo.jpg';
+import { supabase } from '@/integrations/supabase/client';
 interface InvoiceTemplateProps {
   employee: {
     employee_id: string;
@@ -45,18 +46,24 @@ export const InvoiceTemplate = ({
   additionalFields
 }: InvoiceTemplateProps) => {
   const [companySettings, setCompanySettings] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  
   React.useEffect(() => {
     const fetchCompanySettings = async () => {
-      const {
-        data
-      } = await fetch('https://elqwtrwrsbvgezhemrwn.supabase.co/rest/v1/company_settings?select=*', {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXd0cndyc2J2Z2V6aGVtcnduIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzU4ODAsImV4cCI6MjA3NDY1MTg4MH0.4h6_sB4qNfAdT0rTsRwmGJoiu2XHZql-mxlNLdF_HqU'
+      try {
+        const { data, error } = await supabase
+          .from('company_settings')
+          .select('*')
+          .limit(1)
+          .single();
+        
+        if (!error && data) {
+          setCompanySettings(data);
         }
-      }).then(res => res.json());
-      if (data && data.length > 0) {
-        setCompanySettings(data[0]);
+      } catch (error) {
+        console.error('Error fetching company settings:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchCompanySettings();
@@ -69,6 +76,14 @@ export const InvoiceTemplate = ({
     month: 'short',
     year: 'numeric'
   });
+  
+  // Don't render until company settings are loaded for PDF generation
+  if (isLoading) {
+    return <div id="invoice-template" className="bg-white text-black p-8 max-w-4xl mx-auto flex items-center justify-center min-h-[600px]">
+      <p>Loading template...</p>
+    </div>;
+  }
+  
   return <div id="invoice-template" className="bg-white text-black p-8 max-w-4xl mx-auto" style={{
     fontFamily: 'Arial, sans-serif'
   }}>
