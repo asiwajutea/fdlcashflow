@@ -6,9 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Download, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Download, ArrowLeft, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { InvoiceTemplate } from '@/components/InvoiceTemplate';
@@ -18,6 +19,7 @@ interface Employee {
   employee_id: string;
   full_name: string;
   designation: string;
+  email?: string;
 }
 
 interface LineItem {
@@ -67,6 +69,8 @@ const InvoiceGenerator = () => {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [sendEmail, setSendEmail] = useState(false);
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -114,7 +118,7 @@ const InvoiceGenerator = () => {
   const fetchEmployees = async () => {
     const { data, error } = await supabase
       .from('employees')
-      .select('*')
+      .select('id, employee_id, full_name, designation, email')
       .order('full_name');
     
     if (error) {
@@ -427,10 +431,57 @@ const InvoiceGenerator = () => {
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${invoiceNumber}.pdf`);
 
-      toast({
-        title: "Success",
-        description: isEditMode ? "Payslip updated successfully" : "Payslip generated and saved successfully"
-      });
+      // Send email if checkbox is checked
+      if (sendEmail && selectedEmployee.email) {
+        setIsSendingEmail(true);
+        try {
+          const pdfBase64 = pdf.output('dataurlstring');
+          
+          const { error: emailError } = await supabase.functions.invoke('send-payslip-email', {
+            body: {
+              employeeName: selectedEmployee.full_name,
+              employeeEmail: selectedEmployee.email,
+              employeeId: selectedEmployee.employee_id,
+              month,
+              year,
+              invoiceNumber,
+              slipNumber,
+              grossPayment: totals.grossPayment,
+              netPayment: totals.netPayment,
+              totalDeductions: totals.totalDeductions,
+              pdfBase64
+            }
+          });
+
+          if (emailError) {
+            console.error('Email sending error:', emailError);
+            toast({
+              title: "Warning",
+              description: "Payslip saved but email could not be sent. " + emailError.message,
+              variant: "destructive"
+            });
+          } else {
+            toast({
+              title: "Success",
+              description: isEditMode ? "Payslip updated and email sent successfully" : "Payslip generated and email sent successfully"
+            });
+          }
+        } catch (emailError) {
+          console.error('Email sending error:', emailError);
+          toast({
+            title: "Warning",
+            description: "Payslip saved but email could not be sent",
+            variant: "destructive"
+          });
+        } finally {
+          setIsSendingEmail(false);
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: isEditMode ? "Payslip updated successfully" : "Payslip generated and saved successfully"
+        });
+      }
 
       // Navigate back to invoice list or reset form
       if (isEditMode) {
@@ -461,6 +512,7 @@ const InvoiceGenerator = () => {
         setPreviousTotalSavings(0);
         setIsEditMode(false);
         setEditingInvoiceId(null);
+        setSendEmail(false);
       }
 
     } catch (error) {
@@ -714,6 +766,24 @@ const InvoiceGenerator = () => {
               Total Savings (Previous + EGF + Down Payment): ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
             </div>
 
+            {/* Email Option */}
+            {selectedEmployee?.email && (
+              <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
+                <Checkbox 
+                  id="send-email" 
+                  checked={sendEmail}
+                  onCheckedChange={(checked) => setSendEmail(checked as boolean)}
+                />
+                <Label 
+                  htmlFor="send-email" 
+                  className="text-sm cursor-pointer flex items-center gap-2"
+                >
+                  <Mail className="h-4 w-4" />
+                  Send payslip via email to {selectedEmployee.email}
+                </Label>
+              </div>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button onClick={handlePreview} disabled={!selectedEmployee}>
                 Preview Payslip
@@ -885,12 +955,25 @@ const InvoiceGenerator = () => {
                 </Button>
                 <Button
                   onClick={handleSaveAndDownload}
-                  disabled={isGenerating}
+                  disabled={isGenerating || isSendingEmail}
                   className="gap-2"
                 >
                   <Download className="h-4 w-4" />
-                  {isGenerating ? (isEditMode ? 'Updating...' : 'Generating...') : (isEditMode ? 'Update & Download PDF' : 'Save & Download PDF')}
+                  {isGenerating ? (isEditMode ? 'Updating...' : 'Generating...') : 
+                   isSendingEmail ? 'Sending Email...' :
+                   (isEditMode ? 'Update & Download PDF' : 'Save & Download PDF')}
                 </Button>
+                {sendEmail && selectedEmployee?.email && (
+                  <Button
+                    onClick={handleSaveAndDownload}
+                    disabled={isGenerating || isSendingEmail}
+                    className="gap-2"
+                    variant="secondary"
+                  >
+                    <Mail className="h-4 w-4" />
+                    {isSendingEmail ? 'Sending...' : 'Download & Email'}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>

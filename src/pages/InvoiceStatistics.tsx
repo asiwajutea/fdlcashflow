@@ -6,9 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, TrendingUp, Download } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Download, Trophy, Users, TrendingDown, DollarSign, PiggyBank, Award } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart 
+} from 'recharts';
 
 interface EmployeeStats {
   employee_id: string;
@@ -17,7 +20,9 @@ interface EmployeeStats {
   total_gross_payment: number;
   total_deductions: number;
   total_net_payment: number;
+  total_savings: number;
   average_payment: number;
+  consistency_score: number;
 }
 
 interface MonthlyData {
@@ -25,7 +30,17 @@ interface MonthlyData {
   gross: number;
   deductions: number;
   net: number;
+  savings: number;
 }
+
+interface MonthComparisonData {
+  month: string;
+  current: number;
+  previous: number;
+  change: number;
+}
+
+const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#a4de6c'];
 
 const InvoiceStatistics = () => {
   const { user, loading } = useAuth();
@@ -34,14 +49,16 @@ const InvoiceStatistics = () => {
   
   const [employeeStats, setEmployeeStats] = useState<EmployeeStats[]>([]);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
+  const [monthComparison, setMonthComparison] = useState<MonthComparisonData[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState('all');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedMonth, setSelectedMonth] = useState('all');
   const [employees, setEmployees] = useState<Array<{id: string, full_name: string}>>([]);
   const [years, setYears] = useState<number[]>([]);
-
+  const [months, setMonths] = useState<number[]>([]);
+  
   const exportToCSV = () => {
-    // Export employee stats to CSV
-    const headers = ['Employee ID', 'Employee Name', 'Total Invoices', 'Total Gross Payment', 'Total Deductions', 'Total Net Payment', 'Average Payment'];
+    const headers = ['Employee ID', 'Employee Name', 'Total Payslips', 'Total Gross Payment', 'Total Deductions', 'Total Net Payment', 'Total Savings', 'Average Payment', 'Consistency Score'];
     const rows = employeeStats.map(stat => [
       stat.employee_id,
       stat.employee_name,
@@ -49,7 +66,9 @@ const InvoiceStatistics = () => {
       stat.total_gross_payment,
       stat.total_deductions,
       stat.total_net_payment,
-      stat.average_payment
+      stat.total_savings,
+      stat.average_payment,
+      stat.consistency_score.toFixed(2)
     ]);
 
     const csvContent = [
@@ -61,7 +80,7 @@ const InvoiceStatistics = () => {
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
-    link.setAttribute('download', `invoice_statistics_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `payslip_statistics_${new Date().toISOString().split('T')[0]}.csv`);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
@@ -76,7 +95,7 @@ const InvoiceStatistics = () => {
     if (user) {
       fetchData();
     }
-  }, [user, loading, navigate, selectedEmployee, selectedYear]);
+  }, [user, loading, navigate, selectedEmployee, selectedYear, selectedMonth]);
 
   const fetchData = async () => {
     // Fetch employees
@@ -87,7 +106,7 @@ const InvoiceStatistics = () => {
     
     setEmployees(empData || []);
 
-    // Fetch invoices
+    // Build query
     const query = supabase
       .from('invoices')
       .select(`
@@ -100,6 +119,10 @@ const InvoiceStatistics = () => {
 
     if (selectedYear !== 'all') {
       query.eq('year', parseInt(selectedYear));
+    }
+
+    if (selectedMonth !== 'all') {
+      query.eq('month', parseInt(selectedMonth));
     }
 
     if (selectedEmployee !== 'all') {
@@ -117,8 +140,9 @@ const InvoiceStatistics = () => {
       return;
     }
 
-    // Calculate employee statistics
+    // Calculate employee statistics with consistency score
     const statsMap = new Map<string, EmployeeStats>();
+    const employeePayments = new Map<string, number[]>();
     
     invoices?.forEach(invoice => {
       const empId = invoice.employees.employee_id;
@@ -132,8 +156,11 @@ const InvoiceStatistics = () => {
           total_gross_payment: 0,
           total_deductions: 0,
           total_net_payment: 0,
-          average_payment: 0
+          total_savings: 0,
+          average_payment: 0,
+          consistency_score: 0
         });
+        employeePayments.set(empId, []);
       }
       
       const stats = statsMap.get(empId)!;
@@ -141,11 +168,26 @@ const InvoiceStatistics = () => {
       stats.total_gross_payment += invoice.gross_payment;
       stats.total_deductions += invoice.total_deductions;
       stats.total_net_payment += invoice.net_payment;
+      stats.total_savings += invoice.total_savings || 0;
+      
+      employeePayments.get(empId)!.push(invoice.net_payment);
     });
 
-    // Calculate averages
-    statsMap.forEach(stats => {
+    // Calculate averages and consistency scores
+    statsMap.forEach((stats, empId) => {
       stats.average_payment = stats.total_net_payment / stats.total_invoices;
+      
+      // Calculate consistency score (inverse of coefficient of variation)
+      const payments = employeePayments.get(empId)!;
+      if (payments.length > 1) {
+        const mean = stats.average_payment;
+        const variance = payments.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / payments.length;
+        const stdDev = Math.sqrt(variance);
+        const cv = stdDev / mean; // Coefficient of variation
+        stats.consistency_score = Math.max(0, 100 - (cv * 100)); // Higher score = more consistent
+      } else {
+        stats.consistency_score = 100; // Perfect consistency if only one payment
+      }
     });
 
     setEmployeeStats(Array.from(statsMap.values()));
@@ -162,7 +204,8 @@ const InvoiceStatistics = () => {
           month: monthName,
           gross: 0,
           deductions: 0,
-          net: 0
+          net: 0,
+          savings: 0
         });
       }
       
@@ -170,6 +213,7 @@ const InvoiceStatistics = () => {
       data.gross += invoice.gross_payment;
       data.deductions += invoice.total_deductions;
       data.net += invoice.net_payment;
+      data.savings += invoice.total_savings || 0;
     });
 
     const sortedMonthly = Array.from(monthlyMap.entries())
@@ -178,22 +222,58 @@ const InvoiceStatistics = () => {
 
     setMonthlyData(sortedMonthly);
 
-    // Get unique years
+    // Calculate month-to-month comparison
+    const comparisonData: MonthComparisonData[] = [];
+    for (let i = 1; i < sortedMonthly.length; i++) {
+      const current = sortedMonthly[i];
+      const previous = sortedMonthly[i - 1];
+      const change = ((current.net - previous.net) / previous.net) * 100;
+      
+      comparisonData.push({
+        month: current.month,
+        current: current.net,
+        previous: previous.net,
+        change
+      });
+    }
+    setMonthComparison(comparisonData);
+
+    // Get unique years and months
     const uniqueYears = Array.from(new Set(invoices?.map(inv => inv.year) || [])).sort((a, b) => b - a);
+    const uniqueMonths = Array.from(new Set(invoices?.map(inv => inv.month) || [])).sort((a, b) => a - b);
     setYears(uniqueYears);
+    setMonths(uniqueMonths);
   };
 
   const totalStats = employeeStats.reduce((acc, stat) => ({
     total_invoices: acc.total_invoices + stat.total_invoices,
     total_gross_payment: acc.total_gross_payment + stat.total_gross_payment,
     total_deductions: acc.total_deductions + stat.total_deductions,
-    total_net_payment: acc.total_net_payment + stat.total_net_payment
+    total_net_payment: acc.total_net_payment + stat.total_net_payment,
+    total_savings: acc.total_savings + stat.total_savings
   }), {
     total_invoices: 0,
     total_gross_payment: 0,
     total_deductions: 0,
-    total_net_payment: 0
+    total_net_payment: 0,
+    total_savings: 0
   });
+
+  const highestPaidEmployee = employeeStats.length > 0 
+    ? employeeStats.reduce((max, stat) => stat.total_net_payment > max.total_net_payment ? stat : max, employeeStats[0])
+    : null;
+
+  const mostConsistentEmployee = employeeStats.length > 0
+    ? employeeStats.reduce((max, stat) => stat.consistency_score > max.consistency_score ? stat : max, employeeStats[0])
+    : null;
+
+  const topEmployees = employeeStats
+    .sort((a, b) => b.total_net_payment - a.total_net_payment)
+    .slice(0, 5)
+    .map(emp => ({
+      name: emp.employee_name,
+      value: emp.total_net_payment
+    }));
 
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
@@ -205,24 +285,28 @@ const InvoiceStatistics = () => {
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Invoices
+            Back to Payslips
           </Button>
+          <h1 className="text-3xl font-bold">Payslip Analytics Dashboard</h1>
         </div>
 
         {/* Filters */}
-        <Card>
+        <Card className="financial-card">
           <CardHeader>
-            <CardTitle>Filter Statistics</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5" />
+              Filter Analytics
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Employee</label>
                 <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                   <SelectTrigger>
                     <SelectValue placeholder="All Employees" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background z-50">
                     <SelectItem value="all">All Employees</SelectItem>
                     {employees.map(emp => (
                       <SelectItem key={emp.id} value={emp.id}>
@@ -239,11 +323,28 @@ const InvoiceStatistics = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="All Years" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-background z-50">
                     <SelectItem value="all">All Years</SelectItem>
                     {years.map(year => (
                       <SelectItem key={year} value={year.toString()}>
                         {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Month</label>
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Months" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="all">All Months</SelectItem>
+                    {months.map(month => (
+                      <SelectItem key={month} value={month.toString()}>
+                        {new Date(2000, month - 1).toLocaleString('default', { month: 'long' })}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -254,19 +355,25 @@ const InvoiceStatistics = () => {
         </Card>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="financial-card border-l-4 border-l-primary">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Invoices</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Total Payslips
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalStats.total_invoices}</div>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="financial-card border-l-4 border-l-green-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Gross Payment</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <DollarSign className="h-4 w-4" />
+                Total Gross
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -275,9 +382,12 @@ const InvoiceStatistics = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="financial-card border-l-4 border-l-orange-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Deductions</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingDown className="h-4 w-4" />
+                Total Deductions
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -286,9 +396,12 @@ const InvoiceStatistics = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="financial-card border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Net Payment</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Total Net
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
@@ -296,37 +409,156 @@ const InvoiceStatistics = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        {/* Monthly Trend Chart */}
-        {monthlyData.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Payment Trends</CardTitle>
+          <Card className="financial-card border-l-4 border-l-purple-500">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <PiggyBank className="h-4 w-4" />
+                Total Savings
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={monthlyData}>
+              <div className="text-2xl font-bold">
+                ₦{totalStats.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Employee Performance Highlights */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {highestPaidEmployee && (
+            <Card className="financial-card bg-gradient-to-br from-primary/10 to-primary/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-warning" />
+                  Highest Paid Employee
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-xl font-bold">{highestPaidEmployee.employee_name}</div>
+                <div className="text-sm text-muted-foreground">ID: {highestPaidEmployee.employee_id}</div>
+                <div className="text-2xl font-bold text-primary">
+                  ₦{highestPaidEmployee.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </div>
+                <div className="text-sm">
+                  Average: ₦{highestPaidEmployee.average_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {mostConsistentEmployee && (
+            <Card className="financial-card bg-gradient-to-br from-green-500/10 to-green-500/5">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5 text-green-600" />
+                  Most Consistent Employee
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-xl font-bold">{mostConsistentEmployee.employee_name}</div>
+                <div className="text-sm text-muted-foreground">ID: {mostConsistentEmployee.employee_id}</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {mostConsistentEmployee.consistency_score.toFixed(1)}%
+                </div>
+                <div className="text-sm">
+                  Consistency Score (Lower deviation = higher score)
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Charts Row 1 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Monthly Trend Chart */}
+          {monthlyData.length > 0 && (
+            <Card className="financial-card">
+              <CardHeader>
+                <CardTitle>Monthly Payment Trends</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip 
+                      formatter={(value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`}
+                    />
+                    <Legend />
+                    <Area type="monotone" dataKey="gross" stackId="1" stroke="#8884d8" fill="#8884d8" name="Gross Payment" />
+                    <Area type="monotone" dataKey="deductions" stackId="2" stroke="#ff7300" fill="#ff7300" name="Deductions" />
+                    <Area type="monotone" dataKey="net" stackId="3" stroke="#82ca9d" fill="#82ca9d" name="Net Payment" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Top 5 Employees Pie Chart */}
+          {topEmployees.length > 0 && (
+            <Card className="financial-card">
+              <CardHeader>
+                <CardTitle>Top 5 Employees by Total Payment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={topEmployees}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {topEmployees.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Month-to-Month Comparison */}
+        {monthComparison.length > 0 && (
+          <Card className="financial-card">
+            <CardHeader>
+              <CardTitle>Month-to-Month Net Payment Comparison</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={monthComparison}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
                   <YAxis />
                   <Tooltip 
-                    formatter={(value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`}
+                    formatter={(value: number, name: string) => {
+                      if (name === 'change') return `${value.toFixed(2)}%`;
+                      return `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+                    }}
                   />
                   <Legend />
-                  <Line type="monotone" dataKey="gross" stroke="#8884d8" name="Gross Payment" />
-                  <Line type="monotone" dataKey="deductions" stroke="#ff7300" name="Deductions" />
-                  <Line type="monotone" dataKey="net" stroke="#82ca9d" name="Net Payment" />
-                </LineChart>
+                  <Bar dataKey="current" fill="#82ca9d" name="Current Month" />
+                  <Bar dataKey="previous" fill="#8884d8" name="Previous Month" />
+                </BarChart>
               </ResponsiveContainer>
             </CardContent>
           </Card>
         )}
 
         {/* Employee Statistics Table */}
-        <Card>
+        <Card className="financial-card">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Employee Payment Statistics</CardTitle>
+            <CardTitle>Detailed Employee Payment Statistics</CardTitle>
             <Button onClick={exportToCSV} variant="outline" className="gap-2">
               <Download className="h-4 w-4" />
               Export to CSV
@@ -337,11 +569,13 @@ const InvoiceStatistics = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
-                  <TableHead className="text-center">Total Invoices</TableHead>
+                  <TableHead className="text-center">Payslips</TableHead>
                   <TableHead className="text-right">Total Gross</TableHead>
-                  <TableHead className="text-right">Total Deductions</TableHead>
+                  <TableHead className="text-right">Deductions</TableHead>
                   <TableHead className="text-right">Total Net</TableHead>
-                  <TableHead className="text-right">Average Payment</TableHead>
+                  <TableHead className="text-right">Total Savings</TableHead>
+                  <TableHead className="text-right">Average</TableHead>
+                  <TableHead className="text-center">Consistency</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,13 +596,25 @@ const InvoiceStatistics = () => {
                       ₦{stat.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className="text-right">
+                      ₦{stat.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-right">
                       ₦{stat.average_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        stat.consistency_score >= 80 ? 'bg-green-100 text-green-800' :
+                        stat.consistency_score >= 60 ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-orange-100 text-orange-800'
+                      }`}>
+                        {stat.consistency_score.toFixed(1)}%
+                      </span>
                     </TableCell>
                   </TableRow>
                 ))}
                 {employeeStats.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No statistics available for the selected filters
                     </TableCell>
                   </TableRow>
