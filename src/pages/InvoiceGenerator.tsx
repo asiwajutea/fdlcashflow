@@ -71,6 +71,7 @@ const InvoiceGenerator = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [sendEmail, setSendEmail] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [includeEgf, setIncludeEgf] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -95,6 +96,21 @@ const InvoiceGenerator = () => {
       fetchPreviousTotalSavings();
     }
   }, [selectedEmployee, month, year]);
+
+  // Recalculate EGF when includeEgf checkbox changes
+  useEffect(() => {
+    if (earnings.some(e => e.amount)) {
+      const grossPayment = earnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      const egfAmount = includeEgf ? (grossPayment * 0.075).toFixed(2) : '0';
+      const totalMonthlyIncome = (grossPayment + parseFloat(egfAmount)).toFixed(2);
+      
+      setAdditionalFields(prev => ({
+        ...prev,
+        egf: egfAmount,
+        totalMonthlyIncome: totalMonthlyIncome
+      }));
+    }
+  }, [includeEgf, earnings]);
 
   const fetchPreviousTotalSavings = async () => {
     if (!selectedEmployee) return;
@@ -249,7 +265,7 @@ const InvoiceGenerator = () => {
       if (field === 'amount') {
         const grossPayment = updatedEarnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
         const taxAmount = (grossPayment * 0.0005).toFixed(2); // 0.05%
-        const egfAmount = (grossPayment * 0.075).toFixed(2); // 7.5%
+        const egfAmount = includeEgf ? (grossPayment * 0.075).toFixed(2) : '0'; // 7.5% if enabled
         const totalMonthlyIncome = (grossPayment + parseFloat(egfAmount)).toFixed(2);
         
         // Update Tax deduction automatically
@@ -513,13 +529,15 @@ const InvoiceGenerator = () => {
         setIsEditMode(false);
         setEditingInvoiceId(null);
         setSendEmail(false);
+        setIncludeEgf(true);
       }
 
     } catch (error) {
       console.error('Error generating invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate payslip';
         toast({
           title: "Error",
-          description: "Failed to generate payslip",
+          description: errorMessage,
           variant: "destructive"
         });
     } finally {
@@ -746,7 +764,7 @@ const InvoiceGenerator = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>EGF (Employee Gratuity Fund) - Auto-calculated (7.5%)</Label>
+                <Label>EGF (Employee Gratuity Fund) - {includeEgf ? 'Auto-calculated (7.5%)' : 'Disabled'}</Label>
                 <Input
                   type="number"
                   value={additionalFields.egf}
@@ -764,6 +782,21 @@ const InvoiceGenerator = () => {
 
             <div className="text-right font-semibold">
               Total Savings (Previous + EGF + Down Payment): ₦{totals.totalSavings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+            </div>
+
+            {/* EGF Option */}
+            <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
+              <Checkbox 
+                id="include-egf" 
+                checked={includeEgf}
+                onCheckedChange={(checked) => setIncludeEgf(checked as boolean)}
+              />
+              <Label 
+                htmlFor="include-egf" 
+                className="text-sm cursor-pointer"
+              >
+                Include Employee Gratuity Fund (EGF) - 7.5% of Gross Payment
+              </Label>
             </div>
 
             {/* Email Option */}
