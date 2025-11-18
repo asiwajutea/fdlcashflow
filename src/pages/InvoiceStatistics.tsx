@@ -6,8 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, TrendingUp, Download, Trophy, Users, TrendingDown, DollarSign, PiggyBank, Award } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Download, Trophy, Users, TrendingDown, DollarSign, PiggyBank, Award, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell, Area, AreaChart 
@@ -40,6 +44,20 @@ interface MonthComparisonData {
   change: number;
 }
 
+interface PeriodStats {
+  total_invoices: number;
+  total_gross_payment: number;
+  total_deductions: number;
+  total_net_payment: number;
+  total_savings: number;
+  average_payment: number;
+}
+
+interface DateRange {
+  from: Date | undefined;
+  to: Date | undefined;
+}
+
 const COLORS = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#a4de6c'];
 
 const InvoiceStatistics = () => {
@@ -56,6 +74,13 @@ const InvoiceStatistics = () => {
   const [employees, setEmployees] = useState<Array<{id: string, full_name: string}>>([]);
   const [years, setYears] = useState<number[]>([]);
   const [months, setMonths] = useState<number[]>([]);
+  
+  // Period Comparison States
+  const [showComparison, setShowComparison] = useState(false);
+  const [period1, setPeriod1] = useState<DateRange>({ from: undefined, to: undefined });
+  const [period2, setPeriod2] = useState<DateRange>({ from: undefined, to: undefined });
+  const [period1Stats, setPeriod1Stats] = useState<PeriodStats | null>(null);
+  const [period2Stats, setPeriod2Stats] = useState<PeriodStats | null>(null);
   
   const exportToCSV = () => {
     const headers = ['Employee ID', 'Employee Name', 'Total Payslips', 'Total Gross Payment', 'Total Deductions', 'Total Net Payment', 'Total Savings', 'Average Payment', 'Consistency Score'];
@@ -245,6 +270,60 @@ const InvoiceStatistics = () => {
     setMonths(uniqueMonths);
   };
 
+  const fetchPeriodComparison = async () => {
+    if (!period1.from || !period1.to || !period2.from || !period2.to) {
+      toast({
+        title: "Please select both date ranges",
+        description: "Both Period 1 and Period 2 date ranges are required for comparison.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const fetchPeriodData = async (from: Date, to: Date): Promise<PeriodStats> => {
+      const { data: invoices } = await supabase
+        .from('invoices')
+        .select('*')
+        .gte('date_issued', format(from, 'yyyy-MM-dd'))
+        .lte('date_issued', format(to, 'yyyy-MM-dd'));
+
+      const stats = (invoices || []).reduce((acc, inv) => ({
+        total_invoices: acc.total_invoices + 1,
+        total_gross_payment: acc.total_gross_payment + Number(inv.gross_payment),
+        total_deductions: acc.total_deductions + Number(inv.total_deductions),
+        total_net_payment: acc.total_net_payment + Number(inv.net_payment),
+        total_savings: acc.total_savings + Number(inv.total_savings),
+        average_payment: 0
+      }), {
+        total_invoices: 0,
+        total_gross_payment: 0,
+        total_deductions: 0,
+        total_net_payment: 0,
+        total_savings: 0,
+        average_payment: 0
+      });
+
+      stats.average_payment = stats.total_invoices > 0 ? stats.total_net_payment / stats.total_invoices : 0;
+      return stats;
+    };
+
+    const p1Stats = await fetchPeriodData(period1.from, period1.to);
+    const p2Stats = await fetchPeriodData(period2.from, period2.to);
+
+    setPeriod1Stats(p1Stats);
+    setPeriod2Stats(p2Stats);
+
+    toast({
+      title: "Comparison updated",
+      description: "Period comparison has been calculated successfully."
+    });
+  };
+
+  const calculatePercentageChange = (current: number, previous: number): number => {
+    if (previous === 0) return current > 0 ? 100 : 0;
+    return ((current - previous) / previous) * 100;
+  };
+
   const totalStats = employeeStats.reduce((acc, stat) => ({
     total_invoices: acc.total_invoices + stat.total_invoices,
     total_gross_payment: acc.total_gross_payment + stat.total_gross_payment,
@@ -353,6 +432,381 @@ const InvoiceStatistics = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Comparison Mode Toggle */}
+        <div className="flex justify-center">
+          <Button
+            variant={showComparison ? "default" : "outline"}
+            onClick={() => setShowComparison(!showComparison)}
+            className="gap-2"
+          >
+            <TrendingUp className="h-4 w-4" />
+            {showComparison ? 'Hide' : 'Show'} Period Comparison
+          </Button>
+        </div>
+
+        {/* Period Comparison Section */}
+        {showComparison && (
+          <Card className="transition-all duration-300 border border-primary/20 shadow-lg">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Compare Two Time Periods
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Date Range Selectors */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Period 1 */}
+                  <div className="space-y-4 p-4 rounded-lg border border-primary/30 bg-primary/5">
+                    <h3 className="font-semibold text-lg">Period 1</h3>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Start Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !period1.from && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {period1.from ? format(period1.from, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={period1.from}
+                            onSelect={(date) => setPeriod1({ ...period1, from: date })}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">End Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !period1.to && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {period1.to ? format(period1.to, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={period1.to}
+                            onSelect={(date) => setPeriod1({ ...period1, to: date })}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  {/* Period 2 */}
+                  <div className="space-y-4 p-4 rounded-lg border border-secondary/30 bg-secondary/5">
+                    <h3 className="font-semibold text-lg">Period 2</h3>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Start Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !period2.from && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {period2.from ? format(period2.from, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={period2.from}
+                            onSelect={(date) => setPeriod2({ ...period2, from: date })}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">End Date</label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal",
+                              !period2.to && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {period2.to ? format(period2.to, "PPP") : <span>Pick a date</span>}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={period2.to}
+                            onSelect={(date) => setPeriod2({ ...period2, to: date })}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center">
+                  <Button onClick={fetchPeriodComparison} className="gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    Compare Periods
+                  </Button>
+                </div>
+
+                {/* Comparison Results */}
+                {period1Stats && period2Stats && (
+                  <div className="space-y-4 pt-4 border-t">
+                    <h3 className="font-semibold text-lg text-center mb-4">Comparison Results</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Total Payslips */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Users className="h-4 w-4" />
+                            Total Payslips
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">{period1Stats.total_invoices}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">{period2Stats.total_invoices}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.total_invoices, period1Stats.total_invoices) >= 0 
+                                ? "text-green-600" 
+                                : "text-destructive"
+                            )}>
+                              {calculatePercentageChange(period2Stats.total_invoices, period1Stats.total_invoices) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.total_invoices, period1Stats.total_invoices).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.total_invoices, period1Stats.total_invoices) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Gross Payment */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <DollarSign className="h-4 w-4" />
+                            Gross Payment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">₦{period1Stats.total_gross_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">₦{period2Stats.total_gross_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.total_gross_payment, period1Stats.total_gross_payment) >= 0 
+                                ? "text-green-600" 
+                                : "text-destructive"
+                            )}>
+                              {calculatePercentageChange(period2Stats.total_gross_payment, period1Stats.total_gross_payment) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.total_gross_payment, period1Stats.total_gross_payment).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.total_gross_payment, period1Stats.total_gross_payment) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Net Payment */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4" />
+                            Net Payment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">₦{period1Stats.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">₦{period2Stats.total_net_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.total_net_payment, period1Stats.total_net_payment) >= 0 
+                                ? "text-green-600" 
+                                : "text-destructive"
+                            )}>
+                              {calculatePercentageChange(period2Stats.total_net_payment, period1Stats.total_net_payment) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.total_net_payment, period1Stats.total_net_payment).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.total_net_payment, period1Stats.total_net_payment) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Deductions */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <TrendingDown className="h-4 w-4" />
+                            Total Deductions
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">₦{period1Stats.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">₦{period2Stats.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.total_deductions, period1Stats.total_deductions) >= 0 
+                                ? "text-destructive" 
+                                : "text-green-600"
+                            )}>
+                              {calculatePercentageChange(period2Stats.total_deductions, period1Stats.total_deductions) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.total_deductions, period1Stats.total_deductions).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.total_deductions, period1Stats.total_deductions) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Savings */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <PiggyBank className="h-4 w-4" />
+                            Total Savings
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">₦{period1Stats.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">₦{period2Stats.total_savings.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.total_savings, period1Stats.total_savings) >= 0 
+                                ? "text-green-600" 
+                                : "text-destructive"
+                            )}>
+                              {calculatePercentageChange(period2Stats.total_savings, period1Stats.total_savings) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.total_savings, period1Stats.total_savings).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.total_savings, period1Stats.total_savings) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      {/* Average Payment */}
+                      <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            <Award className="h-4 w-4" />
+                            Average Payment
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-primary">Period 1:</span>
+                            <span className="font-bold">₦{period1Stats.average_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-secondary">Period 2:</span>
+                            <span className="font-bold">₦{period2Stats.average_payment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-2 border-t">
+                            <span className="text-sm font-medium">Change:</span>
+                            <span className={cn(
+                              "font-bold flex items-center gap-1",
+                              calculatePercentageChange(period2Stats.average_payment, period1Stats.average_payment) >= 0 
+                                ? "text-green-600" 
+                                : "text-destructive"
+                            )}>
+                              {calculatePercentageChange(period2Stats.average_payment, period1Stats.average_payment) >= 0 ? "+" : ""}
+                              {calculatePercentageChange(period2Stats.average_payment, period1Stats.average_payment).toFixed(1)}%
+                              {calculatePercentageChange(period2Stats.average_payment, period1Stats.average_payment) >= 0 ? 
+                                <TrendingUp className="h-3 w-3" /> : 
+                                <TrendingDown className="h-3 w-3" />
+                              }
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
