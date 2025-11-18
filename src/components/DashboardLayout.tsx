@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart3, Calendar, DollarSign, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ThemeToggle';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   title: string;
@@ -24,6 +25,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </div>
             </div>
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
               <div className="text-right">
                 <p className="text-sm font-medium text-foreground">{title}</p>
                 <p className="text-xs text-muted-foreground">
