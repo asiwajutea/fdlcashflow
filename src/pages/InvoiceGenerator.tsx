@@ -419,11 +419,13 @@ const InvoiceGenerator = () => {
         }))
       ];
 
-      const { error: itemsError } = await supabase
-        .from('invoice_line_items')
-        .insert(lineItems);
+      if (lineItems.length > 0) {
+        const { error: itemsError } = await supabase
+          .from('invoice_line_items')
+          .insert(lineItems);
 
-      if (itemsError) throw itemsError;
+        if (itemsError) throw itemsError;
+      }
 
       // Generate PDF - wait a bit for template to fully render
       await new Promise(resolve => setTimeout(resolve, 500));
@@ -931,11 +933,13 @@ const InvoiceGenerator = () => {
                         }))
                       ];
 
-                      const { error: itemsError } = await supabase
-                        .from('invoice_line_items')
-                        .insert(lineItems);
+                      if (lineItems.length > 0) {
+                        const { error: itemsError } = await supabase
+                          .from('invoice_line_items')
+                          .insert(lineItems);
 
-                      if (itemsError) throw itemsError;
+                        if (itemsError) throw itemsError;
+                      }
 
                       toast({
                         title: "Success",
