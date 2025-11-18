@@ -13,7 +13,6 @@ import { Plus, Trash2, Download, ArrowLeft, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { InvoiceTemplate } from '@/components/InvoiceTemplate';
-import { PayslipHistory } from '@/components/PayslipHistory';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -672,12 +671,6 @@ const InvoiceGenerator = () => {
                 onChange={(e) => setDateIssued(e.target.value)}
               />
             </div>
-
-            {/* Payslip History */}
-            <PayslipHistory 
-              employeeId={selectedEmployee?.id || null}
-              employeeName={selectedEmployee?.full_name}
-            />
 
             {/* Earnings Section */}
             <div className="space-y-4">
