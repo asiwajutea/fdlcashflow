@@ -12,11 +12,8 @@ import InvoiceStatistics from "./pages/InvoiceStatistics";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import BulkInvoiceGenerator from "./pages/BulkInvoiceGenerator";
 import CompanySettings from "./pages/CompanySettings";
-
 const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+const App = () => <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -24,7 +21,7 @@ const App = () => (
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
-          <Route path="/generate-invoice" element={<InvoiceGenerator />} />
+          <Route path="/generate-invoice" element={<InvoiceGenerator />} className="bg-slate-800" />
           <Route path="/bulk-invoice" element={<BulkInvoiceGenerator />} />
           <Route path="/invoices" element={<InvoiceList />} />
           <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
@@ -36,7 +33,5 @@ const App = () => (
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
-  </QueryClientProvider>
-);
-
+  </QueryClientProvider>;
 export default App;
