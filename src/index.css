@@ -35,29 +35,29 @@
     --warning-foreground: 28 100% 20%;
     
     /* Neutral System */
-    --muted: 214 20% 95%;
-    --muted-dark: 214 20% 88%;
-    --muted-foreground: 214 15% 50%;
+    --muted: 214 30% 25%;
+    --muted-dark: 214 30% 20%;
+    --muted-foreground: 214 20% 75%;
     
     /* Card & Surface System */
-    --card: 0 0% 100%;
-    --card-foreground: 210 20% 25%;
-    --card-border: 214 25% 90%;
+    --card: 214 85% 20%;
+    --card-foreground: 0 0% 98%;
+    --card-border: 214 70% 30%;
     
     /* Form Elements */
-    --input: 214 25% 90%;
-    --border: 214 25% 90%;
-    --ring: 214 95% 25%;
+    --input: 214 70% 25%;
+    --border: 214 70% 30%;
+    --ring: 28 100% 55%;
     
     /* Secondary & Accent - Orange Highlights */
-    --secondary: 28 100% 96%;
-    --secondary-foreground: 28 100% 20%;
-    --accent: 28 100% 96%;
-    --accent-foreground: 28 100% 20%;
+    --secondary: 214 85% 25%;
+    --secondary-foreground: 0 0% 98%;
+    --accent: 214 85% 25%;
+    --accent-foreground: 0 0% 98%;
     
     /* Popover */
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 25%;
+    --popover: 214 85% 20%;
+    --popover-foreground: 0 0% 98%;
     
     /* Destructive (using danger colors) */
     --destructive: 0 84% 60%;
