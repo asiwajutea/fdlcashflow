@@ -13,6 +13,16 @@ import { Plus, Trash2, Download, ArrowLeft, Mail } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { InvoiceTemplate } from '@/components/InvoiceTemplate';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Employee {
   id: string;
@@ -72,6 +82,8 @@ const InvoiceGenerator = () => {
   const [sendEmail, setSendEmail] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [includeEgf, setIncludeEgf] = useState(true);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -537,11 +549,37 @@ const InvoiceGenerator = () => {
     } catch (error) {
       console.error('Error generating invoice:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate payslip';
+      
+      // Check if it's a duplicate key error
+      if (errorMessage.includes('duplicate') || errorMessage.includes('unique constraint')) {
+        // Query to find the existing invoice
+        if (selectedEmployee) {
+          const { data: existingInvoice } = await supabase
+            .from('invoices')
+            .select('id')
+            .eq('employee_id', selectedEmployee.id)
+            .eq('month', month)
+            .eq('year', year)
+            .single();
+          
+          if (existingInvoice) {
+            setExistingInvoiceId(existingInvoice.id);
+            setShowDuplicateDialog(true);
+          } else {
+            toast({
+              title: "Error",
+              description: errorMessage,
+              variant: "destructive"
+            });
+          }
+        }
+      } else {
         toast({
           title: "Error",
           description: errorMessage,
           variant: "destructive"
         });
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -1016,6 +1054,35 @@ const InvoiceGenerator = () => {
           </Card>
         )}
       </div>
+
+      <AlertDialog open={showDuplicateDialog} onOpenChange={setShowDuplicateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Payslip Already Exists</AlertDialogTitle>
+            <AlertDialogDescription>
+              A payslip for {selectedEmployee?.full_name} for {new Date(year, month - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} already exists.
+              Would you like to edit the existing payslip or continue with a different month?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowDuplicateDialog(false);
+              setExistingInvoiceId(null);
+            }}>
+              Change Month
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              if (existingInvoiceId) {
+                navigate(`/generate-invoice?edit=${existingInvoiceId}`);
+              }
+              setShowDuplicateDialog(false);
+              setExistingInvoiceId(null);
+            }}>
+              Edit Existing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
