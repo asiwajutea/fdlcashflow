@@ -57,7 +57,7 @@ const Auth = () => {
       setLoading(false);
     }
   };
-  return <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
+  return <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md p-8 financial-card">
         <div className="flex flex-col items-center mb-8">
           <div className="bg-primary/10 p-4 rounded-full mb-4">
