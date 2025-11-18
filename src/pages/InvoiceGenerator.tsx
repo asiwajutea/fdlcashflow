@@ -548,36 +548,35 @@ const InvoiceGenerator = () => {
 
     } catch (error) {
       console.error('Error generating invoice:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to generate payslip';
-      
-      // Check if it's a duplicate key error
-      if (errorMessage.includes('duplicate') || errorMessage.includes('unique constraint')) {
-        // Query to find the existing invoice
-        if (selectedEmployee) {
-          const { data: existingInvoice } = await supabase
-            .from('invoices')
-            .select('id')
-            .eq('employee_id', selectedEmployee.id)
-            .eq('month', month)
-            .eq('year', year)
-            .single();
-          
-          if (existingInvoice) {
-            setExistingInvoiceId(existingInvoice.id);
-            setShowDuplicateDialog(true);
-          } else {
-            toast({
-              title: "Error",
-              description: errorMessage,
-              variant: "destructive"
-            });
-          }
+      const err: any = error;
+      const errorMessage = typeof err?.message === 'string' ? err.message : 'Failed to generate PDF';
+      const isDuplicateError = err?.code === '23505' || errorMessage.toLowerCase().includes('duplicate key');
+
+      if (isDuplicateError && selectedEmployee) {
+        // Find the existing invoice for this employee/month/year
+        const { data: existingInvoice } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('employee_id', selectedEmployee.id)
+          .eq('month', month)
+          .eq('year', year)
+          .maybeSingle();
+
+        if (existingInvoice) {
+          setExistingInvoiceId(existingInvoice.id);
+          setShowDuplicateDialog(true);
+        } else {
+          toast({
+            title: 'Error',
+            description: 'A payslip for this employee and month already exists. Please edit it or choose a different month.',
+            variant: 'destructive',
+          });
         }
       } else {
         toast({
-          title: "Error",
+          title: 'Error',
           description: errorMessage,
-          variant: "destructive"
+          variant: 'destructive',
         });
       }
     } finally {
