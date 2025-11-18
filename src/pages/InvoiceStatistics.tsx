@@ -310,7 +310,7 @@ const InvoiceStatistics = () => {
             <ArrowLeft className="h-4 w-4" />
             Back to Payslips
           </Button>
-          <h1 className="text-3xl font-bold text-slate-300">Payslip Analytics Dashboard</h1>
+          <h1 className="text-3xl font-bold text-orange-300">Payslip Analytics Dashboard</h1>
         </div>
 
         {/* Filters */}

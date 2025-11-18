@@ -21,11 +21,11 @@ const App = () => <QueryClientProvider client={queryClient}>
         <Routes>
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
-          <Route path="/generate-invoice" element={<InvoiceGenerator />} />
+          <Route path="/generate-invoice" element={<InvoiceGenerator />} className="bg-slate-800" />
           <Route path="/bulk-invoice" element={<BulkInvoiceGenerator />} />
-          <Route path="/invoices" element={<InvoiceList />} />
+          <Route path="/invoices" element={<InvoiceList />} className="bg-slate-800" />
           <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
-          <Route path="/statistics" element={<InvoiceStatistics />} />
+          <Route path="/statistics" element={<InvoiceStatistics />} className="bg-slate-800" />
           <Route path="/employees" element={<EmployeeManagement />} />
           <Route path="/company-settings" element={<CompanySettings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
