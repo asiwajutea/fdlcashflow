@@ -356,7 +356,7 @@ const InvoiceStatistics = () => {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <Card className="financial-card border-l-4 border-l-primary">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <Users className="h-4 w-4" />
@@ -364,11 +364,13 @@ const InvoiceStatistics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalStats.total_invoices}</div>
+              <div className="text-2xl font-bold">
+                {totalStats.total_invoices}
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="financial-card border-l-4 border-l-green-500">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <DollarSign className="h-4 w-4" />
@@ -382,7 +384,7 @@ const InvoiceStatistics = () => {
             </CardContent>
           </Card>
 
-          <Card className="financial-card border-l-4 border-l-orange-500">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingDown className="h-4 w-4" />
@@ -390,13 +392,13 @@ const InvoiceStatistics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
+              <div className="text-2xl font-bold text-destructive">
                 ₦{totalStats.total_deductions.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="financial-card border-l-4 border-l-blue-500">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
@@ -410,7 +412,7 @@ const InvoiceStatistics = () => {
             </CardContent>
           </Card>
 
-          <Card className="financial-card border-l-4 border-l-purple-500">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                 <PiggyBank className="h-4 w-4" />
@@ -428,7 +430,7 @@ const InvoiceStatistics = () => {
         {/* Employee Performance Highlights */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {highestPaidEmployee && (
-            <Card className="financial-card bg-gradient-to-br from-primary/10 to-primary/5">
+            <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm bg-gradient-to-br from-primary/10 to-primary/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-warning" />
@@ -449,7 +451,7 @@ const InvoiceStatistics = () => {
           )}
 
           {mostConsistentEmployee && (
-            <Card className="financial-card bg-gradient-to-br from-green-500/10 to-green-500/5">
+            <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm bg-gradient-to-br from-green-500/10 to-green-500/5">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Award className="h-5 w-5 text-green-600" />
@@ -474,7 +476,7 @@ const InvoiceStatistics = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Monthly Trend Chart */}
           {monthlyData.length > 0 && (
-            <Card className="financial-card">
+            <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
               <CardHeader>
                 <CardTitle>Monthly Payment Trends</CardTitle>
               </CardHeader>
@@ -497,40 +499,88 @@ const InvoiceStatistics = () => {
             </Card>
           )}
 
-          {/* Top 5 Employees Pie Chart */}
+          {/* Top 5 Employees List */}
           {topEmployees.length > 0 && (
-            <Card className="financial-card">
+            <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
               <CardHeader>
-                <CardTitle>Top 5 Employees by Total Payment</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-warning" />
+                  Top 5 Employees by Total Payment
+                </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={topEmployees}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
+                <div className="space-y-3">
+                  {topEmployees.map((employee, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
                     >
-                      {topEmployees.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value: number) => `₦${value.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`} />
-                  </PieChart>
-                </ResponsiveContainer>
+                      <div className="flex items-center gap-3">
+                        <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${
+                          index === 0 ? 'bg-warning/20 text-warning' : 
+                          index === 1 ? 'bg-muted-foreground/20 text-muted-foreground' : 
+                          index === 2 ? 'bg-orange-500/20 text-orange-500' : 
+                          'bg-primary/10 text-primary'
+                        }`}>
+                          #{index + 1}
+                        </div>
+                        <span className="font-medium">{employee.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold text-lg">
+                          ₦{employee.value.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
         </div>
 
+        {/* Additional Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Average Payment per Employee</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                ₦{employeeStats.length > 0 ? (totalStats.total_net_payment / employeeStats.length).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Per employee average</p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Deduction Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {totalStats.total_gross_payment > 0 ? ((totalStats.total_deductions / totalStats.total_gross_payment) * 100).toFixed(1) : '0.0'}%
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Of gross payment</p>
+            </CardContent>
+          </Card>
+
+          <Card className="transition-all duration-300 hover:shadow-lg hover:-translate-y-1 border border-border/50 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Active Employees</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {employeeStats.length}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">With payslip records</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Month-to-Month Comparison */}
         {monthComparison.length > 0 && (
-          <Card className="financial-card">
+          <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
             <CardHeader>
               <CardTitle>Month-to-Month Net Payment Comparison</CardTitle>
             </CardHeader>
@@ -556,7 +606,7 @@ const InvoiceStatistics = () => {
         )}
 
         {/* Employee Statistics Table */}
-        <Card className="financial-card">
+        <Card className="transition-all duration-300 hover:shadow-lg border border-border/50 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Detailed Employee Payment Statistics</CardTitle>
             <Button onClick={exportToCSV} variant="outline" className="gap-2">
