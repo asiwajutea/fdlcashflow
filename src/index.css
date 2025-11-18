@@ -2,19 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Financial Dashboard Design System - Professional & Clean */
+/* Financial Dashboard Design System - Navy Blue & Orange Brand */
 
 @layer base {
   :root {
     /* Core Background & Text */
-    --background: 249 250 251;
-    --foreground: 15 23% 42%;
+    --background: 0 0% 98%;
+    --foreground: 210 20% 25%;
     
-    /* Financial App Primary - Deep Blue */
-    --primary: 221 83% 20%;
-    --primary-light: 221 83% 30%;
-    --primary-dark: 221 83% 15%;
-    --primary-foreground: 0 0% 98%;
+    /* Brand Primary - Navy Blue */
+    --primary: 214 95% 25%;
+    --primary-light: 214 85% 35%;
+    --primary-dark: 214 95% 18%;
+    --primary-foreground: 0 0% 100%;
     
     /* Success/Profit - Green */
     --success: 142 76% 36%;
@@ -28,53 +28,53 @@
     --danger-background: 0 84% 96%;
     --danger-foreground: 0 84% 30%;
     
-    /* Warning - Orange (Brand Color) */
-    --warning: 25 95% 53%;
-    --warning-light: 25 95% 63%;
-    --warning-background: 25 95% 96%;
-    --warning-foreground: 25 95% 23%;
+    /* Brand Secondary - Orange */
+    --warning: 28 100% 55%;
+    --warning-light: 28 100% 65%;
+    --warning-background: 28 100% 96%;
+    --warning-foreground: 28 100% 20%;
     
     /* Neutral System */
-    --muted: 220 15% 95%;
-    --muted-dark: 220 15% 85%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 214 20% 95%;
+    --muted-dark: 214 20% 88%;
+    --muted-foreground: 214 15% 50%;
     
     /* Card & Surface System */
     --card: 0 0% 100%;
-    --card-foreground: 15 23% 42%;
-    --card-border: 220 13% 91%;
+    --card-foreground: 210 20% 25%;
+    --card-border: 214 25% 90%;
     
     /* Form Elements */
-    --input: 220 13% 91%;
-    --border: 220 13% 91%;
-    --ring: 221 83% 20%;
+    --input: 214 25% 90%;
+    --border: 214 25% 90%;
+    --ring: 214 95% 25%;
     
-    /* Secondary & Accent */
-    --secondary: 220 15% 95%;
-    --secondary-foreground: 15 23% 42%;
-    --accent: 220 15% 95%;
-    --accent-foreground: 15 23% 42%;
+    /* Secondary & Accent - Orange Highlights */
+    --secondary: 28 100% 96%;
+    --secondary-foreground: 28 100% 20%;
+    --accent: 28 100% 96%;
+    --accent-foreground: 28 100% 20%;
     
     /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 15 23% 42%;
+    --popover-foreground: 210 20% 25%;
     
     /* Destructive (using danger colors) */
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive-foreground: 0 0% 100%;
     
     /* Border Radius */
     --radius: 0.5rem;
     
-    /* Sidebar System */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 15 23% 42%;
-    --sidebar-primary: 221 83% 20%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 220 15% 95%;
-    --sidebar-accent-foreground: 15 23% 42%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 221 83% 20%;
+    /* Sidebar System - Navy Blue */
+    --sidebar-background: 214 95% 25%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 28 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 214 85% 35%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 214 85% 30%;
+    --sidebar-ring: 28 100% 55%;
     
     /* Custom Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
@@ -91,25 +91,25 @@
   }
 
   .dark {
-    --background: 15 23% 42%;
+    --background: 214 95% 15%;
     --foreground: 0 0% 98%;
-    --card: 15 23% 42%;
+    --card: 214 85% 20%;
     --card-foreground: 0 0% 98%;
-    --popover: 15 23% 42%;
+    --popover: 214 85% 20%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 221 83% 20%;
-    --secondary: 217 32% 18%;
+    --primary: 28 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 85% 25%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 217 32% 18%;
-    --muted-foreground: 215 20% 65%;
-    --accent: 217 32% 18%;
+    --muted: 214 70% 25%;
+    --muted-foreground: 214 20% 70%;
+    --accent: 214 85% 25%;
     --accent-foreground: 0 0% 98%;
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
-    --border: 217 32% 18%;
-    --input: 217 32% 18%;
-    --ring: 212 27% 84%;
+    --border: 214 70% 25%;
+    --input: 214 70% 25%;
+    --ring: 28 100% 55%;
   }
 }
 
