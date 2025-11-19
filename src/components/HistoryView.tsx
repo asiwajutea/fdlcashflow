@@ -11,7 +11,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { EditWeeklyRecordDialog } from './EditWeeklyRecordDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-
 interface HistoryRecord {
   id: string;
   week_number: number;
@@ -28,7 +27,6 @@ interface HistoryRecord {
   created_at: string;
   other_expenses?: any[];
 }
-
 interface RateChangeRecord {
   id: string;
   changed_at: string;
@@ -36,7 +34,6 @@ interface RateChangeRecord {
   new_config: any;
   previous_config: any;
 }
-
 export const HistoryView: React.FC = () => {
   const [records, setRecords] = useState<HistoryRecord[]>([]);
   const [rateChanges, setRateChanges] = useState<RateChangeRecord[]>([]);
@@ -48,17 +45,20 @@ export const HistoryView: React.FC = () => {
   });
   const [editingRecord, setEditingRecord] = useState<HistoryRecord | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const { toast } = useToast();
-
+  const {
+    toast
+  } = useToast();
   const fetchRecords = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('weekly_records')
-        .select('*')
-        .order('year', { ascending: false })
-        .order('week_number', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('weekly_records').select('*').order('year', {
+        ascending: false
+      }).order('week_number', {
+        ascending: false
+      });
       if (error) throw error;
       setRecords((data || []) as HistoryRecord[]);
     } catch (error) {
@@ -67,29 +67,26 @@ export const HistoryView: React.FC = () => {
       setLoading(false);
     }
   };
-
   const fetchRateChanges = async () => {
     try {
-      const { data, error } = await supabase
-        .from('rate_change_history')
-        .select('*')
-        .order('changed_at', { ascending: false });
-
+      const {
+        data,
+        error
+      } = await supabase.from('rate_change_history').select('*').order('changed_at', {
+        ascending: false
+      });
       if (error) throw error;
       setRateChanges(data || []);
     } catch (error) {
       console.error('Error fetching rate changes:', error);
     }
   };
-
   useEffect(() => {
     fetchRecords();
     fetchRateChanges();
   }, []);
-
   const applyFilters = () => {
     let filtered = [...records];
-
     if (filters.startDate) {
       const startDate = new Date(filters.startDate);
       filtered = filtered.filter(record => {
@@ -97,7 +94,6 @@ export const HistoryView: React.FC = () => {
         return recordDate >= startDate;
       });
     }
-
     if (filters.endDate) {
       const endDate = new Date(filters.endDate);
       filtered = filtered.filter(record => {
@@ -105,16 +101,13 @@ export const HistoryView: React.FC = () => {
         return recordDate <= endDate;
       });
     }
-
     if (filters.viewType === 'positive') {
       filtered = filtered.filter(record => record.net_cashflow > 0);
     } else if (filters.viewType === 'negative') {
       filtered = filtered.filter(record => record.net_cashflow < 0);
     }
-
     return filtered;
   };
-
   const clearFilters = () => {
     setFilters({
       startDate: '',
@@ -122,15 +115,13 @@ export const HistoryView: React.FC = () => {
       viewType: 'all'
     });
   };
-
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
       currency: 'NGN',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(amount);
   };
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-NG', {
       year: 'numeric',
@@ -138,49 +129,38 @@ export const HistoryView: React.FC = () => {
       day: 'numeric'
     });
   };
-
   const filteredRecords = applyFilters();
-
   const totalIncome = filteredRecords.reduce((sum, record) => sum + record.total_income, 0);
   const totalExpenses = filteredRecords.reduce((sum, record) => sum + record.total_expenses, 0);
   const totalNetCashflow = totalIncome - totalExpenses;
-
   const handleEditClick = (record: HistoryRecord) => {
     setEditingRecord(record);
     setEditDialogOpen(true);
   };
-
   const handleEditSuccess = () => {
     fetchRecords();
   };
-
   const handleDeleteRecord = async (record: HistoryRecord) => {
     try {
-      const { error } = await supabase
-        .from('weekly_records')
-        .delete()
-        .eq('id', record.id);
-
+      const {
+        error
+      } = await supabase.from('weekly_records').delete().eq('id', record.id);
       if (error) throw error;
-
       toast({
         title: 'Record deleted',
-        description: `Week ${record.week_number}, ${record.year} has been deleted successfully.`,
+        description: `Week ${record.week_number}, ${record.year} has been deleted successfully.`
       });
-
       fetchRecords();
     } catch (error) {
       console.error('Error deleting record:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete record. Please try again.',
-        variant: 'destructive',
+        variant: 'destructive'
       });
     }
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <Tabs defaultValue="weekly" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="weekly">Weekly Records</TabsTrigger>
@@ -224,33 +204,32 @@ export const HistoryView: React.FC = () => {
           <Card className="financial-card p-6">
             <div className="flex items-center space-x-3 mb-4">
               <History className="h-5 w-5 text-primary" />
-              <h3 className="text-lg font-semibold text-foreground">Filter Records</h3>
+              <h3 className="text-lg font-semibold text-gray-800">Filter Records</h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="startDate">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                />
+                <Input id="startDate" type="date" value={filters.startDate} onChange={e => setFilters({
+                ...filters,
+                startDate: e.target.value
+              })} />
               </div>
 
               <div>
                 <Label htmlFor="endDate">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={filters.endDate}
-                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                />
+                <Input id="endDate" type="date" value={filters.endDate} onChange={e => setFilters({
+                ...filters,
+                endDate: e.target.value
+              })} />
               </div>
 
               <div>
                 <Label htmlFor="viewType">View Type</Label>
-                <Select value={filters.viewType} onValueChange={(value) => setFilters({ ...filters, viewType: value })}>
+                <Select value={filters.viewType} onValueChange={value => setFilters({
+                ...filters,
+                viewType: value
+              })}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -272,16 +251,11 @@ export const HistoryView: React.FC = () => {
 
           {/* Records Table */}
           <Card className="financial-card p-6">
-            {loading ? (
-              <div className="text-center py-8">
+            {loading ? <div className="text-center py-8">
                 <p className="text-muted-foreground">Loading records...</p>
-              </div>
-            ) : filteredRecords.length === 0 ? (
-              <div className="text-center py-8">
+              </div> : filteredRecords.length === 0 ? <div className="text-center py-8">
                 <p className="text-muted-foreground">No records found</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
+              </div> : <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -297,8 +271,7 @@ export const HistoryView: React.FC = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRecords.map((record) => (
-                      <TableRow key={record.id}>
+                    {filteredRecords.map(record => <TableRow key={record.id}>
                         <TableCell className="font-medium">
                           Week {record.week_number}, {record.year}
                         </TableCell>
@@ -319,19 +292,12 @@ export const HistoryView: React.FC = () => {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditClick(record)}
-                            >
+                            <Button variant="ghost" size="sm" onClick={() => handleEditClick(record)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                >
+                                <Button variant="ghost" size="sm">
                                   <Trash2 className="h-4 w-4 text-danger" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -345,10 +311,7 @@ export const HistoryView: React.FC = () => {
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteRecord(record)}
-                                    className="bg-danger hover:bg-danger/90"
-                                  >
+                                  <AlertDialogAction onClick={() => handleDeleteRecord(record)} className="bg-danger hover:bg-danger/90">
                                     Delete
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
@@ -356,12 +319,10 @@ export const HistoryView: React.FC = () => {
                             </AlertDialog>
                           </div>
                         </TableCell>
-                      </TableRow>
-                    ))}
+                      </TableRow>)}
                   </TableBody>
                 </Table>
-              </div>
-            )}
+              </div>}
           </Card>
         </TabsContent>
 
@@ -375,14 +336,10 @@ export const HistoryView: React.FC = () => {
               </div>
             </div>
 
-            {rateChanges.length === 0 ? (
-              <div className="text-center py-8">
+            {rateChanges.length === 0 ? <div className="text-center py-8">
                 <p className="text-muted-foreground">No rate changes recorded yet</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {rateChanges.map((change) => (
-                  <Card key={change.id} className="p-4 bg-muted/50">
+              </div> : <div className="space-y-4">
+                {rateChanges.map(change => <Card key={change.id} className="p-4 bg-muted/50">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h4 className="font-semibold text-foreground">
@@ -394,8 +351,7 @@ export const HistoryView: React.FC = () => {
                       </div>
                     </div>
                     
-                    {change.new_config && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {change.new_config && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
                           <h5 className="text-sm font-semibold text-foreground mb-2">Income Rates</h5>
                           <div className="space-y-1 text-sm">
@@ -412,22 +368,13 @@ export const HistoryView: React.FC = () => {
                             <p className="text-muted-foreground">Gratuity: {(change.new_config.employee_gratuity_rate * 100).toFixed(1)}%</p>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </Card>
-                ))}
-              </div>
-            )}
+                      </div>}
+                  </Card>)}
+              </div>}
           </Card>
         </TabsContent>
       </Tabs>
 
-      <EditWeeklyRecordDialog
-        record={editingRecord}
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        onSuccess={handleEditSuccess}
-      />
-    </div>
-  );
+      <EditWeeklyRecordDialog record={editingRecord} open={editDialogOpen} onOpenChange={setEditDialogOpen} onSuccess={handleEditSuccess} />
+    </div>;
 };
