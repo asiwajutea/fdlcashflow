@@ -88,7 +88,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             <CalendarDays className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Weekly Data Entry</h2>
+            <h2 className="text-lg font-semibold text-card-foreground">Weekly Data Entry</h2>
             <p className="text-sm text-muted-foreground">Enter genealogy project data</p>
           </div>
         </div>
@@ -96,7 +96,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Week Selection */}
           <div>
-            <Label htmlFor="week" className="text-sm font-medium text-foreground mb-2 block">
+            <Label htmlFor="week" className="mb-2 block">
               Week Starting Date
             </Label>
             <Input
@@ -111,7 +111,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
           {/* Data Entry Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="fieldWork" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="fieldWork" className="mb-2 block">
                 Field Work Names
               </Label>
               <Input
@@ -127,7 +127,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="dataEntry" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="dataEntry" className="mb-2 block">
                 Data Entry Names
               </Label>
               <Input
@@ -143,7 +143,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="bacAudit" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="bacAudit" className="mb-2 block">
                 BAC Audit Names
               </Label>
               <Input
@@ -159,7 +159,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="metadataAudit" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="metadataAudit" className="mb-2 block">
                 Metadata Audit Names
               </Label>
               <Input
@@ -175,7 +175,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="virtualAudit" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="virtualAudit" className="mb-2 block">
                 Virtual Audit Names
               </Label>
               <Input
@@ -191,7 +191,7 @@ export const WeeklyDataEntry: React.FC<WeeklyDataEntryProps> = ({
             </div>
 
             <div>
-              <Label htmlFor="bookletProduction" className="text-sm font-medium text-foreground mb-2 block">
+              <Label htmlFor="bookletProduction" className="mb-2 block">
                 Booklet Production (Weekly)
               </Label>
               <Input

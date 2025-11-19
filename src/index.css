@@ -37,7 +37,7 @@
     /* Neutral System */
     --muted: 214 80% 20%;
     --muted-dark: 214 20% 88%;
-    --muted-foreground: 214 20% 50%;
+    --muted-foreground: 210 15% 40%;
     
     /* Card & Surface System */
     --card: 0 0% 100%;
@@ -148,5 +148,15 @@
   /* Labels on navy background */
   .label-on-navy {
     @apply text-foreground font-medium;
+  }
+  
+  /* Text inside white cards */
+  .text-on-card {
+    @apply text-card-foreground;
+  }
+  
+  /* Headings inside cards */
+  .card-heading {
+    @apply text-card-foreground font-semibold;
   }
 }

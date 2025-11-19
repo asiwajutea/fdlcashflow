@@ -715,7 +715,7 @@ const InvoiceGenerator = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Total Monthly Income (Auto-calculated)</Label>
-                <Input type="number" value={additionalFields.totalMonthlyIncome} readOnly className="bg-muted" />
+                <Input type="number" value={additionalFields.totalMonthlyIncome} readOnly className="bg-muted text-foreground" />
               </div>
               <div className="space-y-2">
                 <Label>Outstanding IOU</Label>
@@ -733,7 +733,7 @@ const InvoiceGenerator = () => {
               </div>
               <div className="space-y-2">
                 <Label>EGF (Employee Gratuity Fund) - {includeEgf ? 'Auto-calculated (7.5%)' : 'Disabled'}</Label>
-                <Input type="number" value={additionalFields.egf} readOnly className="bg-muted" />
+                <Input type="number" value={additionalFields.egf} readOnly className="bg-muted text-foreground" />
               </div>
             </div>
 
@@ -752,7 +752,7 @@ const InvoiceGenerator = () => {
             {/* EGF Option */}
             <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
               <Checkbox id="include-egf" checked={includeEgf} onCheckedChange={checked => setIncludeEgf(checked as boolean)} />
-              <Label htmlFor="include-egf" className="text-sm cursor-pointer">
+              <Label htmlFor="include-egf" className="text-sm cursor-pointer text-foreground">
                 Include Employee Gratuity Fund (EGF) - 7.5% of Gross Payment
               </Label>
             </div>
@@ -760,7 +760,7 @@ const InvoiceGenerator = () => {
             {/* Email Option */}
             {selectedEmployee?.email && <div className="flex items-center space-x-2 p-4 bg-muted rounded-lg">
                 <Checkbox id="send-email" checked={sendEmail} onCheckedChange={checked => setSendEmail(checked as boolean)} />
-                <Label htmlFor="send-email" className="text-sm cursor-pointer flex items-center gap-2">
+                <Label htmlFor="send-email" className="text-sm cursor-pointer flex items-center gap-2 text-foreground">
                   <Mail className="h-4 w-4" />
                   Send payslip via email to {selectedEmployee.email}
                 </Label>
