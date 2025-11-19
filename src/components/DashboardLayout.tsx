@@ -10,7 +10,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title
 }) => {
-  return <div className="min-h-screen bg-gradient-surface">
+  return <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-card border-b border-card-border shadow-financial-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,7 +43,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-slate-900">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {children}
       </main>
     </div>;

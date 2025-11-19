@@ -25,7 +25,7 @@ const App = () => <QueryClientProvider client={queryClient}>
             <Route path="/" element={<Index />} />
             <Route path="/generate-invoice" element={<InvoiceGenerator />} />
             <Route path="/bulk-invoice" element={<BulkInvoiceGenerator />} />
-            <Route path="/invoices" element={<InvoiceList />} className="bg-slate-800" />
+            <Route path="/invoices" element={<InvoiceList />} />
             <Route path="/invoice-statistics" element={<InvoiceStatistics />} />
             <Route path="/statistics" element={<InvoiceStatistics />} />
             <Route path="/employees" element={<EmployeeManagement />} />

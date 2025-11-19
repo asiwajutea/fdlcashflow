@@ -7,8 +7,8 @@
 @layer base {
   :root {
     /* Core Background & Text */
-    --background: 0 0% 98%;
-    --foreground: 210 20% 25%;
+    --background: 214 95% 15%;
+    --foreground: 0 0% 95%;
     
     /* Brand Primary - Navy Blue */
     --primary: 214 95% 25%;
@@ -35,9 +35,9 @@
     --warning-foreground: 28 100% 20%;
     
     /* Neutral System */
-    --muted: 214 20% 95%;
+    --muted: 214 80% 20%;
     --muted-dark: 214 20% 88%;
-    --muted-foreground: 214 15% 50%;
+    --muted-foreground: 214 15% 70%;
     
     /* Card & Surface System */
     --card: 0 0% 100%;
@@ -79,7 +79,7 @@
     /* Custom Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
     --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
-    --gradient-surface: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    --gradient-surface: linear-gradient(180deg, hsl(214 95% 15%), hsl(214 80% 20%));
     
     /* Custom Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(var(--primary) / 0.05);
@@ -93,7 +93,7 @@
   .dark {
     --background: 214 95% 15%;
     --foreground: 0 0% 98%;
-    --card: 214 85% 20%;
+    --card: 214 70% 22%;
     --card-foreground: 0 0% 98%;
     --popover: 214 85% 20%;
     --popover-foreground: 0 0% 98%;
