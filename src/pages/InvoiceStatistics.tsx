@@ -841,7 +841,7 @@ const InvoiceStatistics = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {topEmployees.map((employee, index) => <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                  {topEmployees.map((employee, index) => <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-muted-foreground">
                       <div className="flex items-center gap-3">
                         <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${index === 0 ? 'bg-warning/20 text-warning' : index === 1 ? 'bg-muted-foreground/20 text-muted-foreground' : index === 2 ? 'bg-orange-500/20 text-orange-500' : 'bg-primary/10 text-primary'}`}>
                           #{index + 1}
