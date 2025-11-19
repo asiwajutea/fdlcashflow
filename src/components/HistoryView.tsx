@@ -331,7 +331,7 @@ export const HistoryView: React.FC = () => {
             <div className="flex items-center space-x-3 mb-6">
               <Settings className="h-5 w-5 text-primary" />
               <div>
-                <h3 className="text-lg font-semibold text-foreground">Rate Configuration History</h3>
+                <h3 className="text-lg font-semibold text-gray-800">Rate Configuration History</h3>
                 <p className="text-sm text-muted-foreground">Track all changes made to income and expense rates</p>
               </div>
             </div>
@@ -345,7 +345,7 @@ export const HistoryView: React.FC = () => {
                         <h4 className="font-semibold text-foreground">
                           {change.change_summary || 'Rate Configuration Updated'}
                         </h4>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-slate-200">
                           {formatDate(change.changed_at)}
                         </p>
                       </div>
@@ -353,19 +353,19 @@ export const HistoryView: React.FC = () => {
                     
                     {change.new_config && <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                         <div>
-                          <h5 className="text-sm font-semibold text-foreground mb-2">Income Rates</h5>
+                          <h5 className="text-sm font-semibold mb-2 text-green-300">Income Rates</h5>
                           <div className="space-y-1 text-sm">
-                            <p className="text-muted-foreground">Field Work: ₦{change.new_config.field_work_rate}</p>
-                            <p className="text-muted-foreground">Data Entry: ₦{change.new_config.data_entry_rate}</p>
-                            <p className="text-muted-foreground">BAC Audit: ₦{change.new_config.bac_audit_rate}</p>
+                            <p className="text-slate-100">Field Work: ₦{change.new_config.field_work_rate}</p>
+                            <p className="text-slate-100">Data Entry: ₦{change.new_config.data_entry_rate}</p>
+                            <p className="text-slate-100">BAC Audit: ₦{change.new_config.bac_audit_rate}</p>
                           </div>
                         </div>
                         <div>
-                          <h5 className="text-sm font-semibold text-foreground mb-2">Expense Rates</h5>
+                          <h5 className="text-sm font-semibold mb-2 text-red-200">Expense Rates</h5>
                           <div className="space-y-1 text-sm">
-                            <p className="text-muted-foreground">Logistics: {(change.new_config.logistics_rate * 100).toFixed(1)}%</p>
-                            <p className="text-muted-foreground">Incentives: {(change.new_config.incentives_rate * 100).toFixed(1)}%</p>
-                            <p className="text-muted-foreground">Gratuity: {(change.new_config.employee_gratuity_rate * 100).toFixed(1)}%</p>
+                            <p className="text-slate-100">Logistics: {(change.new_config.logistics_rate * 100).toFixed(1)}%</p>
+                            <p className="text-slate-200">Incentives: {(change.new_config.incentives_rate * 100).toFixed(1)}%</p>
+                            <p className="text-slate-200">Gratuity: {(change.new_config.employee_gratuity_rate * 100).toFixed(1)}%</p>
                           </div>
                         </div>
                       </div>}
