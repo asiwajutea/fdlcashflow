@@ -365,6 +365,28 @@ const Index = () => {
 
       if (error) throw error;
 
+      // Auto-create daily income entry for weekly data
+      await supabase.from('daily_transactions').insert({
+        date: data.week,
+        type: 'income',
+        category: 'Weekly Revenue',
+        description: `Weekly Income - Week ${weekNumber}, ${year}`,
+        amount: weeklyIncome,
+        reference_id: null,
+        reference_type: 'weekly_record',
+        is_auto_generated: true,
+        metadata: {
+          field_work: data.fieldWork,
+          data_entry: data.dataEntry,
+          bac_audit: data.bacAudit,
+          metadata_audit: data.metadataAudit,
+          virtual_audit: data.virtualAudit,
+          booklet_income: data.bookletProduction,
+          week_number: weekNumber,
+          year: year
+        }
+      });
+
       toast({
         title: "Success",
         description: `Week ${weekNumber}, ${year} data saved successfully`
@@ -543,6 +565,10 @@ const Index = () => {
                   <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/company-settings')}>
                     <Settings className="h-4 w-4" />
                     Company Settings
+                  </Button>
+                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/daily-tracker')}>
+                    <Receipt className="h-4 w-4" />
+                    Daily Income & Expense Tracker
                   </Button>
                   <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('charts')}>
                     View Analytics Dashboard
