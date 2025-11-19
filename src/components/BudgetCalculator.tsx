@@ -259,7 +259,7 @@ export const BudgetCalculator = () => {
             <span className="font-semibold text-gray-800">{formatCurrency(projectedMetrics.expenseBreakdown.incentives)}</span>
           </div>
           <div className="border-t pt-3 mt-3 flex justify-between items-center">
-            <span className="font-semibold text-foreground">Total Weekly Expenses</span>
+            <span className="font-semibold text-gray-800">Total Weekly Expenses</span>
             <span className="font-bold text-lg text-gray-800">{formatCurrency(projectedMetrics.weeklyExpenses)}</span>
           </div>
         </div>
