@@ -106,6 +106,51 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_transactions: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          date: string
+          description: string
+          id: string
+          is_auto_generated: boolean | null
+          metadata: Json | null
+          reference_id: string | null
+          reference_type: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string | null
+          date: string
+          description: string
+          id?: string
+          is_auto_generated?: boolean | null
+          metadata?: Json | null
+          reference_id?: string | null
+          reference_type?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          date?: string
+          description?: string
+          id?: string
+          is_auto_generated?: boolean | null
+          metadata?: Json | null
+          reference_id?: string | null
+          reference_type?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           account_number: string | null

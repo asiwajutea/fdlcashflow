@@ -419,6 +419,25 @@ const InvoiceGenerator = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Auto-create daily expense entry for payslip
+      await supabase.from('daily_transactions').insert({
+        date: dateIssued,
+        type: 'expense',
+        category: 'Payroll',
+        description: `Payslip - ${selectedEmployee.full_name} (${month}/${year})`,
+        amount: totals.grossPayment,
+        reference_id: invoiceData.id,
+        reference_type: 'invoice',
+        is_auto_generated: true,
+        metadata: {
+          employee_id: selectedEmployee.id,
+          employee_name: selectedEmployee.full_name,
+          invoice_number: invoiceNumber,
+          slip_number: slipNumber,
+          net_payment: totals.netPayment
+        }
+      });
+
       // Generate PDF - wait a bit for template to fully render
       await new Promise(resolve => setTimeout(resolve, 500));
       const element = document.getElementById('invoice-template');

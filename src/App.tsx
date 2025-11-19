@@ -13,6 +13,7 @@ import InvoiceStatistics from "./pages/InvoiceStatistics";
 import EmployeeManagement from "./pages/EmployeeManagement";
 import BulkInvoiceGenerator from "./pages/BulkInvoiceGenerator";
 import CompanySettings from "./pages/CompanySettings";
+import DailyTracker from "./pages/DailyTracker";
 const queryClient = new QueryClient();
 const App = () => <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="fdl-theme">
@@ -30,6 +31,7 @@ const App = () => <QueryClientProvider client={queryClient}>
             <Route path="/statistics" element={<InvoiceStatistics />} />
             <Route path="/employees" element={<EmployeeManagement />} />
             <Route path="/company-settings" element={<CompanySettings />} />
+            <Route path="/daily-tracker" element={<DailyTracker />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
