@@ -475,7 +475,7 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-muted-foreground">Logged in as</p>
-              <p className="font-semibold text-foreground">{user?.email}</p>
+              <p className="font-semibold text-card-foreground">{user?.email}</p>
               <p className="text-xs text-primary capitalize">Role: {role}</p>
             </div>
             <Button onClick={handleLogout} variant="outline" size="sm">
@@ -529,7 +529,7 @@ const Index = () => {
               <Card className="financial-card p-6">
                 <div className="flex items-center space-x-3 mb-4">
                   <FileText className="h-5 w-5 text-primary" />
-                  <h3 className="text-lg font-semibold text-foreground">Quick Actions</h3>
+                  <h3 className="text-lg font-semibold text-card-foreground">Quick Actions</h3>
                 </div>
                 <div className="space-y-3">
                   <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/generate-invoice')}>
