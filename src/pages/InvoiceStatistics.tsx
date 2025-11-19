@@ -329,7 +329,7 @@ const InvoiceStatistics = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="All Employees" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
+                  <SelectContent>
                     <SelectItem value="all">All Employees</SelectItem>
                     {employees.map(emp => <SelectItem key={emp.id} value={emp.id}>
                         {emp.full_name}
@@ -344,7 +344,7 @@ const InvoiceStatistics = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="All Years" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
+                  <SelectContent>
                     <SelectItem value="all">All Years</SelectItem>
                     {years.map(year => <SelectItem key={year} value={year.toString()}>
                         {year}
@@ -359,7 +359,7 @@ const InvoiceStatistics = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="All Months" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
+                  <SelectContent>
                     <SelectItem value="all">All Months</SelectItem>
                     {months.map(month => <SelectItem key={month} value={month.toString()}>
                         {new Date(2000, month - 1).toLocaleString('default', {

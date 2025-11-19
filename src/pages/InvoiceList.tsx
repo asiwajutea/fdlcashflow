@@ -436,7 +436,7 @@ const InvoiceList = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by month" />
                 </SelectTrigger>
-                <SelectContent className="bg-background z-50">
+                <SelectContent>
                   <SelectItem value="all">All Months</SelectItem>
                   {Array.from({
                   length: 12
@@ -452,7 +452,7 @@ const InvoiceList = () => {
                 <SelectTrigger>
                   <SelectValue placeholder="Filter by year" />
                 </SelectTrigger>
-                <SelectContent className="bg-background z-50">
+                <SelectContent>
                   <SelectItem value="all">All Years</SelectItem>
                   {uniqueYears.map(year => <SelectItem key={year} value={year.toString()}>
                       {year}
