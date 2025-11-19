@@ -20,14 +20,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <BarChart3 className="h-6 w-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">FDL Cashflow</h1>
+                <h1 className="text-xl font-bold text-slate-800">FDL Cashflow</h1>
                 <p className="text-sm text-muted-foreground">Footprints Dynasty Limited</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
               <div className="text-right">
-                <p className="text-sm font-medium text-foreground">{title}</p>
+                <p className="text-sm font-medium text-slate-800">{title}</p>
                 <p className="text-xs text-muted-foreground">
                   {new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
