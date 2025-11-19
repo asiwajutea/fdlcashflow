@@ -37,7 +37,7 @@
     /* Neutral System */
     --muted: 214 80% 20%;
     --muted-dark: 214 20% 88%;
-    --muted-foreground: 214 15% 70%;
+    --muted-foreground: 214 20% 50%;
     
     /* Card & Surface System */
     --card: 0 0% 100%;
@@ -45,8 +45,8 @@
     --card-border: 214 25% 90%;
     
     /* Form Elements */
-    --input: 214 25% 90%;
-    --border: 214 25% 90%;
+    --input: 214 25% 85%;
+    --border: 214 25% 85%;
     --ring: 214 95% 25%;
     
     /* Secondary & Accent - Orange Highlights */
@@ -138,5 +138,15 @@
   
   .metric-warning {
     @apply text-warning bg-warning-background;
+  }
+  
+  /* Text on navy background */
+  .text-on-navy {
+    @apply text-foreground;
+  }
+  
+  /* Labels on navy background */
+  .label-on-navy {
+    @apply text-foreground font-medium;
   }
 }
