@@ -119,7 +119,7 @@ export const BudgetCalculator = () => {
         <div className="flex items-center space-x-3 mb-6">
           <Calculator className="h-6 w-6 text-primary" />
           <div>
-            <h2 className="text-xl font-semibold text-foreground">Budget Calculator</h2>
+            <h2 className="text-xl font-semibold text-gray-800">Budget Calculator</h2>
             <p className="text-sm text-muted-foreground">Project your income and expenses for planning</p>
           </div>
         </div>
