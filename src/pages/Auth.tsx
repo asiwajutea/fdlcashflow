@@ -63,7 +63,7 @@ const Auth = () => {
           <div className="bg-primary/10 p-4 rounded-full mb-4">
             <Lock className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Financial Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-2 text-primary">Financial Dashboard</h1>
           <p className="text-muted-foreground">Footprints Dynasty Ltd</p>
         </div>
 
