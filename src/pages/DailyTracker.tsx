@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,13 +11,14 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useTransactions, TransactionFilters } from '@/hooks/useTransactions';
 import { useTransactionStats } from '@/hooks/useTransactionStats';
 import { TransactionDialog } from '@/components/TransactionDialog';
-import { Plus, TrendingUp, TrendingDown, DollarSign, Receipt, Edit, Trash2, Search, Download } from 'lucide-react';
+import { Plus, TrendingUp, TrendingDown, DollarSign, Receipt, Edit, Trash2, Search, Download, Home } from 'lucide-react';
 import { format } from 'date-fns';
 import { LineChart, Line, PieChart, Pie, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function DailyTracker() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState<TransactionFilters>({ type: 'all' });
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -78,9 +80,15 @@ export default function DailyTracker() {
       <div className="space-y-6 p-6">
         {/* Header */}
         <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Daily Income & Expense Tracker</h1>
-            <p className="text-muted-foreground">Track and analyze your financial transactions</p>
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => navigate('/')} className="gap-2">
+              <Home className="h-4 w-4" />
+              Homepage
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">Daily Income & Expense Tracker</h1>
+              <p className="text-muted-foreground">Track and analyze your financial transactions</p>
+            </div>
           </div>
           <Button onClick={() => { setEditTransaction(null); setDialogOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" />
