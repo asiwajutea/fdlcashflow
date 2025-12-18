@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, TrendingUp, Download, Trophy, Users, TrendingDown, DollarSign, PiggyBank, Award, Calendar as CalendarIcon, ArrowRight } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Download, Trophy, Users, TrendingDown, DollarSign, PiggyBank, Award, Calendar as CalendarIcon, ArrowRight, ArrowUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -71,6 +71,10 @@ const InvoiceStatistics = () => {
   }>>([]);
   const [years, setYears] = useState<number[]>([]);
   const [months, setMonths] = useState<number[]>([]);
+
+  // Sorting states
+  const [sortColumn, setSortColumn] = useState<string>('total_gross_payment');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Period Comparison States
   const [showComparison, setShowComparison] = useState(false);
@@ -172,14 +176,14 @@ const InvoiceStatistics = () => {
       stats.total_deductions += invoice.total_deductions;
       stats.total_net_payment += invoice.net_payment;
       stats.total_savings += invoice.total_savings || 0;
-      employeePayments.get(empId)!.push(invoice.net_payment);
+      employeePayments.get(empId)!.push(invoice.gross_payment);
     });
 
-    // Calculate averages and consistency scores
+    // Calculate averages and consistency scores (using gross payments)
     statsMap.forEach((stats, empId) => {
-      stats.average_payment = stats.total_net_payment / stats.total_invoices;
+      stats.average_payment = stats.total_gross_payment / stats.total_invoices;
 
-      // Calculate consistency score (inverse of coefficient of variation)
+      // Calculate consistency score (inverse of coefficient of variation) based on gross payments
       const payments = employeePayments.get(empId)!;
       if (payments.length > 1) {
         const mean = stats.average_payment;
@@ -297,12 +301,73 @@ const InvoiceStatistics = () => {
     total_net_payment: 0,
     total_savings: 0
   });
-  const highestPaidEmployee = employeeStats.length > 0 ? employeeStats.reduce((max, stat) => stat.total_net_payment > max.total_net_payment ? stat : max, employeeStats[0]) : null;
+  const highestPaidEmployee = employeeStats.length > 0 ? employeeStats.reduce((max, stat) => stat.total_gross_payment > max.total_gross_payment ? stat : max, employeeStats[0]) : null;
   const mostConsistentEmployee = employeeStats.length > 0 ? employeeStats.reduce((max, stat) => stat.consistency_score > max.consistency_score ? stat : max, employeeStats[0]) : null;
-  const topEmployees = employeeStats.sort((a, b) => b.total_net_payment - a.total_net_payment).slice(0, 5).map(emp => ({
+  const topEmployees = [...employeeStats].sort((a, b) => b.total_gross_payment - a.total_gross_payment).slice(0, 5).map(emp => ({
     name: emp.employee_name,
-    value: emp.total_net_payment
+    value: emp.total_gross_payment
   }));
+  const topDeductions = [...employeeStats].sort((a, b) => b.total_deductions - a.total_deductions).slice(0, 5).map(emp => ({
+    name: emp.employee_name,
+    value: emp.total_deductions
+  }));
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('desc');
+    }
+  };
+
+  const sortedEmployeeStats = [...employeeStats].sort((a, b) => {
+    let aValue: number | string = 0;
+    let bValue: number | string = 0;
+    
+    switch (sortColumn) {
+      case 'employee_name':
+        aValue = a.employee_name;
+        bValue = b.employee_name;
+        break;
+      case 'total_invoices':
+        aValue = a.total_invoices;
+        bValue = b.total_invoices;
+        break;
+      case 'total_gross_payment':
+        aValue = a.total_gross_payment;
+        bValue = b.total_gross_payment;
+        break;
+      case 'total_deductions':
+        aValue = a.total_deductions;
+        bValue = b.total_deductions;
+        break;
+      case 'total_net_payment':
+        aValue = a.total_net_payment;
+        bValue = b.total_net_payment;
+        break;
+      case 'total_savings':
+        aValue = a.total_savings;
+        bValue = b.total_savings;
+        break;
+      case 'average_payment':
+        aValue = a.average_payment;
+        bValue = b.average_payment;
+        break;
+      case 'consistency_score':
+        aValue = a.consistency_score;
+        bValue = b.consistency_score;
+        break;
+      default:
+        aValue = a.total_gross_payment;
+        bValue = b.total_gross_payment;
+    }
+    
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sortDirection === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+    }
+    return sortDirection === 'asc' ? (aValue as number) - (bValue as number) : (bValue as number) - (aValue as number);
+  });
   return <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
@@ -774,14 +839,12 @@ const InvoiceStatistics = () => {
                 <div className="text-xl font-bold">{highestPaidEmployee.employee_name}</div>
                 <div className="text-sm text-muted-foreground">ID: {highestPaidEmployee.employee_id}</div>
                 <div className="text-2xl font-bold text-primary">
-                  ₦{highestPaidEmployee.total_net_payment.toLocaleString('en-NG', {
+                  ₦{highestPaidEmployee.total_gross_payment.toLocaleString('en-NG', {
                 minimumFractionDigits: 2
               })}
                 </div>
                 <div className="text-sm">
-                  Average: ₦{highestPaidEmployee.average_payment.toLocaleString('en-NG', {
-                minimumFractionDigits: 2
-              })}
+                  Gross Payment Total
                 </div>
               </CardContent>
             </Card>}
@@ -836,7 +899,7 @@ const InvoiceStatistics = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trophy className="h-5 w-5 text-warning" />
-                  Top 5 Employees by Total Payment
+                  Top 5 Employees by Gross Payment
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -861,6 +924,39 @@ const InvoiceStatistics = () => {
               </CardContent>
             </Card>}
         </div>
+
+        {/* Top 5 Employees with Highest Deductions */}
+        {topDeductions.length > 0 && <Card className="transition-all duration-300 hover:shadow-lg border border-destructive/20 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingDown className="h-5 w-5 text-destructive" />
+                Top 5 Employees with Highest Deductions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+                {topDeductions.map((employee, index) => (
+                  <div key={index} className="flex flex-col items-center p-4 rounded-lg bg-destructive/5 hover:bg-destructive/10 transition-colors border border-destructive/10">
+                    <div className={`flex items-center justify-center w-10 h-10 rounded-full font-bold text-sm mb-2 ${
+                      index === 0 ? 'bg-destructive/20 text-destructive' : 
+                      index === 1 ? 'bg-orange-500/20 text-orange-500' : 
+                      index === 2 ? 'bg-yellow-500/20 text-yellow-600' : 
+                      'bg-muted text-muted-foreground'
+                    }`}>
+                      #{index + 1}
+                    </div>
+                    <span className="font-medium text-sm text-center mb-1">{employee.name}</span>
+                    <div className="font-bold text-destructive">
+                      ₦{employee.value.toLocaleString('en-NG', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>}
 
         {/* Additional Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -942,18 +1038,58 @@ const InvoiceStatistics = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="text-center">Payslips</TableHead>
-                  <TableHead className="text-right">Total Gross</TableHead>
-                  <TableHead className="text-right">Deductions</TableHead>
-                  <TableHead className="text-right">Total Net</TableHead>
-                  <TableHead className="text-right">Total Savings</TableHead>
-                  <TableHead className="text-right">Average</TableHead>
-                  <TableHead className="text-center">Consistency</TableHead>
+                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('employee_name')}>
+                    <div className="flex items-center gap-1">
+                      Employee
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_invoices')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Payslips
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_gross_payment')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Total Gross
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_deductions')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Deductions
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_net_payment')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Total Net
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('total_savings')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Total Savings
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-right cursor-pointer hover:bg-muted/50" onClick={() => handleSort('average_payment')}>
+                    <div className="flex items-center justify-end gap-1">
+                      Average
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-center cursor-pointer hover:bg-muted/50" onClick={() => handleSort('consistency_score')}>
+                    <div className="flex items-center justify-center gap-1">
+                      Consistency
+                      <ArrowUpDown className="h-4 w-4" />
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employeeStats.map(stat => <TableRow key={stat.employee_id}>
+                {sortedEmployeeStats.map(stat => <TableRow key={stat.employee_id}>
                     <TableCell>
                       <div className="font-medium">{stat.employee_name}</div>
                       <div className="text-sm text-muted-foreground">{stat.employee_id}</div>
@@ -990,7 +1126,7 @@ const InvoiceStatistics = () => {
                       </span>
                     </TableCell>
                   </TableRow>)}
-                {employeeStats.length === 0 && <TableRow>
+                {sortedEmployeeStats.length === 0 && <TableRow>
                     <TableCell colSpan={8} className="text-center text-muted-foreground">
                       No statistics available for the selected filters
                     </TableCell>
