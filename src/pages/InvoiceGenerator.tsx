@@ -419,13 +419,13 @@ const InvoiceGenerator = () => {
         if (itemsError) throw itemsError;
       }
 
-      // Auto-create daily expense entry for payslip
+      // Auto-create daily expense entry for payslip (net payment including savings)
       await supabase.from('daily_transactions').insert({
         date: dateIssued,
         type: 'expense',
         category: 'Payroll',
         description: `Payslip - ${selectedEmployee.full_name} (${month}/${year})`,
-        amount: totals.grossPayment,
+        amount: totals.netPayment,
         reference_id: invoiceData.id,
         reference_type: 'invoice',
         is_auto_generated: true,
@@ -434,7 +434,9 @@ const InvoiceGenerator = () => {
           employee_name: selectedEmployee.full_name,
           invoice_number: invoiceNumber,
           slip_number: slipNumber,
-          net_payment: totals.netPayment
+          gross_payment: totals.grossPayment,
+          total_deductions: totals.totalDeductions,
+          total_savings: totals.totalSavings
         }
       });
 
@@ -443,17 +445,17 @@ const InvoiceGenerator = () => {
       const element = document.getElementById('invoice-template');
       if (!element) throw new Error('Invoice template not found');
       const canvas = await html2canvas(element, {
-        scale: 2,
+        scale: 1.5,
         logging: false,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff'
       });
-      const imgData = canvas.toDataURL('image/png');
+      const imgData = canvas.toDataURL('image/jpeg', 0.75);
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = canvas.height * pdfWidth / canvas.width;
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       pdf.save(`${invoiceNumber}.pdf`);
 
       // Send email if checkbox is checked
