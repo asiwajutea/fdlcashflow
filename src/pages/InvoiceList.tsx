@@ -145,29 +145,53 @@ const InvoiceList = () => {
       setSelectedInvoice(invoice);
 
       // Wait for DOM to update
-      setTimeout(async () => {
-        const element = document.getElementById('invoice-download-template');
-        if (!element) {
-          throw new Error('Invoice template not found');
-        }
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          logging: false,
-          useCORS: true
-        });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = canvas.height * pdfWidth / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`${invoice.invoice_number}.pdf`);
-        setSelectedInvoice(null);
-        setIsDownloading(false);
-        toast({
-          title: "Success",
-          description: "Invoice downloaded successfully"
-        });
-      }, 100);
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const element = document.getElementById('invoice-download-template');
+      if (!element) {
+        throw new Error('Invoice template not found');
+      }
+      
+      const canvas = await html2canvas(element, {
+        scale: 1.5,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: -window.scrollY,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight
+      });
+      
+      const imgData = canvas.toDataURL('image/jpeg', 0.75);
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      
+      // Handle multi-page if content is taller than one page
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfPageHeight;
+      
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfPageHeight;
+      }
+      
+      pdf.save(`${invoice.invoice_number}.pdf`);
+      setSelectedInvoice(null);
+      setIsDownloading(false);
+      toast({
+        title: "Success",
+        description: "Invoice downloaded successfully"
+      });
     } catch (error: any) {
       console.error('Error downloading invoice:', error);
       toast({
@@ -267,16 +291,39 @@ const InvoiceList = () => {
         // Render the invoice template (we'll use a simple approach here)
         // In production, you might want to use ReactDOM.render
         tempDiv.innerHTML = document.getElementById('invoice-download-template')?.innerHTML || '';
+        
         const canvas = await html2canvas(tempDiv, {
-          scale: 2,
+          scale: 1.5,
           logging: false,
-          useCORS: true
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: tempDiv.scrollWidth,
+          windowHeight: tempDiv.scrollHeight
         });
-        const imgData = canvas.toDataURL('image/png');
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.75);
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = canvas.height * pdfWidth / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        const pdfPageHeight = pdf.internal.pageSize.getHeight();
+        const imgWidth = pdfWidth;
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        // Handle multi-page if content is taller than one page
+        let heightLeft = imgHeight;
+        let position = 0;
+        
+        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfPageHeight;
+        
+        while (heightLeft > 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pdfPageHeight;
+        }
         const pdfBlob = pdf.output('blob');
 
         // Add to ZIP
