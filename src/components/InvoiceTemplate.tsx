@@ -96,7 +96,7 @@ export const InvoiceTemplate = ({
           <h2 className="text-2xl font-bold text-gray-700">{companySettings?.company_name || 'FOOTPRINTS DYNASTY'}</h2>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <img src={companySettings?.logo_url || fdlLogo} alt="Company Logo" className="h-60 w-auto " />
+          <img src={companySettings?.logo_url || fdlLogo} alt="Company Logo" className="h-40 w-auto" />
           <div className="text-right">
             <p className="text-sm mt-1">Date Issued: {formattedDate}</p>
           </div>
