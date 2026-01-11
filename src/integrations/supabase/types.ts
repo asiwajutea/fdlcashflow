@@ -194,6 +194,7 @@ export type Database = {
           description: string
           id: string
           invoice_id: string
+          is_taxable: boolean | null
           item_type: string
         }
         Insert: {
@@ -202,6 +203,7 @@ export type Database = {
           description: string
           id?: string
           invoice_id: string
+          is_taxable?: boolean | null
           item_type: string
         }
         Update: {
@@ -210,6 +212,7 @@ export type Database = {
           description?: string
           id?: string
           invoice_id?: string
+          is_taxable?: boolean | null
           item_type?: string
         }
         Relationships: [
@@ -236,11 +239,14 @@ export type Database = {
           net_payment: number
           outstanding_iou: number
           slip_number: string
+          taxable_income: number | null
           total_deductions: number
           total_monthly_income: number
           total_savings: number
           updated_at: string | null
           year: number
+          ytd_tax_paid: number | null
+          ytd_taxable_income: number | null
         }
         Insert: {
           created_at?: string | null
@@ -255,11 +261,14 @@ export type Database = {
           net_payment?: number
           outstanding_iou?: number
           slip_number: string
+          taxable_income?: number | null
           total_deductions?: number
           total_monthly_income?: number
           total_savings?: number
           updated_at?: string | null
           year: number
+          ytd_tax_paid?: number | null
+          ytd_taxable_income?: number | null
         }
         Update: {
           created_at?: string | null
@@ -274,11 +283,14 @@ export type Database = {
           net_payment?: number
           outstanding_iou?: number
           slip_number?: string
+          taxable_income?: number | null
           total_deductions?: number
           total_monthly_income?: number
           total_savings?: number
           updated_at?: string | null
           year?: number
+          ytd_tax_paid?: number | null
+          ytd_taxable_income?: number | null
         }
         Relationships: [
           {

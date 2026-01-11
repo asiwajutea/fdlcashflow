@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -9,11 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, Download, ArrowLeft, Mail } from 'lucide-react';
+import { Plus, Trash2, Download, ArrowLeft, Mail, Calculator, Info } from 'lucide-react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { InvoiceTemplate } from '@/components/InvoiceTemplate';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { calculateMonthlyPAYE, getPAYEBreakdown, formatNaira } from '@/utils/payeCalculator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+
 interface Employee {
   id: string;
   employee_id: string;
@@ -25,6 +29,7 @@ interface LineItem {
   id: string;
   description: string;
   amount: string;
+  isTaxable?: boolean;
 }
 const InvoiceGenerator = () => {
   const {
@@ -47,20 +52,29 @@ const InvoiceGenerator = () => {
   const [earnings, setEarnings] = useState<LineItem[]>([{
     id: '1',
     description: 'Salary',
-    amount: ''
+    amount: '',
+    isTaxable: true
   }, {
     id: '2',
     description: 'Data/Airtime Bonus',
-    amount: ''
+    amount: '',
+    isTaxable: false
   }, {
     id: '3',
     description: 'Personal Bonus',
-    amount: ''
+    amount: '',
+    isTaxable: true
   }, {
     id: '4',
     description: 'Outstanding Payment(s)',
-    amount: ''
+    amount: '',
+    isTaxable: true
   }]);
+  
+  // YTD Tax tracking state
+  const [ytdTaxableIncome, setYtdTaxableIncome] = useState(0);
+  const [ytdTaxPaid, setYtdTaxPaid] = useState(0);
+  const [showTaxBreakdown, setShowTaxBreakdown] = useState(false);
   const [deductions, setDeductions] = useState<LineItem[]>([{
     id: '1',
     description: 'Tax',
@@ -113,14 +127,15 @@ const InvoiceGenerator = () => {
     }
   }, [editInvoiceId, employees]);
 
-  // Fetch previous total savings when employee is selected
+  // Fetch previous total savings and YTD tax data when employee is selected
   useEffect(() => {
     if (selectedEmployee) {
       fetchPreviousTotalSavings();
+      fetchYTDTaxData();
     }
   }, [selectedEmployee, month, year]);
 
-  // Recalculate EGF when includeEgf checkbox changes
+  // Recalculate EGF and Tax when includeEgf checkbox or earnings change
   useEffect(() => {
     if (earnings.some(e => e.amount)) {
       const grossPayment = earnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -131,8 +146,131 @@ const InvoiceGenerator = () => {
         egf: egfAmount,
         totalMonthlyIncome: totalMonthlyIncome
       }));
+      
+      // Recalculate PAYE tax
+      recalculatePAYETax(earnings);
     }
-  }, [includeEgf, earnings]);
+  }, [includeEgf, earnings, ytdTaxableIncome, ytdTaxPaid, month]);
+  
+  // Function to fetch YTD taxable income and tax paid
+  const fetchYTDTaxData = async () => {
+    if (!selectedEmployee) {
+      setYtdTaxableIncome(0);
+      setYtdTaxPaid(0);
+      return;
+    }
+    
+    try {
+      // Fetch all invoices for this employee in the current year BEFORE the current month
+      const { data: previousInvoices, error } = await supabase
+        .from('invoices')
+        .select('id, month, taxable_income, gross_payment')
+        .eq('employee_id', selectedEmployee.id)
+        .eq('year', year)
+        .lt('month', month)
+        .order('month', { ascending: true });
+      
+      if (error) {
+        console.error('Error fetching YTD tax data:', error);
+        return;
+      }
+      
+      if (!previousInvoices || previousInvoices.length === 0) {
+        setYtdTaxableIncome(0);
+        setYtdTaxPaid(0);
+        return;
+      }
+      
+      // Fetch line items for these invoices to calculate taxable income and tax paid
+      const invoiceIds = previousInvoices.map(inv => inv.id);
+      const { data: lineItems, error: lineItemsError } = await supabase
+        .from('invoice_line_items')
+        .select('invoice_id, item_type, amount, is_taxable, description')
+        .in('invoice_id', invoiceIds);
+      
+      if (lineItemsError) {
+        console.error('Error fetching line items for YTD:', lineItemsError);
+        return;
+      }
+      
+      // Calculate YTD taxable income (sum of taxable earnings from previous months)
+      let totalYtdTaxableIncome = 0;
+      let totalYtdTaxPaid = 0;
+      
+      for (const invoice of previousInvoices) {
+        const invoiceLineItems = lineItems?.filter(li => li.invoice_id === invoice.id) || [];
+        
+        // Sum taxable earnings (is_taxable = true or null for backwards compatibility with old data)
+        const taxableEarnings = invoiceLineItems
+          .filter(li => li.item_type === 'earning' && (li.is_taxable === true || li.is_taxable === null))
+          .reduce((sum, li) => sum + (li.amount || 0), 0);
+        
+        // If no line items have is_taxable set, use the stored taxable_income or gross_payment as fallback
+        if (invoiceLineItems.filter(li => li.item_type === 'earning').every(li => li.is_taxable === null)) {
+          totalYtdTaxableIncome += invoice.taxable_income || invoice.gross_payment || 0;
+        } else {
+          totalYtdTaxableIncome += taxableEarnings;
+        }
+        
+        // Sum tax deductions (Tax line item)
+        const taxDeduction = invoiceLineItems
+          .filter(li => li.item_type === 'deduction' && li.description?.toLowerCase() === 'tax')
+          .reduce((sum, li) => sum + (li.amount || 0), 0);
+        
+        totalYtdTaxPaid += taxDeduction;
+      }
+      
+      setYtdTaxableIncome(totalYtdTaxableIncome);
+      setYtdTaxPaid(totalYtdTaxPaid);
+    } catch (error) {
+      console.error('Error in fetchYTDTaxData:', error);
+    }
+  };
+  
+  // Function to recalculate PAYE tax based on current taxable earnings
+  const recalculatePAYETax = useCallback((currentEarnings: LineItem[]) => {
+    // Calculate current month's taxable income
+    const currentMonthTaxableIncome = currentEarnings
+      .filter(e => e.isTaxable && e.amount)
+      .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    
+    // Calculate PAYE using annualization method
+    const monthlyPAYE = calculateMonthlyPAYE(
+      ytdTaxableIncome,
+      currentMonthTaxableIncome,
+      month,
+      ytdTaxPaid
+    );
+    
+    // Update Tax deduction automatically
+    setDeductions(prev => prev.map(item => 
+      item.description === 'Tax' ? {
+        ...item,
+        amount: monthlyPAYE.toFixed(2)
+      } : item
+    ));
+  }, [ytdTaxableIncome, ytdTaxPaid, month]);
+  
+  // Toggle taxable status for an earning item
+  const toggleTaxable = (id: string, checked: boolean) => {
+    const updatedEarnings = earnings.map(item => 
+      item.id === id ? { ...item, isTaxable: checked } : item
+    );
+    setEarnings(updatedEarnings);
+  };
+  
+  // Get current month's taxable income for display
+  const getCurrentMonthTaxableIncome = () => {
+    return earnings
+      .filter(e => e.isTaxable && e.amount)
+      .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+  };
+  
+  // Get PAYE breakdown for display
+  const getPAYEBreakdownInfo = () => {
+    const currentMonthTaxableIncome = getCurrentMonthTaxableIncome();
+    return getPAYEBreakdown(ytdTaxableIncome, currentMonthTaxableIncome, month, ytdTaxPaid);
+  };
   const fetchPreviousTotalSavings = async () => {
     if (!selectedEmployee) return;
 
@@ -198,16 +336,18 @@ const InvoiceGenerator = () => {
       setYear(invoiceData.year);
       setDateIssued(invoiceData.date_issued);
 
-      // Set earnings
+      // Set earnings with is_taxable flag
       const earningsData = lineItems?.filter(item => item.item_type === 'earning').map((item, idx) => ({
         id: (idx + 1).toString(),
         description: item.description,
-        amount: item.amount.toString()
+        amount: item.amount.toString(),
+        isTaxable: item.is_taxable !== false // Default to true for backwards compatibility
       })) || [];
       setEarnings(earningsData.length > 0 ? earningsData : [{
         id: '1',
         description: 'Salary',
-        amount: ''
+        amount: '',
+        isTaxable: true
       }]);
 
       // Set deductions
@@ -243,10 +383,11 @@ const InvoiceGenerator = () => {
     }
   };
   const addLineItem = (type: 'earnings' | 'deductions') => {
-    const newItem = {
+    const newItem: LineItem = {
       id: Date.now().toString(),
       description: '',
-      amount: ''
+      amount: '',
+      isTaxable: type === 'earnings' ? true : undefined
     };
     if (type === 'earnings') {
       setEarnings([...earnings, newItem]);
@@ -270,17 +411,29 @@ const InvoiceGenerator = () => {
       const updatedEarnings = updateFn(earnings);
       setEarnings(updatedEarnings);
 
-      // Auto-calculate Tax (0.05% of gross payment) and EGF (7.5% of gross payment)
+      // Auto-calculate PAYE Tax and EGF when amount changes
       if (field === 'amount') {
         const grossPayment = updatedEarnings.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-        const taxAmount = (grossPayment * 0.0005).toFixed(2); // 0.05%
         const egfAmount = includeEgf ? (grossPayment * 0.075).toFixed(2) : '0'; // 7.5% if enabled
         const totalMonthlyIncome = (grossPayment + parseFloat(egfAmount)).toFixed(2);
+
+        // Calculate taxable income for this month
+        const currentMonthTaxableIncome = updatedEarnings
+          .filter(e => e.isTaxable && e.amount)
+          .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+        // Calculate PAYE using Nigerian tax bands and annualization
+        const monthlyPAYE = calculateMonthlyPAYE(
+          ytdTaxableIncome,
+          currentMonthTaxableIncome,
+          month,
+          ytdTaxPaid
+        );
 
         // Update Tax deduction automatically
         setDeductions(prev => prev.map(item => item.description === 'Tax' ? {
           ...item,
-          amount: taxAmount
+          amount: monthlyPAYE.toFixed(2)
         } : item));
 
         // Update EGF and Total Monthly Income
@@ -347,6 +500,12 @@ const InvoiceGenerator = () => {
       const totals = calculateTotals();
       const invoiceNumber = generateInvoiceNumber();
       const slipNumber = generateSlipNumber();
+      
+      // Calculate taxable income for this month
+      const currentMonthTaxableIncome = earnings
+        .filter(e => e.isTaxable && e.amount)
+        .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+      
       let invoiceData;
       if (isEditMode && editingInvoiceId) {
         // Update existing invoice
@@ -365,7 +524,10 @@ const InvoiceGenerator = () => {
           outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
           down_payment: parseFloat(additionalFields.downPayment) || 0,
           egf: parseFloat(additionalFields.egf) || 0,
-          total_savings: totals.totalSavings
+          total_savings: totals.totalSavings,
+          taxable_income: currentMonthTaxableIncome,
+          ytd_taxable_income: ytdTaxableIncome,
+          ytd_tax_paid: ytdTaxPaid
         }).eq('id', editingInvoiceId).select().single();
         if (updateError) throw updateError;
         invoiceData = updatedInvoice;
@@ -394,24 +556,32 @@ const InvoiceGenerator = () => {
           outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
           down_payment: parseFloat(additionalFields.downPayment) || 0,
           egf: parseFloat(additionalFields.egf) || 0,
-          total_savings: totals.totalSavings
+          total_savings: totals.totalSavings,
+          taxable_income: currentMonthTaxableIncome,
+          ytd_taxable_income: ytdTaxableIncome,
+          ytd_tax_paid: ytdTaxPaid
         }).select().single();
         if (invoiceError) throw invoiceError;
         invoiceData = newInvoice;
       }
 
-      // Save line items
-      const lineItems = [...earnings.filter(e => e.description && e.amount).map(e => ({
-        invoice_id: invoiceData.id,
-        item_type: 'earning' as const,
-        description: e.description,
-        amount: parseFloat(e.amount)
-      })), ...deductions.filter(d => d.description && d.amount).map(d => ({
-        invoice_id: invoiceData.id,
-        item_type: 'deduction' as const,
-        description: d.description,
-        amount: parseFloat(d.amount)
-      }))];
+      // Save line items with is_taxable flag for earnings
+      const lineItems = [
+        ...earnings.filter(e => e.description && e.amount).map(e => ({
+          invoice_id: invoiceData.id,
+          item_type: 'earning' as const,
+          description: e.description,
+          amount: parseFloat(e.amount),
+          is_taxable: e.isTaxable ?? true
+        })), 
+        ...deductions.filter(d => d.description && d.amount).map(d => ({
+          invoice_id: invoiceData.id,
+          item_type: 'deduction' as const,
+          description: d.description,
+          amount: parseFloat(d.amount),
+          is_taxable: null // Deductions don't have taxable flag
+        }))
+      ];
       if (lineItems.length > 0) {
         const {
           error: itemsError
@@ -542,19 +712,23 @@ const InvoiceGenerator = () => {
         setEarnings([{
           id: '1',
           description: 'Salary',
-          amount: ''
+          amount: '',
+          isTaxable: true
         }, {
           id: '2',
           description: 'Data/Airtime Bonus',
-          amount: ''
+          amount: '',
+          isTaxable: false
         }, {
           id: '3',
           description: 'Personal Bonus',
-          amount: ''
+          amount: '',
+          isTaxable: true
         }, {
           id: '4',
           description: 'Outstanding Payment(s)',
-          amount: ''
+          amount: '',
+          isTaxable: true
         }]);
         setDeductions([{
           id: '1',
@@ -584,6 +758,8 @@ const InvoiceGenerator = () => {
           egf: ''
         });
         setPreviousTotalSavings(0);
+        setYtdTaxableIncome(0);
+        setYtdTaxPaid(0);
         setIsEditMode(false);
         setEditingInvoiceId(null);
         setSendEmail(false);
@@ -694,31 +870,131 @@ const InvoiceGenerator = () => {
             {/* Earnings Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Earnings</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold">Earnings</h3>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <p>Check the "Taxable" box for each earning that should be included in PAYE tax calculation. Non-taxable items (like allowances) won't be included in annual tax estimates.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
                 <Button type="button" size="sm" onClick={() => addLineItem('earnings')} className="gap-2">
                   <Plus className="h-4 w-4" />
                   Add Item
                 </Button>
               </div>
               
-              {earnings.map((item, idx) => <div key={item.id} className="flex gap-2">
+              {/* Header row for earnings */}
+              <div className="flex gap-2 text-sm font-medium text-muted-foreground">
+                <div className="w-16 text-center">Taxable</div>
+                <div className="flex-1">Description</div>
+                <div className="w-32">Amount (₦)</div>
+                <div className="w-10"></div>
+              </div>
+              
+              {earnings.map((item, idx) => (
+                <div key={item.id} className="flex gap-2 items-center">
+                  <div className="w-16 flex justify-center">
+                    <Checkbox 
+                      checked={item.isTaxable ?? true}
+                      onCheckedChange={(checked) => toggleTaxable(item.id, checked as boolean)}
+                      aria-label={`Mark ${item.description || 'this item'} as taxable`}
+                    />
+                  </div>
                   <div className="flex-1">
                     <Input placeholder="Description (e.g., Entered Names @ rate)" value={item.description} onChange={e => updateLineItem('earnings', item.id, 'description', e.target.value)} />
                   </div>
                   <div className="w-32">
                     <Input type="number" placeholder="Amount" value={item.amount} onChange={e => updateLineItem('earnings', item.id, 'amount', e.target.value)} />
                   </div>
-                  {earnings.length > 1 && <Button type="button" size="icon" variant="ghost" onClick={() => removeLineItem('earnings', item.id)}>
+                  {earnings.length > 1 ? (
+                    <Button type="button" size="icon" variant="ghost" onClick={() => removeLineItem('earnings', item.id)}>
                       <Trash2 className="h-4 w-4" />
-                    </Button>}
-                </div>)}
+                    </Button>
+                  ) : <div className="w-10"></div>}
+                </div>
+              ))}
               
-              <div className="text-right font-semibold">
-                Gross Payment: ₦{totals.grossPayment.toLocaleString('en-NG', {
-                minimumFractionDigits: 2
-              })}
+              <div className="flex justify-between items-start pt-2 border-t">
+                <div className="text-sm text-muted-foreground">
+                  <span>Taxable Income: ₦{getCurrentMonthTaxableIncome().toLocaleString('en-NG', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="text-right font-semibold">
+                  Gross Payment: ₦{totals.grossPayment.toLocaleString('en-NG', { minimumFractionDigits: 2 })}
+                </div>
               </div>
             </div>
+
+            {/* PAYE Tax Calculation Breakdown */}
+            <Collapsible open={showTaxBreakdown} onOpenChange={setShowTaxBreakdown}>
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2 w-full justify-between">
+                  <span className="flex items-center gap-2">
+                    <Calculator className="h-4 w-4" />
+                    PAYE Tax Calculation Details
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {showTaxBreakdown ? 'Hide' : 'Show'}
+                  </span>
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-3">
+                <div className="bg-muted/50 rounded-lg p-4 space-y-3 text-sm">
+                  {(() => {
+                    const breakdown = getPAYEBreakdownInfo();
+                    return (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <span className="text-muted-foreground">YTD Taxable Income (prior months):</span>
+                          <span className="text-right font-medium">{formatNaira(ytdTaxableIncome)}</span>
+                          
+                          <span className="text-muted-foreground">This Month's Taxable Income:</span>
+                          <span className="text-right font-medium">{formatNaira(getCurrentMonthTaxableIncome())}</span>
+                          
+                          <span className="text-muted-foreground">Total YTD (incl. this month):</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.totalYtdIncome)}</span>
+                          
+                          <span className="text-muted-foreground">Average Monthly Income:</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.averageMonthlyIncome)}</span>
+                          
+                          <span className="text-muted-foreground">Estimated Annual Income:</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.estimatedAnnualIncome)}</span>
+                          
+                          <span className="text-muted-foreground">Tax Band Applied:</span>
+                          <span className="text-right font-medium">{breakdown.taxBandApplied}</span>
+                          
+                          <span className="text-muted-foreground">Estimated Annual Tax:</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.estimatedAnnualTax)}</span>
+                          
+                          <span className="text-muted-foreground">Monthly Tax Portion (÷12):</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.monthlyTaxPortion)}</span>
+                          
+                          <span className="text-muted-foreground">Cumulative Tax Due (Month {month}):</span>
+                          <span className="text-right font-medium">{formatNaira(breakdown.cumulativeTaxDue)}</span>
+                          
+                          <span className="text-muted-foreground">YTD Tax Already Paid:</span>
+                          <span className="text-right font-medium">{formatNaira(ytdTaxPaid)}</span>
+                        </div>
+                        
+                        <div className="border-t pt-3 flex justify-between items-center">
+                          <span className="font-semibold">This Month's PAYE Tax:</span>
+                          <span className="text-lg font-bold text-primary">{formatNaira(breakdown.thisMonthPaye)}</span>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mt-2">
+                          PAYE is calculated using annualization: income is projected for the full year, tax bands are applied, then monthly portions are calculated. This self-corrects as income fluctuates.
+                        </p>
+                      </>
+                    );
+                  })()}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             {/* Deductions Section */}
             <div className="space-y-4">
@@ -836,6 +1112,12 @@ const InvoiceGenerator = () => {
                 const totals = calculateTotals();
                 const invoiceNumber = generateInvoiceNumber();
                 const slipNumber = generateSlipNumber();
+                
+                // Calculate taxable income for this month
+                const currentMonthTaxableIncome = earnings
+                  .filter(e => e.isTaxable && e.amount)
+                  .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+                
                 let invoiceData;
                 if (isEditMode && editingInvoiceId) {
                   const {
@@ -853,7 +1135,10 @@ const InvoiceGenerator = () => {
                     outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
                     down_payment: parseFloat(additionalFields.downPayment) || 0,
                     egf: parseFloat(additionalFields.egf) || 0,
-                    total_savings: totals.totalSavings
+                    total_savings: totals.totalSavings,
+                    taxable_income: currentMonthTaxableIncome,
+                    ytd_taxable_income: ytdTaxableIncome,
+                    ytd_tax_paid: ytdTaxPaid
                   }).eq('id', editingInvoiceId).select().single();
                   if (updateError) throw updateError;
                   invoiceData = updatedInvoice;
@@ -879,22 +1164,30 @@ const InvoiceGenerator = () => {
                     outstanding_iou: parseFloat(additionalFields.outstandingIou) || 0,
                     down_payment: parseFloat(additionalFields.downPayment) || 0,
                     egf: parseFloat(additionalFields.egf) || 0,
-                    total_savings: totals.totalSavings
+                    total_savings: totals.totalSavings,
+                    taxable_income: currentMonthTaxableIncome,
+                    ytd_taxable_income: ytdTaxableIncome,
+                    ytd_tax_paid: ytdTaxPaid
                   }).select().single();
                   if (invoiceError) throw invoiceError;
                   invoiceData = newInvoice;
                 }
-                const lineItems = [...earnings.filter(e => e.description && e.amount).map(e => ({
-                  invoice_id: invoiceData.id,
-                  item_type: 'earning' as const,
-                  description: e.description,
-                  amount: parseFloat(e.amount)
-                })), ...deductions.filter(d => d.description && d.amount).map(d => ({
-                  invoice_id: invoiceData.id,
-                  item_type: 'deduction' as const,
-                  description: d.description,
-                  amount: parseFloat(d.amount)
-                }))];
+                const lineItems = [
+                  ...earnings.filter(e => e.description && e.amount).map(e => ({
+                    invoice_id: invoiceData.id,
+                    item_type: 'earning' as const,
+                    description: e.description,
+                    amount: parseFloat(e.amount),
+                    is_taxable: e.isTaxable ?? true
+                  })), 
+                  ...deductions.filter(d => d.description && d.amount).map(d => ({
+                    invoice_id: invoiceData.id,
+                    item_type: 'deduction' as const,
+                    description: d.description,
+                    amount: parseFloat(d.amount),
+                    is_taxable: null
+                  }))
+                ];
                 if (lineItems.length > 0) {
                   const {
                     error: itemsError
@@ -913,19 +1206,23 @@ const InvoiceGenerator = () => {
                   setEarnings([{
                     id: '1',
                     description: 'Salary',
-                    amount: ''
+                    amount: '',
+                    isTaxable: true
                   }, {
                     id: '2',
                     description: 'Data/Airtime Bonus',
-                    amount: ''
+                    amount: '',
+                    isTaxable: false
                   }, {
                     id: '3',
                     description: 'Personal Bonus',
-                    amount: ''
+                    amount: '',
+                    isTaxable: true
                   }, {
                     id: '4',
                     description: 'Outstanding Payment(s)',
-                    amount: ''
+                    amount: '',
+                    isTaxable: true
                   }]);
                   setDeductions([{
                     id: '1',
@@ -955,6 +1252,8 @@ const InvoiceGenerator = () => {
                     egf: ''
                   });
                   setPreviousTotalSavings(0);
+                  setYtdTaxableIncome(0);
+                  setYtdTaxPaid(0);
                   setIsEditMode(false);
                   setEditingInvoiceId(null);
                 }
