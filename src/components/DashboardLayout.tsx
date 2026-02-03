@@ -1,7 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, LogOut, User } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +16,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   title
 }) => {
   const navigate = useNavigate();
+  const { user, fullName, role, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/auth');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -34,6 +43,22 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
             <div className="flex items-center space-x-4">
               <ThemeToggle />
+              {user && (
+                <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{fullName || user.email}</span>
+                    </div>
+                    <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs">
+                      {role}
+                    </Badge>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
               <div className="text-right">
                 <p className="text-sm font-medium text-slate-800">{title}</p>
                 <p className="text-xs text-muted-foreground">
