@@ -111,6 +111,7 @@ export type Database = {
           amount: number
           category: string
           created_at: string | null
+          created_by: string | null
           date: string
           description: string
           id: string
@@ -125,6 +126,7 @@ export type Database = {
           amount: number
           category: string
           created_at?: string | null
+          created_by?: string | null
           date: string
           description: string
           id?: string
@@ -139,6 +141,7 @@ export type Database = {
           amount?: number
           category?: string
           created_at?: string | null
+          created_by?: string | null
           date?: string
           description?: string
           id?: string
@@ -191,6 +194,7 @@ export type Database = {
         Row: {
           amount: number
           created_at: string | null
+          created_by: string | null
           description: string
           id: string
           invoice_id: string
@@ -200,6 +204,7 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string | null
+          created_by?: string | null
           description: string
           id?: string
           invoice_id: string
@@ -209,6 +214,7 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string | null
+          created_by?: string | null
           description?: string
           id?: string
           invoice_id?: string
@@ -228,6 +234,7 @@ export type Database = {
       invoices: {
         Row: {
           created_at: string | null
+          created_by: string | null
           date_issued: string
           down_payment: number
           egf: number
@@ -250,6 +257,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           date_issued: string
           down_payment?: number
           egf?: number
@@ -272,6 +280,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           date_issued?: string
           down_payment?: number
           egf?: number
@@ -305,17 +314,23 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string | null
+          full_name: string | null
           id: string
+          is_active: boolean | null
           passcode: string
         }
         Insert: {
           created_at?: string | null
+          full_name?: string | null
           id: string
+          is_active?: boolean | null
           passcode: string
         }
         Update: {
           created_at?: string | null
+          full_name?: string | null
           id?: string
+          is_active?: boolean | null
           passcode?: string
         }
         Relationships: []
@@ -475,6 +490,30 @@ export type Database = {
         }
         Relationships: []
       }
+      user_capabilities: {
+        Row: {
+          capability: string
+          created_at: string
+          granted_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          capability: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          capability?: string
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -498,6 +537,7 @@ export type Database = {
           bac_audit: number
           booklet_income: number
           created_at: string
+          created_by: string | null
           data_entry: number
           field_work: number
           id: string
@@ -516,6 +556,7 @@ export type Database = {
           bac_audit?: number
           booklet_income?: number
           created_at?: string
+          created_by?: string | null
           data_entry?: number
           field_work?: number
           id?: string
@@ -534,6 +575,7 @@ export type Database = {
           bac_audit?: number
           booklet_income?: number
           created_at?: string
+          created_by?: string | null
           data_entry?: number
           field_work?: number
           id?: string
@@ -563,6 +605,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_capability: {
+        Args: { _capability: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -570,9 +616,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "guest"
+      app_role: "admin" | "guest" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -700,7 +747,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "guest"],
+      app_role: ["admin", "guest", "employee"],
     },
   },
 } as const
