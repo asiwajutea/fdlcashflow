@@ -14,8 +14,12 @@ import EmployeeManagement from "./pages/EmployeeManagement";
 import BulkInvoiceGenerator from "./pages/BulkInvoiceGenerator";
 import CompanySettings from "./pages/CompanySettings";
 import DailyTracker from "./pages/DailyTracker";
+import UserManagement from "./pages/UserManagement";
+
 const queryClient = new QueryClient();
-const App = () => <QueryClientProvider client={queryClient}>
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="fdl-theme">
       <TooltipProvider>
         <Toaster />
@@ -32,11 +36,14 @@ const App = () => <QueryClientProvider client={queryClient}>
             <Route path="/employees" element={<EmployeeManagement />} />
             <Route path="/company-settings" element={<CompanySettings />} />
             <Route path="/daily-tracker" element={<DailyTracker />} />
+            <Route path="/user-management" element={<UserManagement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
-  </QueryClientProvider>;
+  </QueryClientProvider>
+);
+
 export default App;
