@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { MetricCards } from '@/components/MetricCards';
@@ -12,15 +12,21 @@ import { RateSettings } from '@/components/RateSettings';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, FileText, Plus, AlertCircle, LogOut, Receipt, Users, Settings } from 'lucide-react';
+import { MessageSquare, FileText, Plus, AlertCircle, LogOut, Receipt, Users, Settings, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { getISOWeek, getCurrentWeekRange } from '@/utils/weekUtils';
+
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, loading, signOut, hasCapability } = useAuth();
+
+  // Helper function: admins bypass all capability checks
+  const canAccess = useCallback((capability: string) => {
+    return role === 'admin' || hasCapability(capability);
+  }, [role, hasCapability]);
 
   // Redirect to auth if not logged in
   useEffect(() => {
@@ -360,7 +366,8 @@ const Index = () => {
         total_expenses: weeklyExpenses,
         net_cashflow: weeklyIncome - weeklyExpenses,
         other_expenses: customExpenses?.otherExpenses || [],
-        rate_config_id: currentRateConfig?.id
+        rate_config_id: currentRateConfig?.id,
+        created_by: user?.id
       });
 
       if (error) throw error;
@@ -375,6 +382,7 @@ const Index = () => {
         reference_id: null,
         reference_type: 'weekly_record',
         is_auto_generated: true,
+        created_by: user?.id,
         metadata: {
           field_work: data.fieldWork,
           data_entry: data.dataEntry,
@@ -531,22 +539,30 @@ const Index = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="data-entry">Income</TabsTrigger>
+            <TabsTrigger value="data-entry" disabled={!canAccess('enter_weekly_data')}>
+              Income {!canAccess('enter_weekly_data') && '🔒'}
+            </TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="budget">Budget</TabsTrigger>
-            <TabsTrigger value="rates" disabled={role === 'guest'}>
-              Rates {role === 'guest' && '🔒'}
+            <TabsTrigger value="rates" disabled={!canAccess('manage_rates')}>
+              Rates {!canAccess('manage_rates') && '🔒'}
             </TabsTrigger>
-            <TabsTrigger value="charts">Analytics</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-            <TabsTrigger value="ai-assistant" disabled={role === 'guest'}>
-              AI Assistant {role === 'guest' && '🔒'}
+            <TabsTrigger value="charts" disabled={!canAccess('view_statistics')}>
+              Analytics {!canAccess('view_statistics') && '🔒'}
+            </TabsTrigger>
+            <TabsTrigger value="history" disabled={!canAccess('view_weekly_history')}>
+              History {!canAccess('view_weekly_history') && '🔒'}
+            </TabsTrigger>
+            <TabsTrigger value="ai-assistant" disabled={role !== 'admin'}>
+              AI Assistant {role !== 'admin' && '🔒'}
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
+              {canAccess('enter_weekly_data') && (
+                <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
+              )}
               
               <Card className="financial-card p-6">
                 <div className="flex items-center space-x-3 mb-4">
@@ -554,25 +570,41 @@ const Index = () => {
                   <h3 className="text-lg font-semibold text-card-foreground">Quick Actions</h3>
                 </div>
                 <div className="space-y-3">
-                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/generate-invoice')}>
-                    <Receipt className="h-4 w-4" />
-                    Generate Invoice
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/bulk-invoice')}>
-                    <Users className="h-4 w-4" />
-                    Bulk Invoice Generation
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/company-settings')}>
-                    <Settings className="h-4 w-4" />
-                    Company Settings
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/daily-tracker')}>
-                    <Receipt className="h-4 w-4" />
-                    Daily Income & Expense Tracker
-                  </Button>
-                  <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('charts')}>
-                    View Analytics Dashboard
-                  </Button>
+                  {canAccess('generate_invoice') && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/generate-invoice')}>
+                      <Receipt className="h-4 w-4" />
+                      Generate Invoice
+                    </Button>
+                  )}
+                  {canAccess('bulk_invoice') && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/bulk-invoice')}>
+                      <Users className="h-4 w-4" />
+                      Bulk Invoice Generation
+                    </Button>
+                  )}
+                  {canAccess('manage_company_settings') && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/company-settings')}>
+                      <Settings className="h-4 w-4" />
+                      Company Settings
+                    </Button>
+                  )}
+                  {canAccess('view_daily_tracker') && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/daily-tracker')}>
+                      <Receipt className="h-4 w-4" />
+                      Daily Income & Expense Tracker
+                    </Button>
+                  )}
+                  {role === 'admin' && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/user-management')}>
+                      <ShieldCheck className="h-4 w-4" />
+                      User Management
+                    </Button>
+                  )}
+                  {canAccess('view_statistics') && (
+                    <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('charts')}>
+                      View Analytics Dashboard
+                    </Button>
+                  )}
                   <Button variant="outline" className="w-full justify-start" onClick={() => setActiveTab('expenses')}>
                     View Expense Breakdown
                   </Button>
@@ -593,7 +625,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="data-entry">
-            <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
+            {canAccess('enter_weekly_data') ? (
+              <WeeklyDataEntry onDataSubmit={handleWeeklyDataSubmit} rateConfig={currentRateConfig} />
+            ) : (
+              <Card className="financial-card p-8 text-center">
+                <p className="text-muted-foreground">You don't have permission to enter weekly data</p>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="expenses" className="space-y-6">
@@ -628,11 +666,11 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="rates" className="space-y-6">
-            {role === 'admin' ? (
+            {canAccess('manage_rates') ? (
               <RateSettings />
             ) : (
               <Card className="financial-card p-8 text-center">
-                <p className="text-muted-foreground">Access restricted to administrators</p>
+                <p className="text-muted-foreground">You don't have permission to manage rates</p>
               </Card>
             )}
           </TabsContent>
@@ -642,7 +680,13 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="history">
-            <HistoryView />
+            {canAccess('view_weekly_history') ? (
+              <HistoryView />
+            ) : (
+              <Card className="financial-card p-8 text-center">
+                <p className="text-muted-foreground">You don't have permission to view history</p>
+              </Card>
+            )}
           </TabsContent>
 
           <TabsContent value="ai-assistant" className="space-y-6">

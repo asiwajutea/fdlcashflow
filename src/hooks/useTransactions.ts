@@ -13,6 +13,7 @@ export interface Transaction {
   reference_type?: 'invoice' | 'weekly_record';
   is_auto_generated: boolean;
   metadata?: any;
+  created_by?: string;
   created_at: string;
   updated_at: string;
 }
@@ -60,7 +61,7 @@ export const useTransactions = (filters: TransactionFilters = {}) => {
   });
 
   const createMutation = useMutation({
-    mutationFn: async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> & { created_by?: string }) => {
       const { data, error } = await supabase
         .from('daily_transactions')
         .insert(transaction)

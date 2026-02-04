@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useTransactions, TransactionFilters } from '@/hooks/useTransactions';
 import { useTransactionStats } from '@/hooks/useTransactionStats';
+import { useAuth } from '@/hooks/useAuth';
 import { TransactionDialog } from '@/components/TransactionDialog';
 import { Plus, TrendingUp, TrendingDown, DollarSign, Receipt, Edit, Trash2, Search, Download } from 'lucide-react';
 import { format } from 'date-fns';
@@ -17,6 +18,7 @@ import { LineChart, Line, PieChart, Pie, BarChart, Bar, Cell, XAxis, YAxis, Cart
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 export default function DailyTracker() {
+  const { user } = useAuth();
   const [filters, setFilters] = useState<TransactionFilters>({ type: 'all' });
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -39,7 +41,7 @@ export default function DailyTracker() {
     if (editTransaction) {
       updateTransaction(data);
     } else {
-      createTransaction(data);
+      createTransaction({ ...data, created_by: user?.id });
     }
     setEditTransaction(null);
   };
