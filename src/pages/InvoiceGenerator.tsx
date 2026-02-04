@@ -559,7 +559,8 @@ const InvoiceGenerator = () => {
           total_savings: totals.totalSavings,
           taxable_income: currentMonthTaxableIncome,
           ytd_taxable_income: ytdTaxableIncome,
-          ytd_tax_paid: ytdTaxPaid
+          ytd_tax_paid: ytdTaxPaid,
+          created_by: user?.id
         }).select().single();
         if (invoiceError) throw invoiceError;
         invoiceData = newInvoice;
@@ -572,14 +573,16 @@ const InvoiceGenerator = () => {
           item_type: 'earning' as const,
           description: e.description,
           amount: parseFloat(e.amount),
-          is_taxable: e.isTaxable ?? true
+          is_taxable: e.isTaxable ?? true,
+          created_by: user?.id
         })), 
         ...deductions.filter(d => d.description && d.amount).map(d => ({
           invoice_id: invoiceData.id,
           item_type: 'deduction' as const,
           description: d.description,
           amount: parseFloat(d.amount),
-          is_taxable: null // Deductions don't have taxable flag
+          is_taxable: null,
+          created_by: user?.id
         }))
       ];
       if (lineItems.length > 0) {
@@ -599,6 +602,7 @@ const InvoiceGenerator = () => {
         reference_id: invoiceData.id,
         reference_type: 'invoice',
         is_auto_generated: true,
+        created_by: user?.id,
         metadata: {
           employee_id: selectedEmployee.id,
           employee_name: selectedEmployee.full_name,
