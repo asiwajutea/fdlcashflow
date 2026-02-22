@@ -1,221 +1,139 @@
 
-## Implementation Plan: User Management, Capability Guards, and Sign Up Flow
 
-### Overview
-This plan implements four key features:
-1. Navigation link to User Management for admins
-2. Capability guards on the Index page
-3. Adding `created_by` field to data submissions
-4. User sign-up flow with admin-controlled passcode generation
+## Phase 1: HR Recruitment Module Foundation
+
+This phase establishes the database structure, new role, storage, and the first two user-facing pages (Job Listings and Application). Subsequent phases will add screening, interviews, contracts with digital signatures, and candidate-to-employee conversion.
 
 ---
 
-### 1. Add Navigation Link to User Management
+### What Phase 1 Includes
 
-**File: `src/pages/Index.tsx`**
+1. Add `candidate` role to `app_role` enum
+2. Create 6 new database tables with RLS
+3. Create 2 storage buckets (resumes, contracts)
+4. Add new HR capabilities to the system
+5. Build 2 new pages: `/jobs` (public job listings) and `/apply` (application form with resume upload)
+6. Add an `/applications` admin page for reviewing submissions
+7. Update Auth page to support candidate registration flow
+8. Wire navigation links for admin users
 
-Add a "User Management" button in the Quick Actions section, visible only to admin users:
+### What Later Phases Will Add
 
-```tsx
-{role === 'admin' && (
-  <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/user-management')}>
-    <Users className="h-4 w-4" />
-    User Management
-  </Button>
-)}
+- Screening questionnaires and scoring
+- Interview scheduling with meeting links
+- Contract generation, digital signature canvas, and PDF embedding
+- Candidate-to-employee conversion workflow
+- Email notifications
+- AI candidate scoring
+
+---
+
+### Database Changes (Single Migration)
+
+**1. Alter `app_role` enum:**
+```sql
+ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'candidate';
 ```
 
-**Location**: Inside the Quick Actions card, after other buttons (around line 572).
+**2. New Tables:**
+
+| Table | Purpose |
+|-------|---------|
+| `job_positions` | Job openings managed by admin |
+| `candidates` | Extended profile for candidate users |
+| `applications` | Links candidates to jobs |
+| `screening_responses` | Questionnaire answers (empty for now, structure only) |
+| `interviews` | Interview records |
+| `contracts` | Contract tracking with signature data |
+
+All tables will have:
+- UUID primary keys with `gen_random_uuid()`
+- Timestamps (`created_at`, `updated_at`)
+- Proper foreign keys (candidates.user_id references profiles.id, not auth.users)
+- RLS policies using existing `is_admin()` and `has_capability()` functions
+
+**3. RLS Policy Summary:**
+- `job_positions`: Admin full CRUD; all authenticated users can SELECT (to browse jobs)
+- `candidates`: Admin sees all; candidates see only their own record (`user_id = auth.uid()`)
+- `applications`: Admin sees all; candidates see own applications
+- `screening_responses`, `interviews`, `contracts`: Admin full access; candidates see own (via application join)
+
+**4. Storage Buckets:**
+- `resumes` bucket (authenticated uploads, admin + owner read)
+- `contracts` bucket (admin upload, admin + owner read)
+
+**5. New Capabilities:**
+Add to `ALL_CAPABILITIES` in `useCapabilities.tsx`:
+- `manage_recruitment` - Admin: manage job postings and review applications
+- `review_applications` - View and process applications
+- `schedule_interviews` - Set interview dates
+- `generate_contracts` - Create contracts
+- `submit_application` - Candidate: apply for jobs
+- `complete_screening` - Candidate: fill screening form
+- `view_interview` - Candidate: see interview details
+- `sign_contract` - Candidate: sign contracts
 
 ---
 
-### 2. Add Capability Guards to Index Page
+### New Pages
 
-**File: `src/pages/Index.tsx`**
+**`/jobs` - Job Listings**
+- Public to all authenticated users
+- Card grid showing open positions with title, department, description
+- "Apply" button links to `/apply?jobId=<id>`
+- Admin sees "Manage Jobs" button to create/edit/close positions
 
-Import and use the capabilities hook:
+**`/apply` - Application Form**
+- For candidates (and self-registering users)
+- Fields: cover letter textarea, resume file upload (to `resumes` bucket)
+- On submit: creates `candidates` record if first application, then creates `applications` record
+- Shows confirmation with "Your application has been submitted"
 
-```tsx
-import { useCapabilities } from '@/hooks/useCapabilities';
-
-// Inside component:
-const { hasCapability } = useCapabilities(user?.id || null);
-```
-
-**Guard the following elements:**
-
-| Element | Capability Required |
-|---------|---------------------|
-| WeeklyDataEntry component | `enter_weekly_data` |
-| Rates tab | `manage_rates` |
-| History tab | `view_weekly_history` |
-| Generate Invoice button | `generate_invoice` |
-| Bulk Invoice button | `bulk_invoice` |
-| Company Settings button | `manage_company_settings` |
-| Daily Tracker button | `view_daily_tracker` |
-| User Management button | `manage_users` |
-
-**Implementation approach:**
-- Wrap Quick Action buttons with capability checks
-- Disable/hide tabs based on capabilities
-- Show admin users ALL features (admins bypass capability checks)
+**`/applications` - HR Dashboard (Admin)**
+- Table of all applications with candidate name, job title, status, date
+- Status badges: submitted, screening, interview, offered, hired, rejected
+- Action buttons to change status (approve/reject)
+- Click to view candidate details and resume
 
 ---
 
-### 3. Update Data Submission Functions with `created_by`
+### Auth Page Updates
 
-**Files to modify:**
+- Add a third option or modify sign-up to allow selecting "I'm applying for a job"
+- When selected, the user metadata includes `role: 'candidate'` instead of `'employee'`
+- The `handle_new_user` trigger will assign the `candidate` role automatically
+- Candidates with passcode `'00000000'` can still not log in until admin approves -- OR we allow candidates to log in without a passcode (to be decided in the flow)
 
-#### `src/pages/Index.tsx` - Weekly Records
-In `handleWeeklyDataSubmit` function, add `created_by` to the insert:
-
-```tsx
-const { error } = await supabase.from('weekly_records').insert({
-  // ... existing fields
-  created_by: user?.id  // Add this field
-});
-
-// Also add to daily_transactions insert:
-await supabase.from('daily_transactions').insert({
-  // ... existing fields
-  created_by: user?.id  // Add this field
-});
-```
-
-#### `src/hooks/useTransactions.ts` - Daily Transactions
-Modify the `createMutation` to accept and include `created_by`:
-
-```tsx
-mutationFn: async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'> & { created_by?: string }) => {
-  const { data, error } = await supabase
-    .from('daily_transactions')
-    .insert(transaction)
-    // ...
-}
-```
-
-#### `src/pages/DailyTracker.tsx` - Transaction Creation
-Pass `created_by` when creating transactions:
-
-```tsx
-const handleSave = (data: any) => {
-  if (editTransaction) {
-    updateTransaction(data);
-  } else {
-    createTransaction({ ...data, created_by: user?.id });
-  }
-  setEditTransaction(null);
-};
-```
-
-This requires adding `useAuth` hook to DailyTracker.tsx.
-
-#### `src/pages/InvoiceGenerator.tsx` - Invoice Creation
-Add `created_by` to invoice inserts in `saveInvoice` function and any other invoice creation logic.
+**Candidate login consideration:** Since candidates need to submit applications, they should be able to log in. The plan will allow candidates to bypass the passcode requirement (passcode check skipped for `candidate` role), since they have limited access anyway. Admin can later convert them to employee with a real passcode.
 
 ---
 
-### 4. Add Sign Up to Auth Page
+### Navigation Updates
 
-**File: `src/pages/Auth.tsx`**
-
-Create a tabbed interface with "Sign In" and "Sign Up" tabs.
-
-**Sign Up Flow:**
-1. User enters: Email, Password, Confirm Password, Full Name
-2. User creates their own password (stored securely via Supabase Auth)
-3. Account is created with NO passcode (passcode = null or placeholder)
-4. User sees message: "Account created! Please contact admin for your access code."
-5. User cannot login until admin generates a passcode
-
-**Sign Up Implementation:**
-
-```tsx
-const handleSignUp = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (signupData.password !== signupData.confirmPassword) {
-    toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
-    return;
-  }
-
-  // Create user via Supabase Auth (password stored securely)
-  const { data, error } = await supabase.auth.signUp({
-    email: signupData.email,
-    password: signupData.password,
-    options: {
-      data: {
-        full_name: signupData.fullName,
-        role: 'employee',
-        passcode: null  // No passcode yet - admin will generate
-      }
-    }
-  });
-
-  if (error) throw error;
-  
-  // Show success message
-  toast({
-    title: "Account Created",
-    description: "Your account has been created. Please contact the administrator for your access code to complete login."
-  });
-  
-  // Switch back to login tab
-  setActiveTab('login');
-};
-```
-
-**Updated Login Flow:**
-- User enters Email, Password (their own), and Access Code (admin-generated passcode)
-- Verify password via Supabase Auth
-- Verify passcode from profiles table
-- Both must match to allow login
-
-**UI Changes:**
-- Add Tabs component with "Sign In" and "Sign Up" tabs
-- Sign Up form: Email, Password, Confirm Password, Full Name
-- Sign In form: Email, Password, Access Code (existing)
-- After signup, show clear instructions about needing admin to generate passcode
+- Add "Recruitment" button in Quick Actions (admin only, guarded by `manage_recruitment`)
+- Add `/jobs`, `/apply`, `/applications` routes to `App.tsx`
 
 ---
 
-### Updated User Management Flow
+### Files to Create/Modify
 
-**File: `src/pages/UserManagement.tsx`**
-
-When admin creates/views a user:
-1. Users who signed up will have `passcode: null` initially
-2. Admin clicks "Generate Passcode" to create an 8-digit code
-3. Passcode is shown to admin to share with user
-4. Admin can also update user's password if needed
-
-**New users created by admin:**
-- Admin can still create users directly with auto-generated passcodes
-- Or approve self-registered users by generating their passcode
-
----
-
-### Files to Create/Modify Summary
-
-| File | Action | Changes |
-|------|--------|---------|
-| `src/pages/Index.tsx` | MODIFY | Add capability guards, created_by to submissions, User Management link |
-| `src/pages/Auth.tsx` | MODIFY | Add Sign Up tab with registration form |
-| `src/pages/DailyTracker.tsx` | MODIFY | Add useAuth hook, pass created_by |
-| `src/hooks/useTransactions.ts` | MODIFY | Accept created_by parameter |
-| `src/pages/InvoiceGenerator.tsx` | MODIFY | Add created_by to invoice saves |
-
----
+| File | Action | Description |
+|------|--------|-------------|
+| Migration SQL | CREATE | New tables, enum, RLS, storage buckets |
+| `src/hooks/useCapabilities.tsx` | MODIFY | Add 8 new HR capabilities |
+| `src/pages/Jobs.tsx` | CREATE | Job listings page |
+| `src/pages/Apply.tsx` | CREATE | Application form with resume upload |
+| `src/pages/Applications.tsx` | CREATE | Admin HR dashboard |
+| `src/pages/Auth.tsx` | MODIFY | Add candidate registration option |
+| `src/pages/Index.tsx` | MODIFY | Add Recruitment quick action for admin |
+| `src/App.tsx` | MODIFY | Add 3 new routes |
+| `supabase/functions/create-user/index.ts` | MODIFY | Handle candidate role default capabilities |
 
 ### Technical Notes
 
-1. **Admin Bypass**: Admins should see all features regardless of capabilities. Add check:
-   ```tsx
-   const canAccess = (cap: string) => role === 'admin' || hasCapability(cap);
-   ```
+- Resume uploads use Supabase Storage with path pattern `{user_id}/{filename}`
+- The `candidates` table is separate from `profiles` to avoid modifying existing tables
+- Digital contract signing with canvas will be implemented in Phase 2
+- The `candidate` role in `app_role` enum is permanent and cannot be removed once added (Postgres limitation)
+- Candidates bypass passcode verification at login since they only access job-related features
 
-2. **Pending Users**: Users who signed up but have no passcode cannot login. Consider adding visual indicator in User Management.
-
-3. **Security**: Passwords are handled by Supabase Auth (hashed). Passcodes are stored in profiles table for additional verification.
-
-4. **created_by Handling**: The database already has nullable `created_by` columns. New records will populate this field; existing records remain accessible to admins only.
