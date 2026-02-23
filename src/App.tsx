@@ -15,6 +15,9 @@ import BulkInvoiceGenerator from "./pages/BulkInvoiceGenerator";
 import CompanySettings from "./pages/CompanySettings";
 import DailyTracker from "./pages/DailyTracker";
 import UserManagement from "./pages/UserManagement";
+import Jobs from "./pages/Jobs";
+import Apply from "./pages/Apply";
+import Applications from "./pages/Applications";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +40,9 @@ const App = () => (
             <Route path="/company-settings" element={<CompanySettings />} />
             <Route path="/daily-tracker" element={<DailyTracker />} />
             <Route path="/user-management" element={<UserManagement />} />
+            <Route path="/jobs" element={<Jobs />} />
+            <Route path="/apply" element={<Apply />} />
+            <Route path="/applications" element={<Applications />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

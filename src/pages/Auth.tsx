@@ -5,9 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, UserPlus } from 'lucide-react';
+import { Lock, UserPlus, Briefcase } from 'lucide-react';
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -25,21 +26,35 @@ const Auth = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    fullName: ''
+    fullName: '',
+    signupType: 'employee' as 'employee' | 'candidate'
   });
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // First authenticate with email and password
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: loginData.email,
         password: loginData.password
       });
       if (authError) throw authError;
 
-      // Then verify passcode
+      // Check if user is a candidate (bypass passcode)
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', authData.user.id)
+        .single();
+
+      if (roleData?.role === 'candidate') {
+        // Candidates skip passcode verification
+        toast({ title: "Success", description: "Login successful" });
+        navigate('/jobs');
+        return;
+      }
+
+      // Non-candidate: verify passcode
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('passcode')
@@ -48,7 +63,6 @@ const Auth = () => {
       
       if (profileError) throw profileError;
       
-      // Check if passcode is null or placeholder (user hasn't been approved yet)
       if (!profileData.passcode || profileData.passcode === '00000000') {
         await supabase.auth.signOut();
         throw new Error('Your account is pending approval. Please contact the administrator for your access code.');
@@ -59,15 +73,12 @@ const Auth = () => {
         throw new Error('Invalid access code');
       }
 
-      toast({
-        title: "Success",
-        description: "Login successful"
-      });
+      toast({ title: "Success", description: "Login successful" });
       navigate('/');
     } catch (error: any) {
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please check your email, password, and access code.",
+        description: error.message || "Invalid credentials.",
         variant: "destructive"
       });
     } finally {
@@ -92,16 +103,16 @@ const Auth = () => {
         throw new Error('Full name is required');
       }
 
-      // Create user via Supabase Auth
-      // The handle_new_user trigger will create the profile with passcode = '00000000'
+      const isCandidate = signupData.signupType === 'candidate';
+
       const { data, error } = await supabase.auth.signUp({
         email: signupData.email,
         password: signupData.password,
         options: {
           data: {
             full_name: signupData.fullName,
-            role: 'employee',
-            passcode: '00000000' // Placeholder - admin will generate real passcode
+            role: isCandidate ? 'candidate' : 'employee',
+            passcode: '00000000'
           },
           emailRedirectTo: window.location.origin
         }
@@ -109,21 +120,22 @@ const Auth = () => {
 
       if (error) throw error;
 
-      // Sign out immediately - user cannot login until admin generates passcode
-      await supabase.auth.signOut();
+      if (isCandidate) {
+        // Candidates can log in immediately — no passcode needed
+        toast({
+          title: "Account Created",
+          description: "You can now log in and apply for jobs."
+        });
+      } else {
+        // Sign out employees — need admin passcode
+        await supabase.auth.signOut();
+        toast({
+          title: "Account Created",
+          description: "Contact the administrator for your access code to complete login."
+        });
+      }
 
-      toast({
-        title: "Account Created",
-        description: "Your account has been created. Please contact the administrator for your access code to complete login."
-      });
-
-      // Reset form and switch to login tab
-      setSignupData({
-        email: '',
-        password: '',
-        confirmPassword: '',
-        fullName: ''
-      });
+      setSignupData({ email: '', password: '', confirmPassword: '', fullName: '', signupType: 'employee' });
       setActiveTab('login');
     } catch (error: any) {
       toast({
@@ -203,56 +215,42 @@ const Auth = () => {
 
           <TabsContent value="signup">
             <form onSubmit={handleSignUp} className="space-y-4">
+              {/* Signup Type Selector */}
+              <div>
+                <Label>I am signing up as</Label>
+                <Select value={signupData.signupType} onValueChange={(v: 'employee' | 'candidate') => setSignupData({ ...signupData, signupType: v })}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="employee">Employee</SelectItem>
+                    <SelectItem value="candidate">
+                      <span className="flex items-center gap-1">Job Applicant</span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {signupData.signupType === 'candidate' && (
+                  <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                    <Briefcase className="h-3 w-3" /> You'll be able to browse and apply for open positions
+                  </p>
+                )}
+              </div>
+
               <div>
                 <Label htmlFor="signup-name">Full Name</Label>
-                <Input
-                  id="signup-name"
-                  type="text"
-                  value={signupData.fullName}
-                  onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })}
-                  placeholder="John Doe"
-                  required
-                  className="mt-1"
-                />
+                <Input id="signup-name" type="text" value={signupData.fullName} onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })} placeholder="John Doe" required className="mt-1" />
               </div>
-
               <div>
                 <Label htmlFor="signup-email">Email</Label>
-                <Input
-                  id="signup-email"
-                  type="email"
-                  value={signupData.email}
-                  onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
-                  placeholder="your@email.com"
-                  required
-                  className="mt-1"
-                />
+                <Input id="signup-email" type="email" value={signupData.email} onChange={(e) => setSignupData({ ...signupData, email: e.target.value })} placeholder="your@email.com" required className="mt-1" />
               </div>
-
               <div>
                 <Label htmlFor="signup-password">Password</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  value={signupData.password}
-                  onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                  placeholder="At least 6 characters"
-                  required
-                  className="mt-1"
-                />
+                <Input id="signup-password" type="password" value={signupData.password} onChange={(e) => setSignupData({ ...signupData, password: e.target.value })} placeholder="At least 6 characters" required className="mt-1" />
               </div>
-
               <div>
                 <Label htmlFor="signup-confirm">Confirm Password</Label>
-                <Input
-                  id="signup-confirm"
-                  type="password"
-                  value={signupData.confirmPassword}
-                  onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                  placeholder="Re-enter password"
-                  required
-                  className="mt-1"
-                />
+                <Input id="signup-confirm" type="password" value={signupData.confirmPassword} onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })} placeholder="Re-enter password" required className="mt-1" />
               </div>
 
               <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
@@ -261,8 +259,17 @@ const Auth = () => {
               </Button>
 
               <div className="text-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                <p className="font-medium">After signing up:</p>
-                <p>Contact your administrator to receive your access code for login.</p>
+                {signupData.signupType === 'candidate' ? (
+                  <>
+                    <p className="font-medium">Job Applicant Registration</p>
+                    <p>After signing up, you can log in immediately to browse and apply for jobs.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-medium">After signing up:</p>
+                    <p>Contact your administrator to receive your access code for login.</p>
+                  </>
+                )}
               </div>
             </form>
           </TabsContent>
