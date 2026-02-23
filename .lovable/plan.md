@@ -1,139 +1,155 @@
 
 
-## Phase 1: HR Recruitment Module Foundation
+## Phase 2: AI Screening, Interview Scheduling, and Contract Signing
 
-This phase establishes the database structure, new role, storage, and the first two user-facing pages (Job Listings and Application). Subsequent phases will add screening, interviews, contracts with digital signatures, and candidate-to-employee conversion.
-
----
-
-### What Phase 1 Includes
-
-1. Add `candidate` role to `app_role` enum
-2. Create 6 new database tables with RLS
-3. Create 2 storage buckets (resumes, contracts)
-4. Add new HR capabilities to the system
-5. Build 2 new pages: `/jobs` (public job listings) and `/apply` (application form with resume upload)
-6. Add an `/applications` admin page for reviewing submissions
-7. Update Auth page to support candidate registration flow
-8. Wire navigation links for admin users
-
-### What Later Phases Will Add
-
-- Screening questionnaires and scoring
-- Interview scheduling with meeting links
-- Contract generation, digital signature canvas, and PDF embedding
-- Candidate-to-employee conversion workflow
-- Email notifications
-- AI candidate scoring
+This phase adds three major features to the existing recruitment module built in Phase 1.
 
 ---
 
-### Database Changes (Single Migration)
+### Feature 1: AI-Powered Screening Questionnaires
 
-**1. Alter `app_role` enum:**
-```sql
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'candidate';
-```
+When an admin moves an application to "screening" status, the system uses Lovable AI to generate role-specific screening questions based on the job's title, description, and requirements.
 
-**2. New Tables:**
+**How it works:**
 
-| Table | Purpose |
-|-------|---------|
-| `job_positions` | Job openings managed by admin |
-| `candidates` | Extended profile for candidate users |
-| `applications` | Links candidates to jobs |
-| `screening_responses` | Questionnaire answers (empty for now, structure only) |
-| `interviews` | Interview records |
-| `contracts` | Contract tracking with signature data |
+1. Admin changes application status to "screening" in `/applications`
+2. System calls a new edge function `generate-screening-questions` that sends the job title, description, and requirements to Lovable AI (Gemini) with tool calling to extract structured JSON questions
+3. The generated questions (5-8 multiple choice + short answer) are stored in `screening_responses` as the initial template
+4. Candidate sees a "Complete Screening" button when they log in (new `/screening` page)
+5. Candidate answers questions; responses are saved and AI scores them via a second edge function call (`score-screening`)
 
-All tables will have:
-- UUID primary keys with `gen_random_uuid()`
-- Timestamps (`created_at`, `updated_at`)
-- Proper foreign keys (candidates.user_id references profiles.id, not auth.users)
-- RLS policies using existing `is_admin()` and `has_capability()` functions
+**Database changes:** Add a `screening_questions` table to store generated question templates per application (separate from responses), or use the existing `screening_responses.responses` JSONB field to hold both questions and answers.
 
-**3. RLS Policy Summary:**
-- `job_positions`: Admin full CRUD; all authenticated users can SELECT (to browse jobs)
-- `candidates`: Admin sees all; candidates see only their own record (`user_id = auth.uid()`)
-- `applications`: Admin sees all; candidates see own applications
-- `screening_responses`, `interviews`, `contracts`: Admin full access; candidates see own (via application join)
+Decision: Use existing `screening_responses` table. Store questions in `responses` JSONB as `{ questions: [...], answers: [...], generated_at }`.
 
-**4. Storage Buckets:**
-- `resumes` bucket (authenticated uploads, admin + owner read)
-- `contracts` bucket (admin upload, admin + owner read)
+**New edge function: `generate-screening`**
+- Accepts: `{ job_title, department, description, requirements }`
+- Uses Lovable AI with tool calling to return structured questions
+- Returns: array of question objects `{ id, question, type: 'multiple_choice' | 'short_answer', options?: string[] }`
 
-**5. New Capabilities:**
-Add to `ALL_CAPABILITIES` in `useCapabilities.tsx`:
-- `manage_recruitment` - Admin: manage job postings and review applications
-- `review_applications` - View and process applications
-- `schedule_interviews` - Set interview dates
-- `generate_contracts` - Create contracts
-- `submit_application` - Candidate: apply for jobs
-- `complete_screening` - Candidate: fill screening form
-- `view_interview` - Candidate: see interview details
-- `sign_contract` - Candidate: sign contracts
+**New edge function: `score-screening`**
+- Accepts: `{ questions, answers, job_requirements }`
+- Uses Lovable AI to evaluate answers and return a score (0-100) with brief feedback
+- Saves score to `screening_responses.score`
+
+**New page: `/screening`**
+- Candidate-facing questionnaire page
+- Accepts `?applicationId=<id>` query param
+- Renders AI-generated questions dynamically
+- Submit button saves answers and triggers scoring
+
+**Updates to `/applications`:**
+- When admin sets status to "screening", trigger question generation
+- Show screening score badge next to screened applications
+- "View Screening" button to see candidate responses and AI score
 
 ---
 
-### New Pages
+### Feature 2: Interview Scheduling
 
-**`/jobs` - Job Listings**
-- Public to all authenticated users
-- Card grid showing open positions with title, department, description
-- "Apply" button links to `/apply?jobId=<id>`
-- Admin sees "Manage Jobs" button to create/edit/close positions
+When admin moves application to "interview" status, they can schedule an interview with date, time, meeting link, and interviewer name.
 
-**`/apply` - Application Form**
-- For candidates (and self-registering users)
-- Fields: cover letter textarea, resume file upload (to `resumes` bucket)
-- On submit: creates `candidates` record if first application, then creates `applications` record
-- Shows confirmation with "Your application has been submitted"
+**Updates to `/applications` page:**
+- Add "Schedule Interview" dialog when status is "interview"
+- Form fields: interview date/time, meeting link (URL), interviewer name
+- Creates record in existing `interviews` table
+- Shows interview details inline in application detail dialog
 
-**`/applications` - HR Dashboard (Admin)**
-- Table of all applications with candidate name, job title, status, date
-- Status badges: submitted, screening, interview, offered, hired, rejected
-- Action buttons to change status (approve/reject)
-- Click to view candidate details and resume
+**New page: `/interviews` (candidate-facing)**
+- Shows upcoming interviews for the logged-in candidate
+- Displays date, time, meeting link, interviewer
+- Read-only view with "Join Meeting" button linking to meeting URL
 
----
-
-### Auth Page Updates
-
-- Add a third option or modify sign-up to allow selecting "I'm applying for a job"
-- When selected, the user metadata includes `role: 'candidate'` instead of `'employee'`
-- The `handle_new_user` trigger will assign the `candidate` role automatically
-- Candidates with passcode `'00000000'` can still not log in until admin approves -- OR we allow candidates to log in without a passcode (to be decided in the flow)
-
-**Candidate login consideration:** Since candidates need to submit applications, they should be able to log in. The plan will allow candidates to bypass the passcode requirement (passcode check skipped for `candidate` role), since they have limited access anyway. Admin can later convert them to employee with a real passcode.
+**Updates to `/applications` (admin side):**
+- After interview, admin can record: score (1-10), feedback text, outcome (pass/fail)
+- Updates the `interviews` table record
 
 ---
 
-### Navigation Updates
+### Feature 3: Contract Generation with Digital Signature
 
-- Add "Recruitment" button in Quick Actions (admin only, guarded by `manage_recruitment`)
-- Add `/jobs`, `/apply`, `/applications` routes to `App.tsx`
+When admin moves application to "offered" status, they can generate a contract and upload it. The candidate then views the contract, draws their signature on a canvas, and submits.
+
+**New component: `SignatureCanvas.tsx`**
+- HTML5 Canvas-based signature pad
+- Touch and mouse support
+- Clear button to reset
+- Returns signature as base64 data URL (PNG)
+
+**New page: `/offers` (candidate-facing)**
+- Lists contracts for the candidate's applications
+- "View & Sign" button opens contract view
+- Shows embedded PDF/contract URL via iframe or link
+- Signature canvas below the contract
+- "I Accept & Sign" button (mandatory signature before submit)
+- On submit: saves `signature_data` (base64) and `signed_at` to `contracts` table, updates status to "signed"
+
+**Updates to `/applications` (admin side):**
+- "Generate Contract" button when status is "offered"
+- Upload contract PDF to `contracts` storage bucket
+- Creates record in `contracts` table with `contract_url`
+- Shows contract status (pending, signed) in application details
+- View signed contract with embedded signature
 
 ---
 
-### Files to Create/Modify
+### New Routes
 
-| File | Action | Description |
-|------|--------|-------------|
-| Migration SQL | CREATE | New tables, enum, RLS, storage buckets |
-| `src/hooks/useCapabilities.tsx` | MODIFY | Add 8 new HR capabilities |
-| `src/pages/Jobs.tsx` | CREATE | Job listings page |
-| `src/pages/Apply.tsx` | CREATE | Application form with resume upload |
-| `src/pages/Applications.tsx` | CREATE | Admin HR dashboard |
-| `src/pages/Auth.tsx` | MODIFY | Add candidate registration option |
-| `src/pages/Index.tsx` | MODIFY | Add Recruitment quick action for admin |
-| `src/App.tsx` | MODIFY | Add 3 new routes |
-| `supabase/functions/create-user/index.ts` | MODIFY | Handle candidate role default capabilities |
+| Route | Page | Access |
+|-------|------|--------|
+| `/screening` | Candidate questionnaire | Candidates (own applications) |
+| `/interviews` | Interview details | Candidates (own interviews) |
+| `/offers` | Contract signing | Candidates (own contracts) |
 
-### Technical Notes
+---
 
-- Resume uploads use Supabase Storage with path pattern `{user_id}/{filename}`
-- The `candidates` table is separate from `profiles` to avoid modifying existing tables
-- Digital contract signing with canvas will be implemented in Phase 2
-- The `candidate` role in `app_role` enum is permanent and cannot be removed once added (Postgres limitation)
-- Candidates bypass passcode verification at login since they only access job-related features
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `supabase/functions/generate-screening/index.ts` | AI question generation edge function |
+| `supabase/functions/score-screening/index.ts` | AI answer scoring edge function |
+| `src/pages/Screening.tsx` | Candidate screening questionnaire page |
+| `src/pages/Interviews.tsx` | Candidate interview details page |
+| `src/pages/Offers.tsx` | Contract viewing and digital signature page |
+| `src/components/SignatureCanvas.tsx` | Reusable signature pad component |
+
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/pages/Applications.tsx` | Add screening trigger, interview scheduling dialog, contract generation, score display |
+| `src/App.tsx` | Add 3 new routes |
+| `supabase/config.toml` | Register new edge functions with `verify_jwt = false` |
+
+### Database Changes
+
+A small migration to add a `screening_questions` JSONB column to `screening_responses` table is optional since the existing `responses` JSONB column can hold both questions and answers. No schema changes are strictly required -- all existing tables support the needed data.
+
+---
+
+### Technical Details
+
+**AI Question Generation (edge function):**
+- Uses Lovable AI gateway at `https://ai.gateway.lovable.dev/v1/chat/completions`
+- Model: `google/gemini-3-flash-preview` (default)
+- Uses tool calling to extract structured output (array of questions)
+- System prompt instructs AI to generate 5-8 screening questions tailored to the job role and requirements
+- Handles 429/402 rate limit errors gracefully
+
+**AI Scoring (edge function):**
+- Same gateway, non-streaming
+- Tool calling returns `{ score: number, feedback: string }` 
+- Score is 0-100 based on answer quality relative to job requirements
+
+**Signature Canvas:**
+- Pure HTML5 Canvas, no external libraries
+- Captures mouse/touch events for drawing
+- Exports to PNG base64 via `canvas.toDataURL()`
+- Stored in `contracts.signature_data` column (text, already exists)
+
+**Candidate Navigation:**
+- After login, candidates land on `/jobs`
+- Candidates can navigate to `/screening`, `/interviews`, `/offers` from a simple nav or notification cards on `/jobs` page
+- Each page queries only the candidate's own data (RLS enforced)
 
