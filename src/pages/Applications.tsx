@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,7 +10,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, Eye, FileText, ExternalLink } from 'lucide-react';
+import { Users, Eye, FileText, ExternalLink, Brain, Calendar, Upload, Loader2 } from 'lucide-react';
+import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
+import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
+import ContractUploadDialog from '@/components/hr/ContractUploadDialog';
 
 interface ApplicationRow {
   id: string;
@@ -29,8 +32,11 @@ interface ApplicationRow {
     id: string;
     title: string;
     department: string;
+    description: string;
+    requirements: string;
   };
   candidate_name: string | null;
+  screening_score?: number | null;
 }
 
 const STATUS_OPTIONS = ['submitted', 'screening', 'interview', 'offered', 'hired', 'rejected'];
@@ -53,6 +59,10 @@ const Applications = () => {
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<ApplicationRow | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [screeningAppId, setScreeningAppId] = useState<string | null>(null);
+  const [interviewAppId, setInterviewAppId] = useState<string | null>(null);
+  const [contractAppId, setContractAppId] = useState<string | null>(null);
+  const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
 
   const isAdmin = role === 'admin';
 
@@ -66,13 +76,12 @@ const Applications = () => {
   }, [isAdmin]);
 
   const fetchApplications = async () => {
-    // Fetch applications with candidate and job info
     const { data, error } = await supabase
       .from('applications')
       .select(`
         id, cover_letter, status, applied_at,
         candidates!inner(id, phone, education, experience_summary, resume_url, user_id),
-        job_positions!inner(id, title, department)
+        job_positions!inner(id, title, department, description, requirements)
       `)
       .order('applied_at', { ascending: false });
 
@@ -82,14 +91,20 @@ const Applications = () => {
       return;
     }
 
-    // Fetch candidate names from profiles
     const userIds = [...new Set((data || []).map((a: any) => a.candidates.user_id))];
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .in('id', userIds);
-
+    const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
     const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+
+    // Fetch screening scores
+    const appIds = (data || []).map((a: any) => a.id);
+    let scoreMap = new Map<string, number | null>();
+    if (appIds.length > 0) {
+      const { data: screeningData } = await supabase
+        .from('screening_responses')
+        .select('application_id, score')
+        .in('application_id', appIds);
+      scoreMap = new Map(screeningData?.map(s => [s.application_id, s.score]) || []);
+    }
 
     const mapped: ApplicationRow[] = (data || []).map((a: any) => ({
       id: a.id,
@@ -98,24 +113,56 @@ const Applications = () => {
       applied_at: a.applied_at,
       candidate: a.candidates,
       job: a.job_positions,
-      candidate_name: profileMap.get(a.candidates.user_id) || 'Unknown'
+      candidate_name: profileMap.get(a.candidates.user_id) || 'Unknown',
+      screening_score: scoreMap.get(a.id) ?? null,
     }));
 
     setApplications(mapped);
     setLoading(false);
   };
 
-  const handleStatusChange = async (appId: string, newStatus: string) => {
-    const { error } = await supabase
-      .from('applications')
-      .update({ status: newStatus })
-      .eq('id', appId);
+  const triggerScreeningGeneration = async (appId: string) => {
+    const app = applications.find(a => a.id === appId);
+    if (!app) return;
 
+    setGeneratingScreening(appId);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-screening', {
+        body: {
+          job_title: app.job.title,
+          department: app.job.department,
+          description: app.job.description,
+          requirements: app.job.requirements,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      await supabase.from('screening_responses').insert({
+        application_id: appId,
+        responses: { questions: data.questions, answers: {}, generated_at: new Date().toISOString() },
+      });
+
+      toast({ title: 'Screening Generated', description: 'AI screening questions created successfully.' });
+    } catch (e: any) {
+      toast({ title: 'Screening Error', description: e.message || 'Failed to generate screening questions', variant: 'destructive' });
+    } finally {
+      setGeneratingScreening(null);
+    }
+  };
+
+  const handleStatusChange = async (appId: string, newStatus: string) => {
+    const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', appId);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Status Updated', description: `Application moved to "${newStatus}"` });
-      setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a));
+      return;
+    }
+    toast({ title: 'Status Updated', description: `Application moved to "${newStatus}"` });
+    setApplications(prev => prev.map(a => (a.id === appId ? { ...a, status: newStatus } : a)));
+
+    if (newStatus === 'screening') {
+      triggerScreeningGeneration(appId);
     }
   };
 
@@ -143,9 +190,13 @@ const Applications = () => {
               <Users className="h-6 w-6 text-primary" />
               Applications
             </h2>
-            <p className="text-muted-foreground">{applications.length} total application{applications.length !== 1 ? 's' : ''}</p>
+            <p className="text-muted-foreground">
+              {applications.length} total application{applications.length !== 1 ? 's' : ''}
+            </p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/jobs')}>View Job Listings</Button>
+          <Button variant="outline" onClick={() => navigate('/jobs')}>
+            View Job Listings
+          </Button>
         </div>
 
         {applications.length === 0 ? (
@@ -174,26 +225,70 @@ const Applications = () => {
                     <TableCell>{app.job.title}</TableCell>
                     <TableCell>{app.job.department}</TableCell>
                     <TableCell>
-                      <Select value={app.status} onValueChange={(v) => handleStatusChange(app.id, v)}>
-                        <SelectTrigger className="w-[130px]">
-                          <Badge variant={statusVariant(app.status)} className="text-xs">
-                            {app.status}
+                      <div className="flex items-center gap-2">
+                        <Select value={app.status} onValueChange={(v) => handleStatusChange(app.id, v)}>
+                          <SelectTrigger className="w-[130px]">
+                            <Badge variant={statusVariant(app.status)} className="text-xs">
+                              {app.status}
+                            </Badge>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {STATUS_OPTIONS.map((s) => (
+                              <SelectItem key={s} value={s}>
+                                {s}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {app.screening_score != null && (
+                          <Badge variant="secondary" className="text-xs">
+                            {app.screening_score}/100
                           </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {STATUS_OPTIONS.map(s => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        )}
+                        {generatingScreening === app.id && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(app.applied_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => viewDetails(app)}>
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => viewDetails(app)} title="View Details">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {(app.status === 'screening' || app.screening_score != null) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setScreeningAppId(app.id)}
+                            title="View Screening"
+                          >
+                            <Brain className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {app.status === 'interview' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setInterviewAppId(app.id)}
+                            title="Manage Interview"
+                          >
+                            <Calendar className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {app.status === 'offered' && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setContractAppId(app.id)}
+                            title="Manage Contract"
+                          >
+                            <Upload className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -251,6 +346,25 @@ const Applications = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* HR Workflow Dialogs */}
+        <ScreeningViewDialog
+          applicationId={screeningAppId}
+          open={!!screeningAppId}
+          onOpenChange={(o) => !o && setScreeningAppId(null)}
+        />
+        <InterviewScheduleDialog
+          applicationId={interviewAppId}
+          open={!!interviewAppId}
+          onOpenChange={(o) => !o && setInterviewAppId(null)}
+          onSaved={fetchApplications}
+        />
+        <ContractUploadDialog
+          applicationId={contractAppId}
+          open={!!contractAppId}
+          onOpenChange={(o) => !o && setContractAppId(null)}
+          onSaved={fetchApplications}
+        />
       </div>
     </DashboardLayout>
   );

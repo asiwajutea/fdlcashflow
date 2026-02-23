@@ -2,3 +2,9 @@ project_id = "elqwtrwrsbvgezhemrwn"
 
 [functions.send-payslip-email]
 verify_jwt = false
+
+[functions.generate-screening]
+verify_jwt = false
+
+[functions.score-screening]
+verify_jwt = false
