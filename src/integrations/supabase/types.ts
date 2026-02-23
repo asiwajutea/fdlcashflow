@@ -70,6 +70,98 @@ export type Database = {
           },
         ]
       }
+      applications: {
+        Row: {
+          applied_at: string
+          candidate_id: string
+          cover_letter: string | null
+          id: string
+          job_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applied_at?: string
+          candidate_id: string
+          cover_letter?: string | null
+          id?: string
+          job_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applied_at?: string
+          candidate_id?: string
+          cover_letter?: string | null
+          id?: string
+          job_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      candidates: {
+        Row: {
+          address: string | null
+          created_at: string
+          current_status: string
+          education: string | null
+          experience_summary: string | null
+          id: string
+          phone: string | null
+          resume_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          current_status?: string
+          education?: string | null
+          experience_summary?: string | null
+          id?: string
+          phone?: string | null
+          resume_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          current_status?: string
+          education?: string | null
+          experience_summary?: string | null
+          id?: string
+          phone?: string | null
+          resume_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "candidates_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_settings: {
         Row: {
           company_address: string
@@ -105,6 +197,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      contracts: {
+        Row: {
+          application_id: string
+          contract_url: string | null
+          created_at: string
+          id: string
+          signature_data: string | null
+          signed_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          contract_url?: string | null
+          created_at?: string
+          id?: string
+          signature_data?: string | null
+          signed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          contract_url?: string | null
+          created_at?: string
+          id?: string
+          signature_data?: string | null
+          signed_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       daily_transactions: {
         Row: {
@@ -189,6 +322,53 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      interviews: {
+        Row: {
+          application_id: string
+          created_at: string
+          feedback: string | null
+          id: string
+          interview_date: string | null
+          interviewer: string | null
+          meeting_link: string | null
+          outcome: string | null
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          interview_date?: string | null
+          interviewer?: string | null
+          meeting_link?: string | null
+          outcome?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          feedback?: string | null
+          id?: string
+          interview_date?: string | null
+          interviewer?: string | null
+          meeting_link?: string | null
+          outcome?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interviews_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       invoice_line_items: {
         Row: {
@@ -310,6 +490,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      job_positions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string
+          description: string
+          id: string
+          requirements: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          description?: string
+          id?: string
+          requirements?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string
+          description?: string
+          id?: string
+          requirements?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -490,6 +706,38 @@ export type Database = {
         }
         Relationships: []
       }
+      screening_responses: {
+        Row: {
+          application_id: string
+          id: string
+          responses: Json | null
+          score: number | null
+          submitted_at: string
+        }
+        Insert: {
+          application_id: string
+          id?: string
+          responses?: Json | null
+          score?: number | null
+          submitted_at?: string
+        }
+        Update: {
+          application_id?: string
+          id?: string
+          responses?: Json | null
+          score?: number | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_responses_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_capabilities: {
         Row: {
           capability: string
@@ -619,7 +867,7 @@ export type Database = {
       is_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "guest" | "employee"
+      app_role: "admin" | "guest" | "employee" | "candidate"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -747,7 +995,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "guest", "employee"],
+      app_role: ["admin", "guest", "employee", "candidate"],
     },
   },
 } as const

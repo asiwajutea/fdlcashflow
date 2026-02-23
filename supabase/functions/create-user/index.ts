@@ -58,7 +58,7 @@ serve(async (req) => {
     }
 
     // Validate role
-    const validRoles = ['admin', 'employee', 'guest'];
+    const validRoles = ['admin', 'employee', 'guest', 'candidate'];
     if (!validRoles.includes(role)) {
       throw new Error('Invalid role');
     }
@@ -128,6 +128,18 @@ serve(async (req) => {
             capability: 'view_dashboard',
             granted_by: requestingUser.id
           });
+      } else if (role === 'candidate') {
+        // Candidate capabilities
+        const candidateCapabilities = ['submit_application', 'complete_screening', 'view_interview', 'sign_contract'];
+        for (const capability of candidateCapabilities) {
+          await supabaseAdmin
+            .from('user_capabilities')
+            .insert({
+              user_id: userData.user.id,
+              capability,
+              granted_by: requestingUser.id
+            });
+        }
       }
     }
 

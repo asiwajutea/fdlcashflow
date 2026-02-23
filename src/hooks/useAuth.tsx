@@ -4,7 +4,7 @@ import { User } from '@supabase/supabase-js';
 
 export interface UserProfile {
   user: User | null;
-  role: 'admin' | 'employee' | 'guest' | null;
+  role: 'admin' | 'employee' | 'guest' | 'candidate' | null;
   fullName: string | null;
   loading: boolean;
   capabilities: string[];
@@ -27,7 +27,7 @@ export const useAuth = () => {
     ]);
 
     return {
-      role: (roleResult.data?.role as 'admin' | 'employee' | 'guest') || null,
+      role: (roleResult.data?.role as 'admin' | 'employee' | 'guest' | 'candidate') || null,
       fullName: profileResult.data?.full_name || null,
       capabilities: capabilitiesResult.data?.map(c => c.capability) || []
     };

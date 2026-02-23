@@ -14,7 +14,15 @@ export const ALL_CAPABILITIES = [
   { id: 'view_statistics', label: 'View Statistics', description: 'View invoice statistics' },
   { id: 'manage_company_settings', label: 'Manage Company Settings', description: 'Edit company info' },
   { id: 'bulk_invoice', label: 'Bulk Invoice', description: 'Generate bulk invoices' },
-  { id: 'manage_users', label: 'Manage Users', description: 'Admin: manage other users' }
+  { id: 'manage_users', label: 'Manage Users', description: 'Admin: manage other users' },
+  { id: 'manage_recruitment', label: 'Manage Recruitment', description: 'Admin: manage job postings and review applications' },
+  { id: 'review_applications', label: 'Review Applications', description: 'View and process applications' },
+  { id: 'schedule_interviews', label: 'Schedule Interviews', description: 'Set interview dates' },
+  { id: 'generate_contracts', label: 'Generate Contracts', description: 'Create contracts' },
+  { id: 'submit_application', label: 'Submit Application', description: 'Candidate: apply for jobs' },
+  { id: 'complete_screening', label: 'Complete Screening', description: 'Candidate: fill screening form' },
+  { id: 'view_interview', label: 'View Interview', description: 'Candidate: see interview details' },
+  { id: 'sign_contract', label: 'Sign Contract', description: 'Candidate: sign contracts' }
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];
