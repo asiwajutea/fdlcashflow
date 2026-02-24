@@ -493,37 +493,55 @@ export type Database = {
       }
       job_positions: {
         Row: {
+          compensation: string
           created_at: string
           created_by: string | null
           department: string
           description: string
           id: string
+          job_type: string
+          key_responsibilities: string
+          media_url: string | null
           requirements: string
           status: string
           title: string
           updated_at: string
+          work_location_country: string
+          work_location_state: string
         }
         Insert: {
+          compensation?: string
           created_at?: string
           created_by?: string | null
           department?: string
           description?: string
           id?: string
+          job_type?: string
+          key_responsibilities?: string
+          media_url?: string | null
           requirements?: string
           status?: string
           title: string
           updated_at?: string
+          work_location_country?: string
+          work_location_state?: string
         }
         Update: {
+          compensation?: string
           created_at?: string
           created_by?: string | null
           department?: string
           description?: string
           id?: string
+          job_type?: string
+          key_responsibilities?: string
+          media_url?: string | null
           requirements?: string
           status?: string
           title?: string
           updated_at?: string
+          work_location_country?: string
+          work_location_state?: string
         }
         Relationships: []
       }
