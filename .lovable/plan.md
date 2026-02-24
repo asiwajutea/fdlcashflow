@@ -1,155 +1,88 @@
+## Plan: Job Position Enhancements, Application Layout, and Header Fixes
+
+### 1. Database Migration
+
+Add new optional columns to `job_positions`:
 
 
-## Phase 2: AI Screening, Interview Scheduling, and Contract Signing
+| Column                  | Type | Default                                    |
+| ----------------------- | ---- | ------------------------------------------ |
+| `key_responsibilities`  | text | `''`                                       |
+| `job_type`              | text | `''` (e.g. Full-time, Part-time, Contract) |
+| `compensation`          | text | `''`                                       |
+| `work_location_country` | text | `''`                                       |
+| `work_location_state`   | text | `''`                                       |
+| `media_url`             | text | `NULL`                                     |
 
-This phase adds three major features to the existing recruitment module built in Phase 1.
 
 ---
 
-### Feature 1: AI-Powered Screening Questionnaires
+### 2. Jobs Page (`/jobs`) - Beautiful Card Redesign
 
-When an admin moves an application to "screening" status, the system uses Lovable AI to generate role-specific screening questions based on the job's title, description, and requirements.
+Each job card will show:
 
-**How it works:**
+- Job media image (if `media_url` exists, displayed as a card header image)
+- Job title (prominent)
+- Department badge
+- AI-generated short summary of description (first ~120 chars of description with ellipsis)
+- Location (country + state, with MapPin icon)
+- Job type badge (Full-time, Part-time, etc.)
+- "Apply Now" button
 
-1. Admin changes application status to "screening" in `/applications`
-2. System calls a new edge function `generate-screening-questions` that sends the job title, description, and requirements to Lovable AI (Gemini) with tool calling to extract structured JSON questions
-3. The generated questions (5-8 multiple choice + short answer) are stored in `screening_responses` as the initial template
-4. Candidate sees a "Complete Screening" button when they log in (new `/screening` page)
-5. Candidate answers questions; responses are saved and AI scores them via a second edge function call (`score-screening`)
+Admin controls (edit/delete) remain but are placed as icon buttons in the card corner.
 
-**Database changes:** Add a `screening_questions` table to store generated question templates per application (separate from responses), or use the existing `screening_responses.responses` JSONB field to hold both questions and answers.
-
-Decision: Use existing `screening_responses` table. Store questions in `responses` JSONB as `{ questions: [...], answers: [...], generated_at }`.
-
-**New edge function: `generate-screening`**
-- Accepts: `{ job_title, department, description, requirements }`
-- Uses Lovable AI with tool calling to return structured questions
-- Returns: array of question objects `{ id, question, type: 'multiple_choice' | 'short_answer', options?: string[] }`
-
-**New edge function: `score-screening`**
-- Accepts: `{ questions, answers, job_requirements }`
-- Uses Lovable AI to evaluate answers and return a score (0-100) with brief feedback
-- Saves score to `screening_responses.score`
-
-**New page: `/screening`**
-- Candidate-facing questionnaire page
-- Accepts `?applicationId=<id>` query param
-- Renders AI-generated questions dynamically
-- Submit button saves answers and triggers scoring
-
-**Updates to `/applications`:**
-- When admin sets status to "screening", trigger question generation
-- Show screening score badge next to screened applications
-- "View Screening" button to see candidate responses and AI score
+The create/edit dialog will be updated with the new optional fields: Key Responsibilities, Requirements, Job Type, Compensation, Work Location (country + state inputs).
 
 ---
 
-### Feature 2: Interview Scheduling
+### 3. Apply Page (`/apply`) - Side-by-Side Layout
 
-When admin moves application to "interview" status, they can schedule an interview with date, time, meeting link, and interviewer name.
+**Left side (sticky):** Job info card with:
 
-**Updates to `/applications` page:**
-- Add "Schedule Interview" dialog when status is "interview"
-- Form fields: interview date/time, meeting link (URL), interviewer name
-- Creates record in existing `interviews` table
-- Shows interview details inline in application detail dialog
+- Job media (if any)
+- Title, department, description, key responsibilities, requirements, job type, compensation, location
+- Sticky positioning (`sticky top-24`)
 
-**New page: `/interviews` (candidate-facing)**
-- Shows upcoming interviews for the logged-in candidate
-- Displays date, time, meeting link, interviewer
-- Read-only view with "Join Meeting" button linking to meeting URL
+**Right side:** Application form with:
 
-**Updates to `/applications` (admin side):**
-- After interview, admin can record: score (1-10), feedback text, outcome (pass/fail)
-- Updates the `interviews` table record
+- Phone, Education, Experience Summary, Cover Letter
+- Resume upload marked as **optional** with hint text: "Uploading a resume significantly increases your chances of being hired"
+- Submit button
+
+**Back button** added at the top of the page using `ArrowLeft` icon + "Back to Jobs" linking to `/jobs`.
 
 ---
 
-### Feature 3: Contract Generation with Digital Signature
+### 4. Header Fixes (`DashboardLayout.tsx`)
 
-When admin moves application to "offered" status, they can generate a contract and upload it. The candidate then views the contract, draws their signature on a canvas, and submits.
+**Visibility fix:** The header text uses `text-slate-800` which is invisible on white backgrounds in light mode. Fix:
 
-**New component: `SignatureCanvas.tsx`**
-- HTML5 Canvas-based signature pad
-- Touch and mouse support
-- Clear button to reset
-- Returns signature as base64 data URL (PNG)
+- Change `text-slate-800` on the title "FDL Cashflow" to `text-foreground`
+- Change the dashboard title `text-slate-800` to `text-foreground`
 
-**New page: `/offers` (candidate-facing)**
-- Lists contracts for the candidate's applications
-- "View & Sign" button opens contract view
-- Shows embedded PDF/contract URL via iframe or link
-- Signature canvas below the contract
-- "I Accept & Sign" button (mandatory signature before submit)
-- On submit: saves `signature_data` (base64) and `signed_at` to `contracts` table, updates status to "signed"
+**Rebrand:** Replace all instances of "FDL Cashflow" with "FDL Workforce" across:
 
-**Updates to `/applications` (admin side):**
-- "Generate Contract" button when status is "offered"
-- Upload contract PDF to `contracts` storage bucket
-- Creates record in `contracts` table with `contract_url`
-- Shows contract status (pending, signed) in application details
-- View signed contract with embedded signature
+- `src/components/DashboardLayout.tsx` (header title)
+- `index.html` (page title if present)
+- Any other occurrences
 
 ---
-
-### New Routes
-
-| Route | Page | Access |
-|-------|------|--------|
-| `/screening` | Candidate questionnaire | Candidates (own applications) |
-| `/interviews` | Interview details | Candidates (own interviews) |
-| `/offers` | Contract signing | Candidates (own contracts) |
-
----
-
-### Files to Create
-
-| File | Purpose |
-|------|---------|
-| `supabase/functions/generate-screening/index.ts` | AI question generation edge function |
-| `supabase/functions/score-screening/index.ts` | AI answer scoring edge function |
-| `src/pages/Screening.tsx` | Candidate screening questionnaire page |
-| `src/pages/Interviews.tsx` | Candidate interview details page |
-| `src/pages/Offers.tsx` | Contract viewing and digital signature page |
-| `src/components/SignatureCanvas.tsx` | Reusable signature pad component |
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Applications.tsx` | Add screening trigger, interview scheduling dialog, contract generation, score display |
-| `src/App.tsx` | Add 3 new routes |
-| `supabase/config.toml` | Register new edge functions with `verify_jwt = false` |
 
-### Database Changes
+| File                                 | Changes                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------- |
+| Migration SQL                        | Add 6 columns to `job_positions`                                             |
+| `src/pages/Jobs.tsx`                 | Redesign cards, update create/edit form with new fields                      |
+| `src/pages/Apply.tsx`                | Side-by-side layout, sticky job info, optional resume with hint, back button |
+| `src/components/DashboardLayout.tsx` | Fix text colors, rename to "FDL Workforce"                                   |
+| `index.html`                         | Update page title to "FDL Workforce"                                         |
 
-A small migration to add a `screening_questions` JSONB column to `screening_responses` table is optional since the existing `responses` JSONB column can hold both questions and answers. No schema changes are strictly required -- all existing tables support the needed data.
 
----
+### Technical Notes
 
-### Technical Details
-
-**AI Question Generation (edge function):**
-- Uses Lovable AI gateway at `https://ai.gateway.lovable.dev/v1/chat/completions`
-- Model: `google/gemini-3-flash-preview` (default)
-- Uses tool calling to extract structured output (array of questions)
-- System prompt instructs AI to generate 5-8 screening questions tailored to the job role and requirements
-- Handles 429/402 rate limit errors gracefully
-
-**AI Scoring (edge function):**
-- Same gateway, non-streaming
-- Tool calling returns `{ score: number, feedback: string }` 
-- Score is 0-100 based on answer quality relative to job requirements
-
-**Signature Canvas:**
-- Pure HTML5 Canvas, no external libraries
-- Captures mouse/touch events for drawing
-- Exports to PNG base64 via `canvas.toDataURL()`
-- Stored in `contracts.signature_data` column (text, already exists)
-
-**Candidate Navigation:**
-- After login, candidates land on `/jobs`
-- Candidates can navigate to `/screening`, `/interviews`, `/offers` from a simple nav or notification cards on `/jobs` page
-- Each page queries only the candidate's own data (RLS enforced)
-
+- Country and state fields are simple text inputs (no external geo API needed; user types manually)
+- Job card description preview is truncated client-side using `line-clamp-2`
+- Resume hint uses a muted info-style text with a lightbulb or info icon
+- The sticky job panel uses `lg:sticky lg:top-24` so it only sticks on desktop; on mobile it stacks normally above the form
