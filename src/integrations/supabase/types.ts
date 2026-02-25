@@ -149,6 +149,7 @@ export type Database = {
           contract_url: string | null
           created_at: string
           id: string
+          signature_data: string | null
           signature_url: string | null
           signed_at: string | null
         }
@@ -157,6 +158,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           id?: string
+          signature_data?: string | null
           signature_url?: string | null
           signed_at?: string | null
         }
@@ -165,6 +167,7 @@ export type Database = {
           contract_url?: string | null
           created_at?: string
           id?: string
+          signature_data?: string | null
           signature_url?: string | null
           signed_at?: string | null
         }
@@ -226,6 +229,39 @@ export type Database = {
         }
         Relationships: []
       }
+      employees: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          designation: string
+          email: string | null
+          employee_id: string
+          full_name: string
+          id: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          designation?: string
+          email?: string | null
+          employee_id?: string
+          full_name?: string
+          id?: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          designation?: string
+          email?: string | null
+          employee_id?: string
+          full_name?: string
+          id?: string
+        }
+        Relationships: []
+      }
       interviews: {
         Row: {
           application_id: string
@@ -266,6 +302,121 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoice_line_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          invoice_id: string | null
+          is_taxable: boolean
+          item_type: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string | null
+          is_taxable?: boolean
+          item_type?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          invoice_id?: string | null
+          is_taxable?: boolean
+          item_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invoices: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          date_issued: string
+          down_payment: number
+          egf: number
+          employee_id: string | null
+          gross_payment: number
+          id: string
+          invoice_number: string
+          month: number
+          net_payment: number
+          nhf: number
+          outstanding_iou: number
+          paye_tax: number
+          pension: number
+          slip_number: string
+          total_deductions: number
+          total_monthly_income: number
+          total_savings: number
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          date_issued?: string
+          down_payment?: number
+          egf?: number
+          employee_id?: string | null
+          gross_payment?: number
+          id?: string
+          invoice_number?: string
+          month: number
+          net_payment?: number
+          nhf?: number
+          outstanding_iou?: number
+          paye_tax?: number
+          pension?: number
+          slip_number?: string
+          total_deductions?: number
+          total_monthly_income?: number
+          total_savings?: number
+          year: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          date_issued?: string
+          down_payment?: number
+          egf?: number
+          employee_id?: string | null
+          gross_payment?: number
+          id?: string
+          invoice_number?: string
+          month?: number
+          net_payment?: number
+          nhf?: number
+          outstanding_iou?: number
+          paye_tax?: number
+          pension?: number
+          slip_number?: string
+          total_deductions?: number
+          total_monthly_income?: number
+          total_savings?: number
+          year?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
             referencedColumns: ["id"]
           },
         ]
