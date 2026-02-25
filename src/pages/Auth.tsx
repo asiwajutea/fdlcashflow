@@ -48,9 +48,9 @@ const Auth = () => {
         .single();
 
       if (roleData?.role === 'candidate') {
-        // Candidates skip passcode verification
+        // Candidates skip passcode verification and go to dashboard
         toast({ title: "Success", description: "Login successful" });
-        navigate('/jobs');
+        navigate('/');
         return;
       }
 

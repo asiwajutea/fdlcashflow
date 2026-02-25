@@ -51,6 +51,26 @@ const statusVariant = (status: string): 'default' | 'secondary' | 'destructive' 
   }
 };
 
+// Stage message templates
+const STAGE_MESSAGES: Record<string, { subject: string; body: (jobTitle: string) => string }> = {
+  screening: {
+    subject: 'Your application has moved to Screening',
+    body: (jobTitle) => `Dear Candidate,\n\nGreat news! Your application for the "${jobTitle}" position has been selected for screening.\n\nPlease complete the screening questionnaire at your earliest convenience. This is an important step in our evaluation process.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
+  interview: {
+    subject: 'Interview Scheduled — Congratulations!',
+    body: (jobTitle) => `Dear Candidate,\n\nCongratulations! You've been shortlisted for an interview for the "${jobTitle}" position.\n\nPlease check your interview details in the Interviews section of your dashboard. Make sure to prepare and be available at the scheduled time.\n\nWe look forward to meeting you!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
+  offered: {
+    subject: 'Job Offer Extended — Action Required',
+    body: (jobTitle) => `Dear Candidate,\n\nWe are pleased to extend an offer for the "${jobTitle}" position!\n\nPlease review and sign your contract in the Offers section of your dashboard. If you have any questions, don't hesitate to reach out.\n\nWelcome aboard!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
+  hired: {
+    subject: 'Welcome to the Team! 🎉',
+    body: (jobTitle) => `Dear Colleague,\n\nWelcome aboard! You've been officially hired for the "${jobTitle}" position.\n\nWe're excited to have you join our team at Footprints Dynasty Limited. Further onboarding details will be shared with you shortly.\n\nCongratulations!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
+};
+
 const Applications = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -76,7 +96,7 @@ const Applications = () => {
   }, [isAdmin]);
 
   const fetchApplications = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('applications')
       .select(`
         id, cover_letter, status, applied_at,
@@ -92,18 +112,17 @@ const Applications = () => {
     }
 
     const userIds = [...new Set((data || []).map((a: any) => a.candidates.user_id))];
-    const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', userIds);
-    const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+    const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name').in('id', userIds);
+    const profileMap = new Map(profiles?.map((p: any) => [p.id, p.full_name]) || []);
 
-    // Fetch screening scores
     const appIds = (data || []).map((a: any) => a.id);
     let scoreMap = new Map<string, number | null>();
     if (appIds.length > 0) {
-      const { data: screeningData } = await supabase
+      const { data: screeningData } = await (supabase as any)
         .from('screening_responses')
         .select('application_id, score')
         .in('application_id', appIds);
-      scoreMap = new Map(screeningData?.map(s => [s.application_id, s.score]) || []);
+      scoreMap = new Map(screeningData?.map((s: any) => [s.application_id, s.score]) || []);
     }
 
     const mapped: ApplicationRow[] = (data || []).map((a: any) => ({
@@ -139,7 +158,7 @@ const Applications = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      await supabase.from('screening_responses').insert({
+      await (supabase as any).from('screening_responses').insert({
         application_id: appId,
         responses: { questions: data.questions, answers: {}, generated_at: new Date().toISOString() },
       });
@@ -152,14 +171,36 @@ const Applications = () => {
     }
   };
 
+  const sendStageMessage = async (app: ApplicationRow, newStatus: string) => {
+    const template = STAGE_MESSAGES[newStatus];
+    if (!template || !user) return;
+
+    try {
+      await (supabase as any).from('messages').insert({
+        sender_id: user.id,
+        recipient_id: app.candidate.user_id,
+        subject: template.subject,
+        body: template.body(app.job.title),
+      });
+    } catch (e) {
+      console.error('Failed to send stage message:', e);
+    }
+  };
+
   const handleStatusChange = async (appId: string, newStatus: string) => {
-    const { error } = await supabase.from('applications').update({ status: newStatus }).eq('id', appId);
+    const app = applications.find(a => a.id === appId);
+    const { error } = await (supabase as any).from('applications').update({ status: newStatus }).eq('id', appId);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
     toast({ title: 'Status Updated', description: `Application moved to "${newStatus}"` });
     setApplications(prev => prev.map(a => (a.id === appId ? { ...a, status: newStatus } : a)));
+
+    // Send stage message to candidate
+    if (app) {
+      sendStageMessage(app, newStatus);
+    }
 
     if (newStatus === 'screening') {
       triggerScreeningGeneration(appId);
@@ -234,16 +275,12 @@ const Applications = () => {
                           </SelectTrigger>
                           <SelectContent>
                             {STATUS_OPTIONS.map((s) => (
-                              <SelectItem key={s} value={s}>
-                                {s}
-                              </SelectItem>
+                              <SelectItem key={s} value={s}>{s}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                         {app.screening_score != null && (
-                          <Badge variant="secondary" className="text-xs">
-                            {app.screening_score}/100
-                          </Badge>
+                          <Badge variant="secondary" className="text-xs">{app.screening_score}/100</Badge>
                         )}
                         {generatingScreening === app.id && (
                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -259,32 +296,17 @@ const Applications = () => {
                           <Eye className="h-4 w-4" />
                         </Button>
                         {(app.status === 'screening' || app.screening_score != null) && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setScreeningAppId(app.id)}
-                            title="View Screening"
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => setScreeningAppId(app.id)} title="View Screening">
                             <Brain className="h-4 w-4" />
                           </Button>
                         )}
                         {app.status === 'interview' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setInterviewAppId(app.id)}
-                            title="Manage Interview"
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => setInterviewAppId(app.id)} title="Manage Interview">
                             <Calendar className="h-4 w-4" />
                           </Button>
                         )}
                         {app.status === 'offered' && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setContractAppId(app.id)}
-                            title="Manage Contract"
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => setContractAppId(app.id)} title="Manage Contract">
                             <Upload className="h-4 w-4" />
                           </Button>
                         )}
@@ -297,7 +319,6 @@ const Applications = () => {
           </Card>
         )}
 
-        {/* Detail Dialog */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -347,24 +368,9 @@ const Applications = () => {
           </DialogContent>
         </Dialog>
 
-        {/* HR Workflow Dialogs */}
-        <ScreeningViewDialog
-          applicationId={screeningAppId}
-          open={!!screeningAppId}
-          onOpenChange={(o) => !o && setScreeningAppId(null)}
-        />
-        <InterviewScheduleDialog
-          applicationId={interviewAppId}
-          open={!!interviewAppId}
-          onOpenChange={(o) => !o && setInterviewAppId(null)}
-          onSaved={fetchApplications}
-        />
-        <ContractUploadDialog
-          applicationId={contractAppId}
-          open={!!contractAppId}
-          onOpenChange={(o) => !o && setContractAppId(null)}
-          onSaved={fetchApplications}
-        />
+        <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} />
+        <InterviewScheduleDialog applicationId={interviewAppId} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
+        <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
       </div>
     </DashboardLayout>
   );
