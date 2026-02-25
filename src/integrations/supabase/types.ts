@@ -362,6 +362,7 @@ export type Database = {
           paye_tax: number
           pension: number
           slip_number: string
+          taxable_income: number
           total_deductions: number
           total_monthly_income: number
           total_savings: number
@@ -384,6 +385,7 @@ export type Database = {
           paye_tax?: number
           pension?: number
           slip_number?: string
+          taxable_income?: number
           total_deductions?: number
           total_monthly_income?: number
           total_savings?: number
@@ -406,6 +408,7 @@ export type Database = {
           paye_tax?: number
           pension?: number
           slip_number?: string
+          taxable_income?: number
           total_deductions?: number
           total_monthly_income?: number
           total_savings?: number

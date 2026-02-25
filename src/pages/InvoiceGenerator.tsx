@@ -162,7 +162,7 @@ const InvoiceGenerator = () => {
     
     try {
       // Fetch all invoices for this employee in the current year BEFORE the current month
-      const { data: previousInvoices, error } = await supabase
+      const { data: previousInvoices, error } = await (supabase as any)
         .from('invoices')
         .select('id, month, taxable_income, gross_payment')
         .eq('employee_id', selectedEmployee.id)
