@@ -7,10 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Upload, CheckCircle, Briefcase, ArrowLeft, MapPin, Info, Building2 } from 'lucide-react';
+import { Upload, CheckCircle, Briefcase, ArrowLeft, MapPin, Info, Building2, FileText, Star, DollarSign, Globe } from 'lucide-react';
 
 const Apply = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const Apply = () => {
   useEffect(() => {
     const fetchJob = async () => {
       if (!jobId) { setLoading(false); return; }
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('job_positions')
         .select('*')
         .eq('id', jobId)
@@ -62,18 +63,18 @@ const Apply = () => {
         resumeUrl = urlData.publicUrl;
       }
 
-      const { data: existingCandidate } = await supabase
+      const { data: existingCandidate } = await (supabase as any)
         .from('candidates').select('id').eq('user_id', user.id).maybeSingle();
 
       let candidateId: string;
       if (existingCandidate) {
         candidateId = existingCandidate.id;
-        await supabase.from('candidates').update({
+        await (supabase as any).from('candidates').update({
           phone: phone || undefined, education: education || undefined,
           experience_summary: experience || undefined, resume_url: resumeUrl || undefined,
         }).eq('id', candidateId);
       } else {
-        const { data: newCandidate, error: candidateError } = await supabase
+        const { data: newCandidate, error: candidateError } = await (supabase as any)
           .from('candidates').insert({
             user_id: user.id, phone, education,
             experience_summary: experience, resume_url: resumeUrl,
@@ -82,7 +83,7 @@ const Apply = () => {
         candidateId = newCandidate.id;
       }
 
-      const { error: appError } = await supabase
+      const { error: appError } = await (supabase as any)
         .from('applications').insert({ candidate_id: candidateId, job_id: jobId, cover_letter: coverLetter });
       if (appError) throw appError;
 
@@ -145,127 +146,167 @@ const Apply = () => {
   return (
     <DashboardLayout title="Apply for Position">
       <div className="space-y-4">
-        {/* Back button */}
         <Button variant="ghost" size="sm" onClick={() => navigate('/jobs')} className="gap-2 text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back to Jobs
         </Button>
 
-        {/* Side-by-side layout */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Left: Sticky Job Info */}
-          <div className="lg:w-5/12">
-            <div className="lg:sticky lg:top-24 space-y-4">
-              <Card className="overflow-hidden">
-                {job.media_url && (
-                  <div className="h-48 overflow-hidden bg-muted">
-                    <img src={job.media_url} alt={job.title} className="w-full h-full object-cover" />
+          {/* Left: Scrollable Job Details with Accordion */}
+          <div className="lg:w-7/12 space-y-4">
+            <Card className="overflow-hidden border-0 shadow-lg">
+              {job.media_url ? (
+                <div className="h-56 overflow-hidden">
+                  <img src={job.media_url} alt={job.title} className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="h-40 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
+                  <Building2 className="h-16 w-16 text-primary/30" />
+                </div>
+              )}
+              <CardContent className="p-6">
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-foreground">{job.title}</h2>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {job.department && <Badge variant="secondary" className="text-sm">{job.department}</Badge>}
+                    {job.job_type && <Badge variant="outline" className="text-sm">{job.job_type}</Badge>}
+                    {locationText() && (
+                      <Badge variant="outline" className="text-sm gap-1">
+                        <MapPin className="h-3 w-3" /> {locationText()}
+                      </Badge>
+                    )}
                   </div>
-                )}
-                {!job.media_url && (
-                  <div className="h-32 bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center">
-                    <Building2 className="h-12 w-12 text-primary/30" />
-                  </div>
-                )}
-                <CardContent className="p-5 space-y-4">
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground">{job.title}</h2>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {job.department && <Badge variant="secondary">{job.department}</Badge>}
-                      {job.job_type && <Badge variant="outline">{job.job_type}</Badge>}
-                    </div>
-                  </div>
+                </div>
 
-                  {locationText() && (
-                    <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 shrink-0" />
-                      <span>{locationText()}</span>
-                    </div>
-                  )}
-
-                  {job.compensation && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Compensation</p>
-                      <p className="text-sm text-muted-foreground">{job.compensation}</p>
-                    </div>
-                  )}
-
+                <Accordion type="single" collapsible defaultValue="description" className="w-full">
                   {job.description && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Description</p>
-                      <p className="text-sm text-muted-foreground whitespace-pre-line">{job.description}</p>
-                    </div>
+                    <AccordionItem value="description">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <FileText className="h-4 w-4 text-primary" /> Job Description
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{job.description}</p>
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
 
                   {job.key_responsibilities && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Key Responsibilities</p>
-                      <p className="text-sm text-muted-foreground whitespace-pre-line">{job.key_responsibilities}</p>
-                    </div>
+                    <AccordionItem value="responsibilities">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <Star className="h-4 w-4 text-primary" /> Key Responsibilities
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{job.key_responsibilities}</p>
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
 
                   {job.requirements && (
-                    <div>
-                      <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Requirements</p>
-                      <p className="text-sm text-muted-foreground whitespace-pre-line">{job.requirements}</p>
-                    </div>
+                    <AccordionItem value="requirements">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <Briefcase className="h-4 w-4 text-primary" /> Requirements
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{job.requirements}</p>
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
+
+                  {job.compensation && (
+                    <AccordionItem value="compensation">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <DollarSign className="h-4 w-4 text-primary" /> Compensation
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p className="text-sm text-muted-foreground">{job.compensation}</p>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+
+                  {locationText() && (
+                    <AccordionItem value="location">
+                      <AccordionTrigger className="text-sm font-semibold uppercase tracking-wide hover:no-underline">
+                        <span className="flex items-center gap-2">
+                          <Globe className="h-4 w-4 text-primary" /> Work Location
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          <span>{locationText()}</span>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+                </Accordion>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Right: Sticky Application Form */}
+          <div className="lg:w-5/12">
+            <div className="lg:sticky lg:top-24">
+              <Card className="border-0 shadow-lg">
+                <CardHeader className="bg-gradient-to-r from-primary/5 to-accent/5 rounded-t-lg">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary" />
+                    Your Application
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <Label>Phone Number</Label>
+                      <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Education</Label>
+                      <Input value={education} onChange={(e) => setEducation(e.target.value)} placeholder="e.g. BSc Computer Science" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label>Experience Summary</Label>
+                      <Textarea value={experience} onChange={(e) => setExperience(e.target.value)} placeholder="Briefly describe your relevant experience..." className="mt-1" rows={3} />
+                    </div>
+                    <div>
+                      <Label>Cover Letter</Label>
+                      <Textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Why are you interested in this position?" className="mt-1" rows={4} />
+                    </div>
+                    <div>
+                      <Label>Resume (Optional)</Label>
+                      <div className="mt-1">
+                        <Input
+                          type="file"
+                          accept=".pdf,.doc,.docx"
+                          onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                          className="cursor-pointer"
+                        />
+                        <div className="flex items-start gap-1.5 mt-2 p-2.5 rounded-md bg-primary/5 border border-primary/10">
+                          <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                          <p className="text-xs text-muted-foreground">
+                            Uploading a resume <strong>significantly increases</strong> your chances of being hired.
+                          </p>
+                        </div>
+                        {resumeFile && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                            <Upload className="h-3 w-3" /> {resumeFile.name}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={submitting}>
+                      {submitting ? 'Submitting...' : 'Submit Application'}
+                    </Button>
+                  </form>
                 </CardContent>
               </Card>
             </div>
-          </div>
-
-          {/* Right: Application Form */}
-          <div className="lg:w-7/12">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Application</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <Label>Phone Number</Label>
-                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234..." className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Education</Label>
-                    <Input value={education} onChange={(e) => setEducation(e.target.value)} placeholder="e.g. BSc Computer Science" className="mt-1" />
-                  </div>
-                  <div>
-                    <Label>Experience Summary</Label>
-                    <Textarea value={experience} onChange={(e) => setExperience(e.target.value)} placeholder="Briefly describe your relevant experience..." className="mt-1" rows={3} />
-                  </div>
-                  <div>
-                    <Label>Cover Letter</Label>
-                    <Textarea value={coverLetter} onChange={(e) => setCoverLetter(e.target.value)} placeholder="Why are you interested in this position?" className="mt-1" rows={5} />
-                  </div>
-                  <div>
-                    <Label>Resume (Optional)</Label>
-                    <div className="mt-1">
-                      <Input
-                        type="file"
-                        accept=".pdf,.doc,.docx"
-                        onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                        className="cursor-pointer"
-                      />
-                      <div className="flex items-start gap-1.5 mt-2 p-2.5 rounded-md bg-primary/5 border border-primary/10">
-                        <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-                        <p className="text-xs text-muted-foreground">
-                          Uploading a resume <strong>significantly increases</strong> your chances of being hired.
-                        </p>
-                      </div>
-                      {resumeFile && (
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Upload className="h-3 w-3" /> {resumeFile.name}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full" disabled={submitting}>
-                    {submitting ? 'Submitting...' : 'Submit Application'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

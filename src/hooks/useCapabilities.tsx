@@ -22,7 +22,9 @@ export const ALL_CAPABILITIES = [
   { id: 'submit_application', label: 'Submit Application', description: 'Candidate: apply for jobs' },
   { id: 'complete_screening', label: 'Complete Screening', description: 'Candidate: fill screening form' },
   { id: 'view_interview', label: 'View Interview', description: 'Candidate: see interview details' },
-  { id: 'sign_contract', label: 'Sign Contract', description: 'Candidate: sign contracts' }
+  { id: 'sign_contract', label: 'Sign Contract', description: 'Candidate: sign contracts' },
+  { id: 'view_inbox', label: 'View Inbox', description: 'Access inbox/messages' },
+  { id: 'send_messages', label: 'Send Messages', description: 'Send messages to other users' },
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];
@@ -46,7 +48,7 @@ export const useCapabilities = (userId: string | null): UseCapabilitiesReturn =>
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('user_capabilities')
         .select('capability')
         .eq('user_id', userId);
@@ -55,7 +57,7 @@ export const useCapabilities = (userId: string | null): UseCapabilitiesReturn =>
         console.error('Error fetching capabilities:', error);
         setCapabilities([]);
       } else {
-        setCapabilities(data?.map(c => c.capability) || []);
+        setCapabilities(data?.map((c: any) => c.capability) || []);
       }
     } catch (err) {
       console.error('Error:', err);
