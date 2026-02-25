@@ -556,24 +556,33 @@ export type Database = {
       }
       rate_change_history: {
         Row: {
+          change_summary: string | null
           changed_at: string
           changed_by: string | null
           changes: Json | null
           id: string
+          new_config: Json | null
+          previous_config: Json | null
           rate_config_id: string | null
         }
         Insert: {
+          change_summary?: string | null
           changed_at?: string
           changed_by?: string | null
           changes?: Json | null
           id?: string
+          new_config?: Json | null
+          previous_config?: Json | null
           rate_config_id?: string | null
         }
         Update: {
+          change_summary?: string | null
           changed_at?: string
           changed_by?: string | null
           changes?: Json | null
           id?: string
+          new_config?: Json | null
+          previous_config?: Json | null
           rate_config_id?: string | null
         }
         Relationships: [
