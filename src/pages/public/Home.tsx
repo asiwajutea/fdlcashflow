@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Calendar, Monitor, GraduationCap, ShoppingBag, BookOpen, Sparkles, Users, Award, TrendingUp } from 'lucide-react';
+import { ArrowRight, Calendar, Monitor, GraduationCap, ShoppingBag, BookOpen, Sparkles, Users, Award, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicLayout from '@/components/PublicLayout';
@@ -14,10 +14,38 @@ const iconMap: Record<string, React.ReactNode> = {
   BookOpen: <BookOpen className="h-8 w-8" />,
 };
 
+const heroSlides = [
+  {
+    image: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=1920&q=80',
+    title: 'Making a Difference',
+    accent: 'Across Industries',
+    subtitle: 'Delivering excellence in Events, Technology, Education, and Cultural Preservation.',
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&w=1920&q=80',
+    title: 'Innovation That',
+    accent: 'Drives Impact',
+    subtitle: 'Pioneering solutions in EduTech, SaaS, and digital transformation.',
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=1920&q=80',
+    title: 'Unforgettable',
+    accent: 'Events & Experiences',
+    subtitle: 'From MAQ7 to StreeTalentz — celebrating talent, culture, and community.',
+  },
+  {
+    image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1920&q=80',
+    title: 'Building the',
+    accent: 'Next Generation',
+    subtitle: 'Education programs and cultural preservation for a brighter future.',
+  },
+];
+
 const Home = () => {
   const [services, setServices] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [innovations, setInnovations] = useState<any[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     Promise.all([
@@ -31,42 +59,111 @@ const Home = () => {
     });
   }, []);
 
+  // Auto-advance slideshow
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const goToSlide = (index: number) => setCurrentSlide(index);
+  const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+  const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+
   return (
     <PublicLayout>
-      {/* Hero Section */}
-      <section className="relative bg-[hsl(214,95%,15%)] overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[hsl(214,95%,15%)] via-[hsl(214,85%,20%)] to-[hsl(214,95%,12%)]" />
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
+      {/* Hero Section with Slideshow */}
+      <section className="relative h-[600px] md:h-[700px] overflow-hidden">
+        {/* Slides */}
+        {heroSlides.map((slide, index) => (
+          <div
+            key={index}
+            className="absolute inset-0 transition-opacity duration-1000 ease-in-out"
+            style={{ opacity: currentSlide === index ? 1 : 0 }}
+          >
+            <img
+              src={slide.image}
+              alt=""
+              className="absolute inset-0 w-full h-full object-cover"
+              loading={index === 0 ? 'eager' : 'lazy'}
+            />
+            {/* Dark overlay for text readability */}
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(214,95%,10%)/0.92] via-[hsl(214,95%,15%)/0.8] to-[hsl(214,95%,15%)/0.6]" />
+          </div>
+        ))}
+
+        {/* Content overlay */}
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-              Making a <span className="text-[hsl(28,100%,55%)]">Difference</span> Across Industries
-            </h1>
-            <p className="text-lg md:text-xl text-[hsl(0,0%,80%)] mb-8 leading-relaxed">
-              Delivering excellence in Events, Technology, Education, and Cultural Preservation.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Button size="lg" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white text-base px-8">
+            {heroSlides.map((slide, index) => (
+              <div
+                key={index}
+                className="absolute transition-all duration-700 ease-in-out"
+                style={{
+                  opacity: currentSlide === index ? 1 : 0,
+                  transform: currentSlide === index ? 'translateY(0)' : 'translateY(20px)',
+                  pointerEvents: currentSlide === index ? 'auto' : 'none',
+                }}
+              >
+                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+                  {slide.title} <span className="text-[hsl(28,100%,55%)]">{slide.accent}</span>
+                </h1>
+                <p className="text-lg md:text-xl text-[hsl(0,0%,80%)] mb-8 leading-relaxed max-w-2xl">
+                  {slide.subtitle}
+                </p>
+              </div>
+            ))}
+
+            {/* CTA Buttons - always visible */}
+            <div className="flex flex-col sm:flex-row gap-4 mt-44 md:mt-48">
+              <Button size="lg" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white text-base px-8 shadow-lg">
                 <Link to="/services">Explore Our Services <ArrowRight className="ml-2 h-5 w-5" /></Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white text-white hover:bg-[hsl(214,85%,25%)] text-base px-8">
+              <Button size="lg" variant="outline" asChild className="border-white/50 text-white hover:bg-white/10 backdrop-blur-sm text-base px-8">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
           </div>
-          {/* Stats */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
-            {[
-              { icon: <Users className="h-6 w-6" />, value: '2019', label: 'Founded' },
-              { icon: <Award className="h-6 w-6" />, value: '5+', label: 'Flagship Events' },
-              { icon: <TrendingUp className="h-6 w-6" />, value: '4+', label: 'Innovations' },
-              { icon: <Sparkles className="h-6 w-6" />, value: '5+', label: 'Service Lines' },
-            ].map((stat, i) => (
-              <div key={i} className="text-center p-4 rounded-lg bg-[hsl(214,85%,20%)/0.5] border border-[hsl(214,70%,25%)]">
-                <div className="text-[hsl(28,100%,55%)] flex justify-center mb-2">{stat.icon}</div>
-                <div className="text-2xl md:text-3xl font-bold text-white">{stat.value}</div>
-                <div className="text-sm text-[hsl(0,0%,70%)]">{stat.label}</div>
-              </div>
+
+          {/* Slide Navigation */}
+          <div className="absolute bottom-8 left-0 right-0 flex items-center justify-center gap-3 z-20">
+            <button onClick={prevSlide} className="p-2 text-white/60 hover:text-white transition-colors" aria-label="Previous slide">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            {heroSlides.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => goToSlide(index)}
+                className={`h-2 rounded-full transition-all duration-300 ${
+                  currentSlide === index ? 'w-8 bg-[hsl(28,100%,55%)]' : 'w-2 bg-white/40 hover:bg-white/60'
+                }`}
+                aria-label={`Go to slide ${index + 1}`}
+              />
             ))}
+            <button onClick={nextSlide} className="p-2 text-white/60 hover:text-white transition-colors" aria-label="Next slide">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Bar at Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 z-10 bg-[hsl(214,95%,12%)/0.9] backdrop-blur-md border-t border-white/10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-0 divide-x divide-white/10">
+              {[
+                { icon: <Users className="h-5 w-5" />, value: '2019', label: 'Founded' },
+                { icon: <Award className="h-5 w-5" />, value: '5+', label: 'Flagship Events' },
+                { icon: <TrendingUp className="h-5 w-5" />, value: '4+', label: 'Innovations' },
+                { icon: <Sparkles className="h-5 w-5" />, value: '5+', label: 'Service Lines' },
+              ].map((stat, i) => (
+                <div key={i} className="text-center py-4 md:py-5">
+                  <div className="text-[hsl(28,100%,55%)] flex justify-center mb-1">{stat.icon}</div>
+                  <div className="text-xl md:text-2xl font-bold text-white">{stat.value}</div>
+                  <div className="text-xs text-white/50">{stat.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>

@@ -534,6 +534,11 @@ const Index = () => {
                       <Briefcase className="h-4 w-4" /> HR Recruitment
                     </Button>
                   )}
+                  {canAccess('manage_website_content') && (
+                    <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/cms')}>
+                      <Globe className="h-4 w-4" /> Website CMS
+                    </Button>
+                  )}
                   <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/jobs')}>
                     <Briefcase className="h-4 w-4" /> Job Openings
                   </Button>
