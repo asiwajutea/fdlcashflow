@@ -480,6 +480,42 @@ export type Database = {
         }
         Relationships: []
       }
+      hero_slides: {
+        Row: {
+          accent: string
+          created_at: string | null
+          display_order: number | null
+          id: string
+          image_url: string
+          is_published: boolean | null
+          subtitle: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          accent?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_published?: boolean | null
+          subtitle?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Update: {
+          accent?: string
+          created_at?: string | null
+          display_order?: number | null
+          id?: string
+          image_url?: string
+          is_published?: boolean | null
+          subtitle?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       innovations: {
         Row: {
           created_at: string | null
