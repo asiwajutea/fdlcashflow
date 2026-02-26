@@ -136,7 +136,7 @@ const Inbox = () => {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')} className="gap-1">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="gap-1">
               <ArrowLeft className="h-4 w-4" /> Back
             </Button>
             <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">

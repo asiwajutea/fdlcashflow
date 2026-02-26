@@ -804,7 +804,7 @@ const InvoiceGenerator = () => {
   return <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate('/')} className="gap-2 text-base text-slate-500">
+          <Button variant="ghost" onClick={() => navigate('/dashboard')} className="gap-2 text-base text-slate-500">
             <ArrowLeft className="h-4 w-4" />
             Back to Dashboard
           </Button>

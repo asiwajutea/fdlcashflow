@@ -136,7 +136,7 @@ const Apply = () => {
           </p>
           <div className="flex gap-3 justify-center mt-6">
             <Button variant="outline" onClick={() => navigate('/jobs')}>View More Jobs</Button>
-            <Button onClick={() => navigate('/')}>Go to Dashboard</Button>
+            <Button onClick={() => navigate('/dashboard')}>Go to Dashboard</Button>
           </div>
         </Card>
       </DashboardLayout>
