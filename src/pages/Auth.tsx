@@ -50,7 +50,7 @@ const Auth = () => {
       if (roleData?.role === 'candidate') {
         // Candidates skip passcode verification and go to dashboard
         toast({ title: "Success", description: "Login successful" });
-        navigate('/');
+        navigate('/dashboard');
         return;
       }
 
@@ -74,7 +74,7 @@ const Auth = () => {
       }
 
       toast({ title: "Success", description: "Login successful" });
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       toast({
         title: "Login Failed",

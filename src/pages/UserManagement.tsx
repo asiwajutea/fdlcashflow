@@ -61,7 +61,7 @@ const UserManagement = () => {
   // Redirect if not admin
   useEffect(() => {
     if (role && role !== 'admin') {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [role, navigate]);
 
@@ -265,7 +265,7 @@ const UserManagement = () => {
     <DashboardLayout title="User Management">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => navigate('/')}>
+          <Button variant="outline" onClick={() => navigate('/dashboard')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
           </Button>

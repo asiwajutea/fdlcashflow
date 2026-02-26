@@ -55,7 +55,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           <div className="flex justify-between items-center h-16">
             <div 
               className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/dashboard')}
             >
               <div className="bg-gradient-primary p-2 rounded-lg">
                 <BarChart3 className="h-6 w-6 text-primary-foreground" />

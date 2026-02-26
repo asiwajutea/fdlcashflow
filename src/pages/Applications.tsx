@@ -88,7 +88,7 @@ const Applications = () => {
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-    if (!authLoading && user && !isAdmin) navigate('/');
+    if (!authLoading && user && !isAdmin) navigate('/dashboard');
   }, [user, authLoading, isAdmin, navigate]);
 
   useEffect(() => {
