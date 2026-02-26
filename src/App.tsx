@@ -42,6 +42,18 @@ import Offers from "./pages/Offers";
 import Inbox from "./pages/Inbox";
 import ProfileSetup from "./pages/ProfileSetup";
 
+// CMS pages
+import CMSDashboard from "./pages/cms/CMSDashboard";
+import CMSServices from "./pages/cms/CMSServices";
+import CMSEvents from "./pages/cms/CMSEvents";
+import CMSInnovations from "./pages/cms/CMSInnovations";
+import CMSBlog from "./pages/cms/CMSBlog";
+import CMSGallery from "./pages/cms/CMSGallery";
+import CMSPartners from "./pages/cms/CMSPartners";
+import CMSTestimonials from "./pages/cms/CMSTestimonials";
+import CMSSections from "./pages/cms/CMSSections";
+import CMSContacts from "./pages/cms/CMSContacts";
+
 const queryClient = new QueryClient();
 
 // Guard for backend routes only - redirects to profile setup if avatar is missing
@@ -97,6 +109,18 @@ const AppRoutes = () => (
     <Route path="/interviews" element={<AvatarGuard><Interviews /></AvatarGuard>} />
     <Route path="/offers" element={<AvatarGuard><Offers /></AvatarGuard>} />
     <Route path="/inbox" element={<AvatarGuard><Inbox /></AvatarGuard>} />
+
+    {/* CMS routes */}
+    <Route path="/cms" element={<AvatarGuard><CMSDashboard /></AvatarGuard>} />
+    <Route path="/cms/services" element={<AvatarGuard><CMSServices /></AvatarGuard>} />
+    <Route path="/cms/events" element={<AvatarGuard><CMSEvents /></AvatarGuard>} />
+    <Route path="/cms/innovations" element={<AvatarGuard><CMSInnovations /></AvatarGuard>} />
+    <Route path="/cms/blog" element={<AvatarGuard><CMSBlog /></AvatarGuard>} />
+    <Route path="/cms/gallery" element={<AvatarGuard><CMSGallery /></AvatarGuard>} />
+    <Route path="/cms/partners" element={<AvatarGuard><CMSPartners /></AvatarGuard>} />
+    <Route path="/cms/testimonials" element={<AvatarGuard><CMSTestimonials /></AvatarGuard>} />
+    <Route path="/cms/sections" element={<AvatarGuard><CMSSections /></AvatarGuard>} />
+    <Route path="/cms/contacts" element={<AvatarGuard><CMSContacts /></AvatarGuard>} />
 
     <Route path="*" element={<NotFound />} />
   </Routes>

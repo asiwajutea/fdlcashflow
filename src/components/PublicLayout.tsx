@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,6 +19,20 @@ const navLinks = [
 const PublicLayout = ({ children }: { children: React.ReactNode }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+
+  // Force light mode on all public pages
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    root.classList.remove('dark');
+    root.classList.add('light');
+    return () => {
+      if (wasDark) {
+        root.classList.remove('light');
+        root.classList.add('dark');
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
