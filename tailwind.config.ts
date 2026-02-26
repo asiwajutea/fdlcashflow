@@ -47,6 +47,11 @@ export default {
           background: "hsl(var(--warning-background))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        "brand-red-orange": {
+          DEFAULT: "hsl(var(--brand-red-orange))",
+          light: "hsl(var(--brand-red-orange-light))",
+          dark: "hsl(var(--brand-red-orange-dark))",
+        },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",

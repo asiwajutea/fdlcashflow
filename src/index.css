@@ -34,6 +34,11 @@
     --warning-background: 28 100% 96%;
     --warning-foreground: 28 100% 20%;
     
+    /* Brand Tertiary - Reddish Orange */
+    --brand-red-orange: 12 90% 50%;
+    --brand-red-orange-light: 12 90% 60%;
+    --brand-red-orange-dark: 12 90% 40%;
+    
     /* Neutral System */
     --muted: 214 80% 20%;
     --muted-dark: 214 20% 88%;
