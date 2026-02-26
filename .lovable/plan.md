@@ -1,67 +1,91 @@
 
 
-## Data Migration Plan
+# FDL Workforce -- Full Website Rebuild Plan
 
-### Current State
+This is a large project that needs to be broken into multiple phases to avoid breaking existing functionality. I recommend we tackle it step by step across several conversations.
 
-**New user accounts (already created and confirmed):**
+---
 
-| Email | New UUID | Role | Passcode |
-|---|---|---|---|
-| finance@footprintsdynasty.com.ng | `cd09a787-3e52-4394-91fd-7cb28cd83b10` | admin | 18012019 |
-| guest@footprintsdynasty.com.ng | `f86811bb-219f-4b3e-85a5-293d84bb0c3f` | admin | 00000000 (needs setting) |
-| dakintuyi@gmail.com | `1f91415d-6c59-4b94-8269-a21dc6e35ff2` | candidate | N/A |
+## Phase 0: Fix Email Confirmation (Immediate)
 
-Roles are already correct in the database. Profiles and user_roles exist for all 3 users.
+The `finance@footprintsdynasty.com.ng` and `guest@footprintsdynasty.com.ng` accounts have unconfirmed emails. I will update their `email_confirmed_at` timestamps in the database so they can log in immediately.
 
-**ID Mapping (old → new):**
-- Old admin `205f493e-1ccb-4bf0-aec9-64f9a6275077` → New `cd09a787-3e52-4394-91fd-7cb28cd83b10`
-- Records with `created_by` referencing the old ID will be remapped to the new ID
-- Records with NULL `created_by` will remain NULL
+---
 
-### Schema Gaps Found
+## Phase 1: Foundation -- Public Layout and Homepage
 
-Some CSV columns do not exist in the current database. These will be **skipped** during import (they are either zero/unused or informational):
+### New files to create:
+- `src/components/PublicLayout.tsx` -- Header with nav menu (Home, About, Services, Events, Innovations, Gallery, Careers, Blog, Contact) + Employee Login and Apply buttons + sticky header + footer with social links
+- `src/pages/public/Home.tsx` -- The new public homepage with all requested sections (Hero, About snapshot, Services grid, Flagship Events, Innovations, Partners, Featured In, CTA banner)
+- `src/pages/public/About.tsx`
+- `src/pages/public/Services.tsx` and `src/pages/public/ServiceDetail.tsx`
+- `src/pages/public/Events.tsx` and `src/pages/public/EventDetail.tsx`
+- `src/pages/public/Innovations.tsx` and `src/pages/public/InnovationDetail.tsx`
+- `src/pages/public/Gallery.tsx`
+- `src/pages/public/Careers.tsx`
+- `src/pages/public/Blog.tsx` and `src/pages/public/BlogPost.tsx`
+- `src/pages/public/Contact.tsx`
 
-| Table | Missing Columns (will skip) |
-|---|---|
-| rate_configurations | `booklet_rate`, `production_manager_salary`, `fixed_monthly_salaries`, `operations_utilities`, `employee_gratuity`, `logistics`, `incentives`, `updated_at` |
-| invoices | `ytd_taxable_income`, `ytd_tax_paid`, `updated_at` |
-| employees | `updated_at` |
-| invoice_line_items | `created_by` |
+### Routing changes in `App.tsx`:
+- `/` becomes the public homepage (not the dashboard)
+- `/dashboard` becomes the authenticated financial dashboard (current `/` page)
+- All existing backend routes remain unchanged, just the Index redirects to `/dashboard`
+- Public routes: `/`, `/about`, `/services`, `/services/:slug`, `/events`, `/events/:slug`, `/innovations`, `/innovations/:slug`, `/gallery`, `/careers`, `/blog`, `/blog/:slug`, `/contact`
+- Auth route stays at `/auth`
 
-The `invoices` table also has columns `paye_tax`, `nhf`, `pension` in the schema that the CSV does not provide -- these will default to 0.
+### Database tables to create:
+1. **`website_sections`** -- CMS-editable content blocks (hero text, about text, etc.)
+2. **`services`** -- Service entries with slug, title, description, image, CTA type
+3. **`events`** -- Event entries with slug, title, description, gallery, registration CTA
+4. **`innovations`** -- Innovation entries with slug, title, description, image
+5. **`gallery_items`** -- Media gallery with category filtering
+6. **`blog_posts`** -- Blog CMS with title, slug, body, featured_image, status (draft/published), SEO fields
+7. **`blog_categories`** and **`blog_tags`** -- Taxonomy tables
+8. **`contact_submissions`** -- Contact form submissions
+9. **`partners`** -- Partner logos
+10. **`testimonials`** -- Testimonials
 
-### Migration Steps (executed in dependency order)
+All tables will have proper RLS: public SELECT for published content, admin-only for INSERT/UPDATE/DELETE.
 
-**Step 1 — Fix guest passcode & grant admin capabilities**
-- Update `profiles.passcode` for guest@ to a unique 8-digit code
-- Insert all admin capabilities for both admin accounts into `user_capabilities`
+### New capability:
+- `manage_website_content` added to `user_capabilities` for CMS access
 
-**Step 2 — Insert independent tables (no user ID dependency)**
-Using the database insert tool for each:
+---
 
-1. **company_settings** — 1 row, insert with new UUID (old ID not relevant)
-2. **employees** — 21 rows, no user ID references
-3. **rate_configurations** — 8 rows, skip missing columns
-4. **rate_change_history** — 1 row
+## Phase 2: CMS Admin Dashboard
 
-**Step 3 — Insert user-dependent tables (with ID remapping)**
-For rows where `created_by = '205f493e-...'`, replace with `cd09a787-...`:
+- Add CMS management pages under `/admin/website` (or as a new tab in the existing dashboard)
+- CRUD interfaces for: Services, Events, Innovations, Gallery, Blog, Partners, Testimonials, Homepage sections, SEO settings
+- Rich text editing for blog posts (using a simple markdown or HTML editor)
 
-5. **invoices** — 42 rows, remap `created_by`
-6. **invoice_line_items** — 156 rows, skip `created_by` column (not in schema)
-7. **daily_transactions** — 58 rows, remap `created_by`
-8. **job_positions** — 1 row, remap `created_by`
+---
 
-**Step 4 — Verify**
-- Run SELECT queries on each table to confirm row counts match
-- Test login with finance@ account
+## Phase 3: SEO and Performance
 
-### Technical Notes
+- Dynamic `<title>` and meta tags per page using `react-helmet-async`
+- Open Graph and Twitter card meta tags
+- Structured data (JSON-LD) for organization and articles
+- Lazy loading for images
+- Animated counters on homepage
+- Accessibility improvements (ARIA labels)
 
-- All inserts will use the database insert tool (not migrations) since these are data operations
-- Original UUIDs for records (e.g., employee IDs, invoice IDs) will be preserved exactly as-is, so foreign key relationships between tables remain intact
-- The `profiles` and `user_roles` tables do NOT need CSV import — they already exist for the 3 new users
-- Weekly records CSV was not uploaded (file not found). If you have weekly records data, you can share it separately
+---
+
+## Implementation Approach
+
+Given the size, I recommend we proceed **one phase at a time**:
+
+1. **This session**: Fix email confirmation + set up Phase 1 foundation (PublicLayout, routing, database tables, homepage)
+2. **Next session**: Build out remaining public pages (About, Services, Events, etc.)
+3. **Following session**: CMS admin + Blog system
+4. **Final session**: SEO, performance, polish
+
+### Technical Details
+
+- The public layout will be completely separate from `DashboardLayout`
+- Mobile-first with a hamburger menu for mobile navigation
+- Brand colors: Navy Blue `#0B1F3B` / Orange `#FF7A00` (already configured in CSS)
+- All public pages will NOT require authentication
+- The `AvatarGuard` in `App.tsx` will be scoped to only apply to dashboard routes
+- Existing payroll, invoice, employee, and recruitment code remains untouched
 
