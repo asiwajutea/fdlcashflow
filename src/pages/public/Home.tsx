@@ -158,7 +158,7 @@ const Home = () => {
                     {slide.accent}
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl text-white mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)]">
+                <p className="text-lg md:text-xl mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)] text-primary-foreground">
                   {slide.subtitle}
                 </p>
               </div>
