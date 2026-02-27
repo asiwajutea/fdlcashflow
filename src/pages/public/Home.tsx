@@ -154,7 +154,7 @@ const Home = () => {
                 </div>
                 <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
                   {slide.title}{' '}
-                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text text-transparent drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))]">
+                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))] [-webkit-text-stroke:0.8px_white] text-[brand-red-orange-dark] text-[#f54c0f]">
                     {slide.accent}
                   </span>
                 </h1>
