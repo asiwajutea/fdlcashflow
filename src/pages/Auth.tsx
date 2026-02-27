@@ -15,7 +15,7 @@ const Auth = () => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
-  
+
   const [loginData, setLoginData] = useState({
     email: '',
     password: '',
@@ -41,11 +41,11 @@ const Auth = () => {
       if (authError) throw authError;
 
       // Check if user is a candidate (bypass passcode)
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', authData.user.id)
-        .single();
+      const { data: roleData } = await supabase.
+      from('user_roles').
+      select('role').
+      eq('user_id', authData.user.id).
+      single();
 
       if (roleData?.role === 'candidate') {
         // Candidates skip passcode verification and go to dashboard
@@ -55,19 +55,19 @@ const Auth = () => {
       }
 
       // Non-candidate: verify passcode
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('passcode')
-        .eq('id', authData.user.id)
-        .single();
-      
+      const { data: profileData, error: profileError } = await supabase.
+      from('profiles').
+      select('passcode').
+      eq('id', authData.user.id).
+      single();
+
       if (profileError) throw profileError;
-      
+
       if (!profileData.passcode || profileData.passcode === '00000000') {
         await supabase.auth.signOut();
         throw new Error('Your account is pending approval. Please contact the administrator for your access code.');
       }
-      
+
       if (profileData.passcode !== loginData.passcode) {
         await supabase.auth.signOut();
         throw new Error('Invalid access code');
@@ -89,7 +89,7 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
       if (signupData.password !== signupData.confirmPassword) {
         throw new Error('Passwords do not match');
@@ -155,7 +155,7 @@ const Auth = () => {
           <div className="bg-primary/10 p-4 rounded-full mb-4">
             <Lock className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold mb-2 text-primary">Financial Dashboard</h1>
+          <h1 className="text-3xl font-bold mb-2 text-primary">FDL Workforce</h1>
           <p className="text-muted-foreground">Footprints Dynasty Ltd</p>
         </div>
 
@@ -176,8 +176,8 @@ const Auth = () => {
                   onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                   placeholder="your@email.com"
                   required
-                  className="mt-1"
-                />
+                  className="mt-1" />
+
               </div>
 
               <div>
@@ -189,8 +189,8 @@ const Auth = () => {
                   onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                   placeholder="••••••••"
                   required
-                  className="mt-1"
-                />
+                  className="mt-1" />
+
               </div>
 
               <div>
@@ -202,8 +202,8 @@ const Auth = () => {
                   onChange={(e) => setLoginData({ ...loginData, passcode: e.target.value })}
                   placeholder="8-digit code from admin"
                   required
-                  className="mt-1"
-                />
+                  className="mt-1" />
+
                 <p className="text-xs text-muted-foreground mt-1">Contact administrator for your access code</p>
               </div>
 
@@ -229,11 +229,11 @@ const Auth = () => {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-                {signupData.signupType === 'candidate' && (
-                  <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                {signupData.signupType === 'candidate' &&
+                <p className="text-xs text-primary mt-1 flex items-center gap-1">
                     <Briefcase className="h-3 w-3" /> You'll be able to browse and apply for open positions
                   </p>
-                )}
+                }
               </div>
 
               <div>
@@ -259,24 +259,24 @@ const Auth = () => {
               </Button>
 
               <div className="text-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                {signupData.signupType === 'candidate' ? (
-                  <>
+                {signupData.signupType === 'candidate' ?
+                <>
                     <p className="font-medium">Job Applicant Registration</p>
                     <p>After signing up, you can log in immediately to browse and apply for jobs.</p>
-                  </>
-                ) : (
-                  <>
+                  </> :
+
+                <>
                     <p className="font-medium">After signing up:</p>
                     <p>Contact your administrator to receive your access code for login.</p>
                   </>
-                )}
+                }
               </div>
             </form>
           </TabsContent>
         </Tabs>
       </Card>
-    </div>
-  );
+    </div>);
+
 };
 
 export default Auth;
