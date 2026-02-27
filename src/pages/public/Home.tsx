@@ -125,6 +125,17 @@ const Home = () => {
           </div>
         )}
 
+        {/* Animated decorative shapes */}
+        <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
+          <div className="absolute top-[15%] right-[10%] w-64 h-64 rounded-full border border-brand-red-orange/20 animate-[spin_25s_linear_infinite]" />
+          <div className="absolute bottom-[20%] right-[15%] w-40 h-40 rounded-full bg-brand-red-orange/[0.07] animate-[pulse_4s_ease-in-out_infinite]" />
+          <div className="absolute top-[30%] right-[25%] w-3 h-3 rounded-full bg-brand-red-orange/40 animate-[bounce_3s_ease-in-out_infinite]" />
+          <div className="absolute top-[55%] right-[8%] w-2 h-2 rounded-full bg-white/30 animate-[bounce_2.5s_ease-in-out_infinite_0.5s]" />
+          <div className="absolute top-[10%] left-[60%] w-96 h-96 rounded-full border border-white/[0.05] animate-[spin_40s_linear_infinite_reverse]" />
+          <div className="absolute bottom-[30%] left-[50%] w-20 h-20 rotate-45 border border-brand-red-orange/15 animate-[spin_20s_linear_infinite]" />
+          <div className="absolute top-[40%] right-[35%] w-1.5 h-1.5 rounded-full bg-white/50 animate-[ping_3s_ease-in-out_infinite_1s]" />
+        </div>
+
         {/* Content overlay */}
         <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
           <div className="max-w-3xl">
@@ -138,16 +149,16 @@ const Home = () => {
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
 
-                <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6">
+                <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6 shadow-lg">
                   Making a Difference
                 </div>
-                <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-6 tracking-tight">
+                <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
                   {slide.title}{' '}
-                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text text-transparent drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))]">
                     {slide.accent}
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl text-[hsl(0,0%,75%)] mb-8 leading-relaxed max-w-2xl">
+                <p className="text-lg md:text-xl text-white mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)]">
                   {slide.subtitle}
                 </p>
               </div>
