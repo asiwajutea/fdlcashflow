@@ -149,7 +149,7 @@ const Home = () => {
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
 
-                <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6 shadow-lg">
+                <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6 shadow-lg text-primary-foreground">
                   Making a Difference
                 </div>
                 <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
