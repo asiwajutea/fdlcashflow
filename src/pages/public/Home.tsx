@@ -105,7 +105,7 @@ const Home = () => {
   return (
     <PublicLayout>
       {/* Hero Section with Cinematic Slideshow */}
-      <section className="relative h-[650px] md:h-[750px] overflow-hidden">
+      <section className="relative h-[450px] sm:h-[550px] md:h-[750px] overflow-hidden">
         {slides.map((slide, index) =>
         <div
           key={index}
@@ -126,7 +126,7 @@ const Home = () => {
         )}
 
         {/* Animated decorative shapes */}
-        <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none hidden md:block">
           <div className="absolute top-[15%] right-[10%] w-64 h-64 rounded-full border border-brand-red-orange/20 animate-[spin_25s_linear_infinite]" />
           <div className="absolute bottom-[20%] right-[15%] w-40 h-40 rounded-full bg-brand-red-orange/[0.07] animate-[pulse_4s_ease-in-out_infinite]" />
           <div className="absolute top-[30%] right-[25%] w-3 h-3 rounded-full bg-brand-red-orange/40 animate-[bounce_3s_ease-in-out_infinite]" />
@@ -152,24 +152,24 @@ const Home = () => {
                 <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6 shadow-lg text-primary-foreground">
                   Making a Difference
                 </div>
-                <h1 className="text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-4 sm:mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
                   {slide.title}{' '}
                   <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))] [-webkit-text-stroke:0.8px_white] text-[brand-red-orange-dark] text-[#f54c0f]">
                     {slide.accent}
                   </span>
                 </h1>
-                <p className="text-lg md:text-xl mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)] text-primary-foreground">
+                <p className="text-sm sm:text-lg md:text-xl mb-6 sm:mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)] text-primary-foreground">
                   {slide.subtitle}
                 </p>
               </div>
             )}
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-52 md:mt-56">
-              <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-base px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0">
-                <Link to="/services">Explore Our Services <ArrowRight className="ml-2 h-5 w-5" /></Link>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-36 sm:mt-44 md:mt-56">
+              <Button size="default" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 md:h-11">
+                <Link to="/services">Explore Our Services <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" /></Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm text-base px-8">
+              <Button size="default" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 md:h-11">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
