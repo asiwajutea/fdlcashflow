@@ -1,91 +1,113 @@
+## Plan: Mobile Optimization, Screening Enhancements & Voice Recording
 
+### Overview
 
-# FDL Workforce -- Full Website Rebuild Plan
-
-This is a large project that needs to be broken into multiple phases to avoid breaking existing functionality. I recommend we tackle it step by step across several conversations.
-
----
-
-## Phase 0: Fix Email Confirmation (Immediate)
-
-The `finance@footprintsdynasty.com.ng` and `guest@footprintsdynasty.com.ng` accounts have unconfirmed emails. I will update their `email_confirmed_at` timestamps in the database so they can log in immediately.
+Four workstreams: (1) mobile-responsive fixes for Homepage and Apply pages, (2) enhanced AI screening prompt for field-work-specific questions (this is for field-related job screening), (3) making screening accessible to candidates from their dashboard, and (4) voice recording for long-answer questions with HR playback.
 
 ---
 
-## Phase 1: Foundation -- Public Layout and Homepage
+### 1. Mobile Optimization
 
-### New files to create:
-- `src/components/PublicLayout.tsx` -- Header with nav menu (Home, About, Services, Events, Innovations, Gallery, Careers, Blog, Contact) + Employee Login and Apply buttons + sticky header + footer with social links
-- `src/pages/public/Home.tsx` -- The new public homepage with all requested sections (Hero, About snapshot, Services grid, Flagship Events, Innovations, Partners, Featured In, CTA banner)
-- `src/pages/public/About.tsx`
-- `src/pages/public/Services.tsx` and `src/pages/public/ServiceDetail.tsx`
-- `src/pages/public/Events.tsx` and `src/pages/public/EventDetail.tsx`
-- `src/pages/public/Innovations.tsx` and `src/pages/public/InnovationDetail.tsx`
-- `src/pages/public/Gallery.tsx`
-- `src/pages/public/Careers.tsx`
-- `src/pages/public/Blog.tsx` and `src/pages/public/BlogPost.tsx`
-- `src/pages/public/Contact.tsx`
+**Homepage (`src/pages/public/Home.tsx`)**
 
-### Routing changes in `App.tsx`:
-- `/` becomes the public homepage (not the dashboard)
-- `/dashboard` becomes the authenticated financial dashboard (current `/` page)
-- All existing backend routes remain unchanged, just the Index redirects to `/dashboard`
-- Public routes: `/`, `/about`, `/services`, `/services/:slug`, `/events`, `/events/:slug`, `/innovations`, `/innovations/:slug`, `/gallery`, `/careers`, `/blog`, `/blog/:slug`, `/contact`
-- Auth route stays at `/auth`
+- Reduce hero height on mobile (`h-[450px]` instead of `650px`)
+- Scale down hero text sizes for small screens (e.g., `text-3xl` on mobile)
+- Reduce CTA button spacing and padding on mobile
+- Make animated shapes smaller/hidden on mobile (`hidden md:block` for some)
+- Ensure stats grid, services grid, events grid, and testimonials all render cleanly on mobile (most already use responsive classes but need fine-tuning)
 
-### Database tables to create:
-1. **`website_sections`** -- CMS-editable content blocks (hero text, about text, etc.)
-2. **`services`** -- Service entries with slug, title, description, image, CTA type
-3. **`events`** -- Event entries with slug, title, description, gallery, registration CTA
-4. **`innovations`** -- Innovation entries with slug, title, description, image
-5. **`gallery_items`** -- Media gallery with category filtering
-6. **`blog_posts`** -- Blog CMS with title, slug, body, featured_image, status (draft/published), SEO fields
-7. **`blog_categories`** and **`blog_tags`** -- Taxonomy tables
-8. **`contact_submissions`** -- Contact form submissions
-9. **`partners`** -- Partner logos
-10. **`testimonials`** -- Testimonials
+**Apply Page (`src/pages/Apply.tsx`)**
 
-All tables will have proper RLS: public SELECT for published content, admin-only for INSERT/UPDATE/DELETE.
+- On mobile, stack the layout vertically (already `flex-col lg:flex-row`) -- verify the sticky form doesn't cause issues on mobile
+- Reduce image banner height on mobile
+- Ensure form inputs and accordion are touch-friendly
 
-### New capability:
-- `manage_website_content` added to `user_capabilities` for CMS access
+**Careers Page (`src/pages/public/Careers.tsx`)**
+
+- Already mostly responsive, minor padding tweaks
 
 ---
 
-## Phase 2: CMS Admin Dashboard
+### 2. Enhanced Screening Questions for Field Work
 
-- Add CMS management pages under `/admin/website` (or as a new tab in the existing dashboard)
-- CRUD interfaces for: Services, Events, Innovations, Gallery, Blog, Partners, Testimonials, Homepage sections, SEO settings
-- Rich text editing for blog posts (using a simple markdown or HTML editor)
+**File: `supabase/functions/generate-screening/index.ts**`
 
----
-
-## Phase 3: SEO and Performance
-
-- Dynamic `<title>` and meta tags per page using `react-helmet-async`
-- Open Graph and Twitter card meta tags
-- Structured data (JSON-LD) for organization and articles
-- Lazy loading for images
-- Animated counters on homepage
-- Accessibility improvements (ARIA labels)
+- Update the system prompt to explicitly instruct the AI to include questions covering:
+  1. Current location and willingness to relocate temporarily
+  2. Past field work experience
+  3. Understanding that the role involves field work and interaction with strangers
+  4. Medical fitness for field work (self-declaration, no paperwork)
+  5. Salary expectations
+  6. Ability to work in a team and unsupervised
+  7. Other relevant field-role screening questions
+- Keep the existing structured output format (mix of multiple_choice and short_answer)
 
 ---
 
-## Implementation Approach
+### 3. Candidate Access to Screening
 
-Given the size, I recommend we proceed **one phase at a time**:
+Currently, the `/screening?applicationId=xxx` page exists and works, but candidates may not know how to get there. 
 
-1. **This session**: Fix email confirmation + set up Phase 1 foundation (PublicLayout, routing, database tables, homepage)
-2. **Next session**: Build out remaining public pages (About, Services, Events, etc.)
-3. **Following session**: CMS admin + Blog system
-4. **Final session**: SEO, performance, polish
+**Candidate Dashboard Integration:**
+
+- In the candidate's dashboard or application status view, add a "Complete Screening" button/link that navigates to `/screening?applicationId=xxx` when a screening record exists but hasn't been answered yet
+- Search for where candidate applications are displayed and add the screening link there
+
+---
+
+### 4. Voice Recording for Short-Answer Questions
+
+**Database: Create a storage bucket**
+
+- Create a `screening-audio` storage bucket (public) for storing voice recordings
+
+**New Component: `VoiceRecorder.tsx**`
+
+- Uses the browser's `MediaRecorder` API to record audio from the microphone
+- Shows record/stop/play controls
+- On stop, uploads the audio file to the `screening-audio` bucket
+- Stores the public URL in the answer field (e.g., `audio::https://...url`)
+
+**Screening Page (`src/pages/Screening.tsx`)**
+
+- For `short_answer` type questions, show both the textarea AND a voice record button
+- Candidate can type OR record (or both)
+- Display audio player for already-recorded answers
+
+**Screening View Dialog (`src/components/hr/ScreeningViewDialog.tsx`)**
+
+- When an answer contains an audio URL (prefixed with `audio::`), render an `<audio>` player so HR can listen to the response
+- Show text answers normally alongside audio
+
+**Score Screening Edge Function (`supabase/functions/score-screening/index.ts`)**
+
+- When an answer is audio-only (`audio::url`), note it as "Voice response provided" in the Q&A text sent to AI for scoring, since the AI can't listen to audio
+- The AI will score based on text answers and note voice responses
+
+---
 
 ### Technical Details
 
-- The public layout will be completely separate from `DashboardLayout`
-- Mobile-first with a hamburger menu for mobile navigation
-- Brand colors: Navy Blue `#0B1F3B` / Orange `#FF7A00` (already configured in CSS)
-- All public pages will NOT require authentication
-- The `AvatarGuard` in `App.tsx` will be scoped to only apply to dashboard routes
-- Existing payroll, invoice, employee, and recruitment code remains untouched
+**Storage bucket migration:**
 
+```sql
+INSERT INTO storage.buckets (id, name, public) VALUES ('screening-audio', 'screening-audio', true);
+-- RLS: anyone authenticated can upload, public can read
+CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'screening-audio');
+CREATE POLICY "Public read" ON storage.objects FOR SELECT USING (bucket_id = 'screening-audio');
+```
+
+**VoiceRecorder component pattern:**
+
+- `navigator.mediaDevices.getUserMedia({ audio: true })`
+- `new MediaRecorder(stream, { mimeType: 'audio/webm' })`
+- Collect chunks, create blob, upload to storage bucket
+- Return public URL via callback
+
+**Answer format convention:**
+
+- Text answer: stored as plain string
+- Audio answer: stored as `audio::https://...public-url`
+- Both: stored as `text content\naudio::https://...public-url`
+
+This allows backward compatibility and easy parsing in both the scoring function and the review dialog.
