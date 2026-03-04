@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { CheckCircle, Loader2, ClipboardList } from 'lucide-react';
+import VoiceRecorder from '@/components/VoiceRecorder';
 
 const Screening = () => {
   const [searchParams] = useSearchParams();
@@ -86,6 +87,26 @@ const Screening = () => {
     }
   };
 
+  const handleVoiceRecording = (questionId: string, audioUrl: string) => {
+    setAnswers((prev) => {
+      const existing = prev[questionId] || '';
+      // Remove any existing audio:: prefix
+      const textPart = existing.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim();
+      if (!audioUrl) return { ...prev, [questionId]: textPart };
+      const newValue = textPart ? `${textPart}\naudio::${audioUrl}` : `audio::${audioUrl}`;
+      return { ...prev, [questionId]: newValue };
+    });
+  };
+
+  const getTextPart = (answer: string) => {
+    return answer?.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim() || '';
+  };
+
+  const getAudioUrl = (answer: string) => {
+    const line = answer?.split('\n').find((l) => l.startsWith('audio::'));
+    return line ? line.replace('audio::', '') : '';
+  };
+
   const questions = (screening?.responses as any)?.questions || [];
 
   if (authLoading || loading) {
@@ -124,7 +145,7 @@ const Screening = () => {
 
   return (
     <DashboardLayout title="Screening Questionnaire">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
         {submitted && (
           <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
             <CardContent className="pt-6 text-center">
@@ -142,8 +163,8 @@ const Screening = () => {
 
         {questions.map((q: any, idx: number) => (
           <Card key={q.id}>
-            <CardHeader>
-              <CardTitle className="text-base">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm sm:text-base">
                 Q{idx + 1}: {q.question}
               </CardTitle>
             </CardHeader>
@@ -155,19 +176,34 @@ const Screening = () => {
                   disabled={submitted}
                 >
                   {q.options.map((opt: string, oi: number) => (
-                    <div key={oi} className="flex items-center space-x-2">
+                    <div key={oi} className="flex items-center space-x-2 py-1">
                       <RadioGroupItem value={opt} id={`${q.id}-${oi}`} />
-                      <Label htmlFor={`${q.id}-${oi}`}>{opt}</Label>
+                      <Label htmlFor={`${q.id}-${oi}`} className="text-sm">{opt}</Label>
                     </div>
                   ))}
                 </RadioGroup>
               ) : (
-                <Textarea
-                  placeholder="Type your answer here..."
-                  value={answers[q.id] || ''}
-                  onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
-                  disabled={submitted}
-                />
+                <div>
+                  <Textarea
+                    placeholder="Type your answer here..."
+                    value={getTextPart(answers[q.id] || '')}
+                    onChange={(e) => {
+                      const audio = getAudioUrl(answers[q.id] || '');
+                      const newVal = audio ? `${e.target.value}\naudio::${audio}` : e.target.value;
+                      setAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                    }}
+                    disabled={submitted}
+                    rows={3}
+                  />
+                  <VoiceRecorder
+                    onRecordingComplete={(url) => handleVoiceRecording(q.id, url)}
+                    existingAudioUrl={getAudioUrl(answers[q.id] || '')}
+                    disabled={submitted}
+                  />
+                  {submitted && getAudioUrl(answers[q.id] || '') && (
+                    <audio controls src={getAudioUrl(answers[q.id] || '')} className="mt-2 w-full h-10" />
+                  )}
+                </div>
               )}
             </CardContent>
           </Card>

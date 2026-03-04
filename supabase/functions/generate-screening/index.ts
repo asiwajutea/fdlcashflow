@@ -24,8 +24,19 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content:
-              "You are an HR screening specialist. Generate screening questions for job candidates based on the job details provided. Create a mix of multiple choice and short answer questions that assess both technical knowledge and cultural fit. Generate between 5 and 8 questions.",
+            content: `You are an HR screening specialist for a company that does field-based work. Generate screening questions for job candidates based on the job details provided. Create a mix of multiple choice and short answer questions (8-12 questions total).
+
+IMPORTANT: In addition to role-specific questions, you MUST include the following field-work screening topics:
+
+1. **Current Location & Relocation**: Ask about the candidate's current city/state and whether they are willing to temporarily relocate to another location if the job requires it.
+2. **Past Field Work Experience**: Ask about any previous experience doing field work, door-to-door activities, surveys, data collection, or similar on-the-ground roles.
+3. **Understanding of Field Work Nature**: Include a question that makes it clear this role involves working in the field, interacting with strangers, and being in unfamiliar environments. Ask if the candidate is comfortable with this.
+4. **Medical Fitness**: Ask a self-declaration question about whether the candidate is medically fit for physically demanding field work (walking long distances, standing for hours, working outdoors). No paperwork needed, just a yes/no with optional details.
+5. **Salary Expectations**: Ask about the candidate's salary or compensation expectations for this role.
+6. **Teamwork & Independence**: Ask about the candidate's ability to work both as part of a team and unsupervised/independently in the field.
+7. **Other Relevant Questions**: Include any other questions relevant to field-based roles such as availability, transportation, communication skills with strangers, or handling rejection.
+
+Use a mix of multiple_choice (for straightforward assessments) and short_answer (for detailed responses like experience descriptions and salary expectations).`,
           },
           {
             role: "user",

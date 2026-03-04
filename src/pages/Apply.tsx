@@ -155,12 +155,12 @@ const Apply = () => {
           <div className="lg:w-7/12 space-y-4">
             <Card className="overflow-hidden border-0 shadow-lg">
               {job.media_url ? (
-                <div className="h-56 overflow-hidden">
+                <div className="h-36 sm:h-56 overflow-hidden">
                   <img src={job.media_url} alt={job.title} className="w-full h-full object-cover" />
                 </div>
               ) : (
-                <div className="h-40 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
-                  <Building2 className="h-16 w-16 text-primary/30" />
+                <div className="h-28 sm:h-40 bg-gradient-to-br from-primary/20 via-primary/10 to-accent/10 flex items-center justify-center">
+                  <Building2 className="h-12 w-12 sm:h-16 sm:w-16 text-primary/30" />
                 </div>
               )}
               <CardContent className="p-6">

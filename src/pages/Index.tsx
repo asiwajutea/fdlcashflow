@@ -47,7 +47,18 @@ const CandidateDashboard = () => {
           `)
           .eq('candidate_id', candidate.id)
           .order('applied_at', { ascending: false });
-        setApplications(apps || []);
+        
+        // For each application, check if screening exists
+        const appsWithScreening = await Promise.all((apps || []).map(async (app: any) => {
+          const { data: sr } = await (supabase as any)
+            .from('screening_responses')
+            .select('id, score, responses')
+            .eq('application_id', app.id)
+            .maybeSingle();
+          return { ...app, screening: sr };
+        }));
+        
+        setApplications(appsWithScreening);
       }
 
       // Fetch company social links
@@ -62,9 +73,18 @@ const CandidateDashboard = () => {
     fetchData();
   }, [user]);
 
-  const getStatusAction = (status: string) => {
+  const getStatusAction = (app: any) => {
+    const status = app.status;
+    // Check if screening exists and needs completion
+    if (app.screening) {
+      const responses = app.screening.responses as any;
+      const hasAnswers = responses?.answers && Object.keys(responses.answers).length > 0;
+      if (!hasAnswers) {
+        return { label: 'Complete Screening', icon: ClipboardCheck, path: `/screening?applicationId=${app.id}` };
+      }
+    }
     switch (status) {
-      case 'screening': return { label: 'Complete Screening', icon: ClipboardCheck, path: '/screening' };
+      case 'screening': return { label: 'Complete Screening', icon: ClipboardCheck, path: `/screening?applicationId=${app.id}` };
       case 'interview': return { label: 'View Interview', icon: Eye, path: '/interviews' };
       case 'offered': return { label: 'Sign Contract', icon: PenTool, path: '/offers' };
       default: return null;
@@ -130,7 +150,7 @@ const CandidateDashboard = () => {
               ) : (
                 <div className="space-y-3">
                   {applications.map((app: any) => {
-                    const action = getStatusAction(app.status);
+                    const action = getStatusAction(app);
                     return (
                       <div key={app.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors">
                         <div className="min-w-0 flex-1">

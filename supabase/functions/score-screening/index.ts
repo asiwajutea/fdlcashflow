@@ -21,37 +21,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Validate caller owns this application
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      const anonClient = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!, {
-        global: { headers: { Authorization: authHeader } },
-      });
-      const token = authHeader.replace("Bearer ", "");
-      const { data: claims, error: claimsErr } = await anonClient.auth.getClaims(token);
-      if (claimsErr || !claims?.claims) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const userId = claims.claims.sub;
-
-      // Check candidate owns this application
-      const { data: ownership } = await supabase
-        .from("applications")
-        .select("id, candidates!inner(user_id)")
-        .eq("id", application_id)
-        .single();
-
-      if ((ownership as any)?.candidates?.user_id !== userId) {
-        return new Response(JSON.stringify({ error: "Unauthorized" }), {
-          status: 403,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
-
     // Fetch screening record
     const { data: screening, error: sErr } = await supabase
       .from("screening_responses")
@@ -73,9 +42,21 @@ serve(async (req) => {
     const jobTitle = (app as any)?.job_positions?.title || "";
     const jobRequirements = (app as any)?.job_positions?.requirements || "";
 
-    // Build Q&A text for scoring
+    // Build Q&A text for scoring - handle audio answers
     const qaText = questions
-      .map((q: any, i: number) => `Q${i + 1}: ${q.question}\nAnswer: ${answers[q.id] || "No answer provided"}`)
+      .map((q: any, i: number) => {
+        const rawAnswer = answers[q.id] || "No answer provided";
+        const lines = rawAnswer.split("\n");
+        const textParts = lines.filter((l: string) => !l.startsWith("audio::"));
+        const hasAudio = lines.some((l: string) => l.startsWith("audio::"));
+        const textAnswer = textParts.join("\n").trim();
+        
+        let displayAnswer = textAnswer || "No text answer provided";
+        if (hasAudio) {
+          displayAnswer += textAnswer ? " [Voice response also provided]" : "[Voice response provided - unable to evaluate audio content]";
+        }
+        return `Q${i + 1}: ${q.question}\nAnswer: ${displayAnswer}`;
+      })
       .join("\n\n");
 
     // Score via AI
@@ -90,7 +71,7 @@ serve(async (req) => {
           {
             role: "system",
             content:
-              "You are an HR specialist evaluating candidate screening responses. Score answers based on relevance, quality, depth, and alignment with job requirements. Be fair but thorough.",
+              "You are an HR specialist evaluating candidate screening responses. Score answers based on relevance, quality, depth, and alignment with job requirements. Be fair but thorough. If a candidate provided a voice response instead of text, note that positively (they made the effort) but acknowledge you cannot evaluate the audio content.",
           },
           {
             role: "user",

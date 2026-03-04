@@ -9,6 +9,16 @@ interface ScreeningViewDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const parseAnswer = (answer: string) => {
+  const lines = (answer || '').split('\n');
+  const audioLine = lines.find((l) => l.startsWith('audio::'));
+  const textLines = lines.filter((l) => !l.startsWith('audio::'));
+  return {
+    text: textLines.join('\n').trim(),
+    audioUrl: audioLine ? audioLine.replace('audio::', '') : null,
+  };
+};
+
 const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, open, onOpenChange }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -56,16 +66,25 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
                 <p className="text-sm">{responses.feedback}</p>
               </div>
             )}
-            {questions.map((q: any, idx: number) => (
-              <div key={q.id} className="space-y-1">
-                <p className="text-sm font-medium">
-                  Q{idx + 1}: {q.question}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {answers[q.id] || <em>No answer provided</em>}
-                </p>
-              </div>
-            ))}
+            {questions.map((q: any, idx: number) => {
+              const rawAnswer = answers[q.id] || '';
+              const { text, audioUrl } = parseAnswer(rawAnswer);
+              return (
+                <div key={q.id} className="space-y-1">
+                  <p className="text-sm font-medium">
+                    Q{idx + 1}: {q.question}
+                  </p>
+                  {text ? (
+                    <p className="text-sm text-muted-foreground">{text}</p>
+                  ) : !audioUrl ? (
+                    <p className="text-sm text-muted-foreground"><em>No answer provided</em></p>
+                  ) : null}
+                  {audioUrl && (
+                    <audio controls src={audioUrl} className="w-full h-10 mt-1" />
+                  )}
+                </div>
+              );
+            })}
             {questions.length > 0 && Object.keys(answers).length === 0 && (
               <p className="text-sm text-amber-600">
                 Questions generated — awaiting candidate responses.
