@@ -136,40 +136,44 @@ const Home = () => {
           <div className="absolute top-[40%] right-[35%] w-1.5 h-1.5 rounded-full bg-white/50 animate-[ping_3s_ease-in-out_infinite_1s]" />
         </div>
 
-        {/* Content overlay */}
-        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-center">
-          <div className="max-w-3xl">
+       {/* Content overlay */}
+        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-20 sm:pb-24 md:pb-28">
+          <div className="max-w-3xl space-y-0">
             {slides.map((slide, index) =>
             <div
               key={index}
-              className="absolute transition-all duration-[1500ms] ease-in-out"
+              className="transition-all duration-[1500ms] ease-in-out"
               style={{
                 opacity: currentSlide === index ? 1 : 0,
                 transform: currentSlide === index ? 'translateY(0)' : 'translateY(30px)',
+                position: index === 0 ? 'relative' : 'absolute',
+                top: index === 0 ? undefined : 0,
+                left: index === 0 ? undefined : 0,
+                right: index === 0 ? undefined : 0,
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
 
-                <div className="inline-block px-4 py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-sm font-medium mb-6 shadow-lg text-primary-foreground">
+                <div className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-brand-red-orange/20 border border-brand-red-orange/30 text-brand-red-orange-light text-xs sm:text-sm font-medium mb-3 sm:mb-6 shadow-lg text-primary-foreground">
                   Making a Difference
                 </div>
-                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-4 sm:mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-white leading-tight mb-2 sm:mb-4 md:mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
                   {slide.title}{' '}
-                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))] [-webkit-text-stroke:0.8px_white] text-[brand-red-orange-dark] text-[#f54c0f]">
+                  <span className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,55%)] bg-clip-text drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))] [-webkit-text-stroke:0.8px_white] text-[#f54c0f]">
                     {slide.accent}
                   </span>
                 </h1>
-                <p className="text-sm sm:text-lg md:text-xl mb-6 sm:mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)] text-primary-foreground">
+                <p className="text-xs sm:text-lg md:text-xl mb-3 sm:mb-6 md:mb-8 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9),_0_0px_2px_rgba(0,0,0,1)] text-primary-foreground">
                   {slide.subtitle}
                 </p>
               </div>
             )}
 
             {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-36 sm:mt-44 md:mt-56">
-              <Button size="default" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 md:h-11">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 pt-2 sm:pt-4">
+              <Button size="default" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-xs sm:text-base px-5 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 h-9 sm:h-10 md:h-11">
                 <Link to="/services">Explore Our Services <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" /></Link>
               </Button>
-              <Button size="default" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 md:h-11">
+              <Button size="default" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 backdrop-blur-sm text-xs sm:text-base px-5 sm:px-8 h-9 sm:h-10 md:h-11">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>

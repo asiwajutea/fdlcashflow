@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronRight, LogIn, Briefcase, Home, Info, Layers, Calendar, Lightbulb, Image, Users, BookOpen, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import fdlLogo from '@/assets/fdl-logo.jpg';
 
 const navLinks = [
-  { label: 'Home', path: '/' },
-  { label: 'About', path: '/about' },
-  { label: 'Services', path: '/services' },
-  { label: 'Events', path: '/events' },
-  { label: 'Innovations', path: '/innovations' },
-  { label: 'Gallery', path: '/gallery' },
-  { label: 'Careers', path: '/careers' },
-  { label: 'Blog', path: '/blog' },
-  { label: 'Contact', path: '/contact' },
+  { label: 'Home', path: '/', icon: Home },
+  { label: 'About', path: '/about', icon: Info },
+  { label: 'Services', path: '/services', icon: Layers },
+  { label: 'Events', path: '/events', icon: Calendar },
+  { label: 'Innovations', path: '/innovations', icon: Lightbulb },
+  { label: 'Gallery', path: '/gallery', icon: Image },
+  { label: 'Careers', path: '/careers', icon: Users },
+  { label: 'Blog', path: '/blog', icon: BookOpen },
+  { label: 'Contact', path: '/contact', icon: Mail },
 ];
 
 const PublicLayout = ({ children }: { children: React.ReactNode }) => {
@@ -33,6 +33,21 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
       }
     };
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Prevent body scroll when menu is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -79,44 +94,87 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
             {/* Mobile Toggle */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="lg:hidden text-white p-2"
+              className="lg:hidden text-white p-2 relative z-[60]"
               aria-label="Toggle menu"
             >
               {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
+      </header>
 
-        {/* Mobile Menu */}
-        {mobileOpen && (
-          <div className="lg:hidden bg-[hsl(214,95%,13%)] border-t border-[hsl(214,70%,25%)] pb-4">
-            <nav className="px-4 pt-2 space-y-1">
-              {navLinks.map(link => (
+      {/* Mobile Menu - Full Screen Overlay */}
+      <div
+        className={`fixed inset-0 z-[55] lg:hidden transition-all duration-300 ${
+          mobileOpen ? 'visible' : 'invisible'
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ${
+            mobileOpen ? 'opacity-100' : 'opacity-0'
+          }`}
+          onClick={() => setMobileOpen(false)}
+        />
+
+        {/* Slide-in Panel */}
+        <div
+          className={`absolute top-0 right-0 h-full w-[85%] max-w-[320px] bg-gradient-to-b from-[hsl(214,95%,12%)] to-[hsl(214,95%,8%)] shadow-2xl transition-transform duration-300 ease-out ${
+            mobileOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          {/* Menu Header */}
+          <div className="px-6 pt-20 pb-4 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <img src={fdlLogo} alt="FDL Logo" className="h-12 w-12 rounded-full object-cover ring-2 ring-[hsl(28,100%,55%)]/30" />
+              <div>
+                <span className="text-white font-bold text-sm block">FOOTPRINTS DYNASTY</span>
+                <span className="text-[hsl(28,100%,55%)] text-xs font-medium">Making a Difference</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Nav Links */}
+          <nav className="px-3 py-4 space-y-0.5 overflow-y-auto max-h-[calc(100vh-280px)]">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = location.pathname === link.path;
+              return (
                 <Link
                   key={link.path}
                   to={link.path}
                   onClick={() => setMobileOpen(false)}
-                  className={`block px-3 py-2 rounded-md text-sm font-medium ${
-                    location.pathname === link.path
-                      ? 'text-[hsl(28,100%,55%)] bg-[hsl(214,85%,20%)]'
-                      : 'text-[hsl(0,0%,85%)] hover:text-white hover:bg-[hsl(214,85%,20%)]'
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                    isActive
+                      ? 'bg-[hsl(28,100%,55%)]/15 text-[hsl(28,100%,55%)]'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  {link.label}
+                  <Icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-[hsl(28,100%,55%)]' : 'text-white/40 group-hover:text-white/70'}`} />
+                  <span className="flex-1">{link.label}</span>
+                  <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${isActive ? 'text-[hsl(28,100%,55%)]' : 'text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5'}`} />
                 </Link>
-              ))}
-            </nav>
-            <div className="px-4 mt-4 flex flex-col gap-2">
-              <Button variant="outline" size="sm" asChild className="border-[hsl(0,0%,85%)] text-white hover:bg-[hsl(214,85%,25%)] w-full">
-                <Link to="/auth" onClick={() => setMobileOpen(false)}>Employee Login</Link>
-              </Button>
-              <Button size="sm" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white w-full">
-                <Link to="/apply" onClick={() => setMobileOpen(false)}>Apply for Job</Link>
-              </Button>
-            </div>
+              );
+            })}
+          </nav>
+
+          {/* CTA Section */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2 border-t border-white/10 bg-[hsl(214,95%,8%)]">
+            <Button variant="outline" size="default" asChild className="w-full border-white/20 text-white hover:bg-white/10 justify-start gap-2">
+              <Link to="/auth" onClick={() => setMobileOpen(false)}>
+                <LogIn className="h-4 w-4" />
+                Employee Login
+              </Link>
+            </Button>
+            <Button size="default" asChild className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
+              <Link to="/apply" onClick={() => setMobileOpen(false)}>
+                <Briefcase className="h-4 w-4" />
+                Apply for Job
+              </Link>
+            </Button>
           </div>
-        )}
-      </header>
+        </div>
+      </div>
 
       {/* Page Content */}
       <main className="flex-1">{children}</main>
