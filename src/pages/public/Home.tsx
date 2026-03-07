@@ -138,18 +138,26 @@ const Home = () => {
 
        {/* Content overlay */}
         <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-20 sm:pb-24 md:pb-28">
-          <div className="max-w-3xl space-y-0">
+          <div className="max-w-3xl relative">
+            {/* Invisible spacer using first slide content to reserve height */}
+            <div className="invisible" aria-hidden="true">
+              <div className="inline-block px-3 py-1 sm:px-4 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium mb-3 sm:mb-6">
+                Making a Difference
+              </div>
+              <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-7xl font-bold leading-tight mb-2 sm:mb-4 md:mb-6">
+                {slides[0]?.title} {slides[0]?.accent}
+              </h1>
+              <p className="text-xs sm:text-lg md:text-xl mb-3 sm:mb-6 md:mb-8 leading-relaxed max-w-2xl">
+                {slides[0]?.subtitle}
+              </p>
+            </div>
             {slides.map((slide, index) =>
             <div
               key={index}
-              className="transition-all duration-[1500ms] ease-in-out"
+              className="absolute inset-0 transition-all duration-[1500ms] ease-in-out"
               style={{
                 opacity: currentSlide === index ? 1 : 0,
                 transform: currentSlide === index ? 'translateY(0)' : 'translateY(30px)',
-                position: index === 0 ? 'relative' : 'absolute',
-                top: index === 0 ? undefined : 0,
-                left: index === 0 ? undefined : 0,
-                right: index === 0 ? undefined : 0,
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
 
