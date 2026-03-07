@@ -85,11 +85,14 @@
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-light)));
     --gradient-success: linear-gradient(135deg, hsl(var(--success)), hsl(var(--success-light)));
     --gradient-surface: linear-gradient(180deg, hsl(214 95% 15%), hsl(214 80% 20%));
+    --gradient-hero-cta: linear-gradient(135deg, hsl(28 100% 55%), hsl(12 90% 50%));
     
     /* Custom Shadows */
     --shadow-sm: 0 1px 2px 0 hsl(var(--primary) / 0.05);
     --shadow-md: 0 4px 6px -1px hsl(var(--primary) / 0.1), 0 2px 4px -1px hsl(var(--primary) / 0.06);
     --shadow-lg: 0 10px 15px -3px hsl(var(--primary) / 0.1), 0 4px 6px -2px hsl(var(--primary) / 0.05);
+    --shadow-card-hover: 0 20px 40px -12px hsl(var(--primary) / 0.15);
+    --shadow-glow-orange: 0 8px 30px -4px hsl(28 100% 55% / 0.3);
     
     /* Transitions */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
