@@ -180,63 +180,97 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
       <main className="flex-1">{children}</main>
 
       {/* Footer */}
-      <footer className="bg-[hsl(214,95%,12%)] text-[hsl(0,0%,75%)] border-t border-[hsl(214,70%,20%)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="bg-[hsl(214,95%,8%)] text-white/60">
+        {/* Top accent bar */}
+        <div className="h-1 bg-gradient-to-r from-[hsl(214,95%,25%)] via-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)]" />
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
             {/* Brand */}
-            <div className="md:col-span-1">
-              <div className="flex items-center gap-3 mb-4">
-                <img src={fdlLogo} alt="FDL Logo" className="h-10 w-10 rounded-full object-cover" />
+            <div className="lg:col-span-1">
+              <div className="flex items-center gap-3 mb-5">
+                <img src={fdlLogo} alt="FDL Logo" className="h-11 w-11 rounded-full object-cover ring-2 ring-[hsl(28,100%,55%)]/20" />
                 <div>
-                  <span className="text-white font-bold block">FOOTPRINTS DYNASTY LTD</span>
-                  <span className="text-[hsl(28,100%,55%)] text-xs">Making a Difference</span>
+                  <span className="text-white font-bold text-base block tracking-wide">FOOTPRINTS DYNASTY</span>
+                  <span className="text-[hsl(28,100%,55%)] text-xs font-medium">Making a Difference</span>
                 </div>
               </div>
-              <p className="text-sm leading-relaxed">
+              <p className="text-sm leading-relaxed text-white/40 mb-5">
                 Delivering excellence across Events, Technology, Education, and Cultural Preservation since 2019.
               </p>
+              {/* Social placeholder */}
+              <div className="flex gap-3">
+                {['Facebook', 'Twitter', 'LinkedIn', 'Instagram'].map((s) => (
+                  <div key={s} className="h-9 w-9 rounded-lg bg-white/5 hover:bg-[hsl(28,100%,55%)]/15 flex items-center justify-center text-white/30 hover:text-[hsl(28,100%,55%)] transition-all cursor-pointer text-xs font-bold">
+                    {s[0]}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Quick Links */}
             <div>
-              <h4 className="text-white font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">Quick Links</h4>
+              <ul className="space-y-3 text-sm">
                 {navLinks.slice(0, 5).map(link => (
                   <li key={link.path}>
-                    <Link to={link.path} className="hover:text-[hsl(28,100%,55%)] transition-colors">{link.label}</Link>
+                    <Link to={link.path} className="text-white/40 hover:text-[hsl(28,100%,55%)] transition-colors duration-200 flex items-center gap-2">
+                      <ChevronRight className="h-3 w-3 text-white/20" />
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
             </div>
 
-            {/* More Links */}
+            {/* Resources */}
             <div>
-              <h4 className="text-white font-semibold mb-4">Resources</h4>
-              <ul className="space-y-2 text-sm">
+              <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">Resources</h4>
+              <ul className="space-y-3 text-sm">
                 {navLinks.slice(5).map(link => (
                   <li key={link.path}>
-                    <Link to={link.path} className="hover:text-[hsl(28,100%,55%)] transition-colors">{link.label}</Link>
+                    <Link to={link.path} className="text-white/40 hover:text-[hsl(28,100%,55%)] transition-colors duration-200 flex items-center gap-2">
+                      <ChevronRight className="h-3 w-3 text-white/20" />
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
                 <li>
-                  <Link to="/auth" className="hover:text-[hsl(28,100%,55%)] transition-colors">Employee Portal</Link>
+                  <Link to="/auth" className="text-white/40 hover:text-[hsl(28,100%,55%)] transition-colors duration-200 flex items-center gap-2">
+                    <ChevronRight className="h-3 w-3 text-white/20" />
+                    Employee Portal
+                  </Link>
                 </li>
               </ul>
             </div>
 
             {/* Contact */}
             <div>
-              <h4 className="text-white font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm">
-                <li>info@footprintsdynasty.com.ng</li>
-                <li>RC: 1554073</li>
-                <li>Founded: 2019</li>
+              <h4 className="text-white font-semibold mb-5 text-sm uppercase tracking-wider">Contact</h4>
+              <ul className="space-y-3 text-sm">
+                <li className="flex items-start gap-2">
+                  <Mail className="h-4 w-4 text-[hsl(28,100%,55%)] mt-0.5 shrink-0" />
+                  <span className="text-white/40">info@footprintsdynasty.com.ng</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Briefcase className="h-4 w-4 text-[hsl(28,100%,55%)] mt-0.5 shrink-0" />
+                  <span className="text-white/40">RC: 1554073</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <Calendar className="h-4 w-4 text-[hsl(28,100%,55%)] mt-0.5 shrink-0" />
+                  <span className="text-white/40">Founded: 2019</span>
+                </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-[hsl(214,70%,20%)] mt-8 pt-8 text-center text-sm">
+          {/* Bottom bar */}
+          <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-white/30">
             <p>© {new Date().getFullYear()} Footprints Dynasty Ltd. All rights reserved.</p>
+            <div className="flex gap-6">
+              <Link to="/contact" className="hover:text-[hsl(28,100%,55%)] transition-colors">Privacy Policy</Link>
+              <Link to="/contact" className="hover:text-[hsl(28,100%,55%)] transition-colors">Terms of Service</Link>
+            </div>
           </div>
         </div>
       </footer>
