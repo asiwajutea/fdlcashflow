@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const emptyPost = { title: '', slug: '', excerpt: '', body: '', status: 'draft', featured_image: '', meta_title: '', meta_description: '', category_id: null };
 
@@ -91,7 +92,7 @@ const CMSBlog = () => {
                 </div>
                 <div><Label>Excerpt</Label><Textarea value={editing.excerpt || ''} onChange={(e) => setEditing({ ...editing, excerpt: e.target.value })} /></div>
                 <div><Label>Body (HTML/Markdown)</Label><Textarea rows={10} value={editing.body || ''} onChange={(e) => setEditing({ ...editing, body: e.target.value })} /></div>
-                <div><Label>Featured Image URL</Label><Input value={editing.featured_image || ''} onChange={(e) => setEditing({ ...editing, featured_image: e.target.value })} /></div>
+                <ImageUpload label="Featured Image" value={editing.featured_image || ''} onChange={(url) => setEditing({ ...editing, featured_image: url })} />
                 <div className="grid grid-cols-2 gap-4">
                   <div><Label>Meta Title</Label><Input value={editing.meta_title || ''} onChange={(e) => setEditing({ ...editing, meta_title: e.target.value })} /></div>
                   <div><Label>Meta Description</Label><Input value={editing.meta_description || ''} onChange={(e) => setEditing({ ...editing, meta_description: e.target.value })} /></div>

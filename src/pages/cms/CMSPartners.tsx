@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const empty = { name: '', logo_url: '', website_url: '', display_order: 0, is_published: true };
 
@@ -47,7 +48,7 @@ const CMSPartners = () => {
             {editing && (
               <div className="space-y-4">
                 <div><Label>Name</Label><Input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
-                <div><Label>Logo URL</Label><Input value={editing.logo_url || ''} onChange={(e) => setEditing({ ...editing, logo_url: e.target.value })} /></div>
+                <ImageUpload label="Logo" value={editing.logo_url || ''} onChange={(url) => setEditing({ ...editing, logo_url: url })} />
                 <div><Label>Website URL</Label><Input value={editing.website_url || ''} onChange={(e) => setEditing({ ...editing, website_url: e.target.value })} /></div>
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>
                 <div className="flex items-center gap-2"><Switch checked={editing.is_published} onCheckedChange={(v) => setEditing({ ...editing, is_published: v })} /><Label>Published</Label></div>

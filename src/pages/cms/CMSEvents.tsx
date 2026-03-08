@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const empty = { title: '', slug: '', short_description: '', description: '', display_order: 0, is_published: true, event_date: '', registration_url: '', image_url: '' };
 
@@ -61,13 +62,7 @@ const CMSEvents = () => {
                 <div><Label>Title</Label><Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
                 <div><Label>Slug</Label><Input value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} /></div>
                 <div><Label>Event Date</Label><Input type="date" value={editing.event_date || ''} onChange={(e) => setEditing({ ...editing, event_date: e.target.value })} /></div>
-                <div>
-                  <Label>Image URL</Label>
-                  <Input value={editing.image_url || ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} placeholder="https://..." />
-                  {editing.image_url && (
-                    <img src={editing.image_url} alt="Preview" className="mt-2 h-32 w-full object-cover rounded-md border" />
-                  )}
-                </div>
+                <ImageUpload value={editing.image_url || ''} onChange={(url) => setEditing({ ...editing, image_url: url })} />
                 <div><Label>Short Description</Label><Textarea value={editing.short_description || ''} onChange={(e) => setEditing({ ...editing, short_description: e.target.value })} /></div>
                 <div><Label>Full Description</Label><Textarea rows={6} value={editing.description || ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
                 <div><Label>Registration URL</Label><Input value={editing.registration_url || ''} onChange={(e) => setEditing({ ...editing, registration_url: e.target.value })} /></div>
