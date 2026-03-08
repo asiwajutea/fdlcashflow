@@ -12,7 +12,7 @@ import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const emptyService = { title: '', slug: '', short_description: '', description: '', icon: '', display_order: 0, is_published: true, cta_type: 'quote' };
+const emptyService = { title: '', slug: '', short_description: '', description: '', icon: '', image_url: '', display_order: 0, is_published: true, cta_type: 'quote' };
 
 const CMSServices = () => {
   const [services, setServices] = useState<any[]>([]);
