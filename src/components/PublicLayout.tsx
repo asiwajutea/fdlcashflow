@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronRight, LogIn, Briefcase, Home, Info, Layers, Calendar, Lightbulb, Image, Users, BookOpen, Mail } from 'lucide-react';
+import { Menu, X, ChevronRight, LogIn, Briefcase, Home, Info, Layers, Calendar, Lightbulb, Image, Users, BookOpen, Mail, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import fdlLogo from '@/assets/fdl-logo.jpg';
 
