@@ -486,7 +486,7 @@ const Home = () => {
             <p className="text-muted-foreground max-w-md text-base">Technology and programs driving meaningful impact across communities</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            {innovations.map((innovation, i) =>
+            {innovations.slice(0, 4).map((innovation, i) =>
             <Link key={innovation.id} to={`/innovations/${innovation.slug}`}>
                 <Card
                 className={`h-full border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 hover:-translate-y-1 group rounded-2xl overflow-hidden ${innovationsSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
