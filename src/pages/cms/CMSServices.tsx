@@ -67,6 +67,13 @@ const CMSServices = () => {
                 <div><Label>Title</Label><Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
                 <div><Label>Slug</Label><Input value={editing.slug} onChange={(e) => setEditing({ ...editing, slug: e.target.value })} /></div>
                 <div><Label>Icon (Lucide name)</Label><Input value={editing.icon || ''} onChange={(e) => setEditing({ ...editing, icon: e.target.value })} /></div>
+                <div>
+                  <Label>Image URL</Label>
+                  <Input value={editing.image_url || ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} placeholder="https://..." />
+                  {editing.image_url && (
+                    <img src={editing.image_url} alt="Preview" className="mt-2 h-32 w-full object-cover rounded-md border" />
+                  )}
+                </div>
                 <div><Label>Short Description</Label><Textarea value={editing.short_description || ''} onChange={(e) => setEditing({ ...editing, short_description: e.target.value })} /></div>
                 <div><Label>Full Description</Label><Textarea rows={6} value={editing.description || ''} onChange={(e) => setEditing({ ...editing, description: e.target.value })} /></div>
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>
@@ -81,12 +88,13 @@ const CMSServices = () => {
       <div className="bg-card rounded-lg border">
         <Table>
           <TableHeader><TableRow>
-            <TableHead>Order</TableHead><TableHead>Title</TableHead><TableHead>Slug</TableHead><TableHead>Published</TableHead><TableHead className="w-20"></TableHead>
+            <TableHead>Order</TableHead><TableHead>Image</TableHead><TableHead>Title</TableHead><TableHead>Slug</TableHead><TableHead>Published</TableHead><TableHead className="w-20"></TableHead>
           </TableRow></TableHeader>
           <TableBody>
             {services.map((s) => (
               <TableRow key={s.id}>
                 <TableCell>{s.display_order}</TableCell>
+                <TableCell>{s.image_url ? <img src={s.image_url} alt={s.title} className="h-10 w-16 object-cover rounded" /> : <span className="text-muted-foreground text-xs">No image</span>}</TableCell>
                 <TableCell className="font-medium">{s.title}</TableCell>
                 <TableCell className="text-muted-foreground">{s.slug}</TableCell>
                 <TableCell>{s.is_published ? '✓' : '—'}</TableCell>
