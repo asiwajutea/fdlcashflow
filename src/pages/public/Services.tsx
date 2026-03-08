@@ -109,14 +109,15 @@ const Services = () => {
                   className={`h-full border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 hover:-translate-y-2 rounded-2xl overflow-hidden ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
                   style={{ animationDelay: `${(i + 1) * 100}ms` }}
                 >
-                  {/* Image or gradient fallback */}
+                  {/* Image with navy blend */}
                   <div className="relative h-48 overflow-hidden">
-                    {s.image_url ? (
-                      <img src={s.image_url} alt={s.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[hsl(214,95%,15%)] via-[hsl(214,95%,20%)] to-[hsl(214,85%,30%)]" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <img
+                      src={s.image_url || getFallbackImage(s.slug || s.title)}
+                      alt={s.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[hsl(214,95%,10%)] via-[hsl(214,95%,12%)/0.6] to-[hsl(214,95%,15%)/0.35]" />
                     <div className="absolute bottom-4 left-4">
                       <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-red-orange to-brand-red-orange-dark flex items-center justify-center shadow-glow-orange">
                         <Sparkles className="h-5 w-5 text-primary-foreground" />
