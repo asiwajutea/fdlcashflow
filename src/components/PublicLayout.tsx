@@ -23,13 +23,17 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
   // Force light mode on all public pages
   useEffect(() => {
     const root = window.document.documentElement;
-    const wasDark = root.classList.contains('dark');
+    root.setAttribute('data-force-light', '');
     root.classList.remove('dark');
     root.classList.add('light');
     return () => {
-      if (wasDark) {
-        root.classList.remove('light');
-        root.classList.add('dark');
+      root.removeAttribute('data-force-light');
+      const stored = localStorage.getItem('vite-ui-theme') || 'system';
+      root.classList.remove('light', 'dark');
+      if (stored === 'system') {
+        root.classList.add(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      } else {
+        root.classList.add(stored);
       }
     };
   }, []);

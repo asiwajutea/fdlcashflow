@@ -33,6 +33,12 @@ export function ThemeProvider({
   useEffect(() => {
     const root = window.document.documentElement
 
+    if (root.hasAttribute("data-force-light")) {
+      root.classList.remove("dark")
+      root.classList.add("light")
+      return
+    }
+
     root.classList.remove("light", "dark")
 
     if (theme === "system") {
