@@ -202,12 +202,17 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
               <p className="text-sm leading-relaxed text-white/40 mb-5">
                 Delivering excellence across Events, Technology, Education, and Cultural Preservation since 2019.
               </p>
-              {/* Social placeholder */}
+              {/* Social Icons */}
               <div className="flex gap-3">
-                {['Facebook', 'Twitter', 'LinkedIn', 'Instagram'].map((s) => (
-                  <div key={s} className="h-9 w-9 rounded-lg bg-white/5 hover:bg-[hsl(28,100%,55%)]/15 flex items-center justify-center text-white/30 hover:text-[hsl(28,100%,55%)] transition-all cursor-pointer text-xs font-bold">
-                    {s[0]}
-                  </div>
+                {[
+                  { icon: Facebook, label: 'Facebook', href: 'https://facebook.com' },
+                  { icon: Twitter, label: 'Twitter', href: 'https://twitter.com' },
+                  { icon: Linkedin, label: 'LinkedIn', href: 'https://linkedin.com' },
+                  { icon: Instagram, label: 'Instagram', href: 'https://instagram.com' },
+                ].map((s) => (
+                  <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label} className="h-9 w-9 rounded-lg bg-white/5 hover:bg-[hsl(28,100%,55%)]/15 flex items-center justify-center text-white/30 hover:text-[hsl(28,100%,55%)] transition-all cursor-pointer">
+                    <s.icon className="h-4 w-4" />
+                  </a>
                 ))}
               </div>
             </div>
