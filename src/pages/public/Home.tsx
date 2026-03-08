@@ -307,8 +307,8 @@ const Home = () => {
                   </span>
                 )}
               </div>
-              <Button size="lg" variant="outline" asChild className="border-card-foreground/20 text-card-foreground hover:bg-card-foreground/5 rounded-xl group">
-                <Link to="/about" className="text-primary-foreground">
+              <Button size="lg" variant="outline" asChild className="border-card-foreground/20 text-primary hover:text-primary-foreground hover:bg-card-foreground/5 rounded-xl group">
+                <Link to="/about">
                   Learn More About Us
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
