@@ -195,7 +195,7 @@ const Home = () => {
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
               
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-4 sm:mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-navy border border-white/15 backdrop-blur-sm text-white text-xs sm:text-sm font-medium mb-4 sm:mb-6">
                   <Star className="h-3 w-3 text-brand-red-orange-light" />
                   Making a Difference
                 </div>
