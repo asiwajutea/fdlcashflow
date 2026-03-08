@@ -27,7 +27,20 @@ const processSteps = [
   { icon: <CheckCircle className="h-6 w-6" />, title: 'Deliver', desc: 'Ensuring exceptional outcomes that exceed expectations' },
 ];
 
-const Services = () => {
+const fallbackImages: Record<string, string> = {
+  'event-management': 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+  'general-merchandize': 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80',
+  'saas-technology': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+  'edutech': 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80',
+  'oral-genealogy': 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+};
+const defaultFallback = 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80';
+const getFallbackImage = (slug: string) => {
+  const key = Object.keys(fallbackImages).find(k => slug.toLowerCase().includes(k.replace(/-/g, ' ').substring(0, 6)));
+  return key ? fallbackImages[key] : defaultFallback;
+};
+
+
   const [services, setServices] = useState<any[]>([]);
 
   const introSection = useInView(0.2);
