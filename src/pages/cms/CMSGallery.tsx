@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const empty = { title: '', media_url: '', media_type: 'image', category: '', display_order: 0, is_published: true };
 
@@ -55,7 +56,7 @@ const CMSGallery = () => {
             {editing && (
               <div className="space-y-4">
                 <div><Label>Title</Label><Input value={editing.title || ''} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
-                <div><Label>Media URL</Label><Input value={editing.media_url} onChange={(e) => setEditing({ ...editing, media_url: e.target.value })} /></div>
+                <ImageUpload label="Media" value={editing.media_url} onChange={(url) => setEditing({ ...editing, media_url: url })} />
                 <div><Label>Category</Label><Input value={editing.category || ''} onChange={(e) => setEditing({ ...editing, category: e.target.value })} placeholder="e.g. Events, Team, Office" /></div>
                 <div><Label>Type</Label><Input value={editing.media_type || 'image'} onChange={(e) => setEditing({ ...editing, media_type: e.target.value })} /></div>
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>

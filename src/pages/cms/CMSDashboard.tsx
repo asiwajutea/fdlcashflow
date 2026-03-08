@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { FileText, Calendar, Sparkles, Image, BookOpen, Users, MessageSquare, Settings, Globe, SlidersHorizontal } from 'lucide-react';
 
 const cmsLinks = [
+  { title: 'Media Library', description: 'Upload and manage images', icon: <Image className="h-6 w-6" />, path: '/cms/media' },
   { title: 'Hero Slides', description: 'Manage homepage slideshow', icon: <SlidersHorizontal className="h-6 w-6" />, path: '/cms/hero-slides' },
   { title: 'Services', description: 'Manage service offerings', icon: <Settings className="h-6 w-6" />, path: '/cms/services' },
   { title: 'Events', description: 'Manage flagship events', icon: <Calendar className="h-6 w-6" />, path: '/cms/events' },

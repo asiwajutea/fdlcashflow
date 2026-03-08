@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const empty = { title: '', accent: '', subtitle: '', image_url: '', display_order: 0, is_published: true };
 
@@ -61,8 +62,7 @@ const CMSHeroSlides = () => {
                 <div><Label>Title</Label><Input value={editing.title} onChange={(e) => setEditing({ ...editing, title: e.target.value })} /></div>
                 <div><Label>Accent Text</Label><Input value={editing.accent} onChange={(e) => setEditing({ ...editing, accent: e.target.value })} /></div>
                 <div><Label>Subtitle</Label><Input value={editing.subtitle} onChange={(e) => setEditing({ ...editing, subtitle: e.target.value })} /></div>
-                <div><Label>Image URL</Label><Input value={editing.image_url} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} /></div>
-                {editing.image_url && <img src={editing.image_url} alt="Preview" className="rounded-lg h-32 w-full object-cover" />}
+                <ImageUpload value={editing.image_url} onChange={(url) => setEditing({ ...editing, image_url: url })} />
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>
                 <div className="flex items-center gap-2">
                   <Switch checked={editing.is_published} onCheckedChange={(v) => setEditing({ ...editing, is_published: v })} />

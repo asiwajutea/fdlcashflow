@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { db } from '@/lib/supabase-db';
 import { Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ImageUpload from '@/components/cms/ImageUpload';
 
 const empty = { full_name: '', role: '', bio: '', image_url: '', display_order: 0, is_published: true };
 
@@ -55,7 +56,7 @@ const CMSTeamMembers = () => {
                 <div><Label>Full Name</Label><Input value={editing.full_name} onChange={(e) => setEditing({ ...editing, full_name: e.target.value })} /></div>
                 <div><Label>Role / Title</Label><Input value={editing.role || ''} onChange={(e) => setEditing({ ...editing, role: e.target.value })} placeholder="e.g. Founder & CEO" /></div>
                 <div><Label>Bio</Label><Textarea value={editing.bio || ''} onChange={(e) => setEditing({ ...editing, bio: e.target.value })} rows={3} placeholder="Short biography..." /></div>
-                <div><Label>Image URL</Label><Input value={editing.image_url || ''} onChange={(e) => setEditing({ ...editing, image_url: e.target.value })} placeholder="https://..." /></div>
+                <ImageUpload value={editing.image_url || ''} onChange={(url) => setEditing({ ...editing, image_url: url })} />
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>
                 <div className="flex items-center gap-2"><Switch checked={editing.is_published} onCheckedChange={(v) => setEditing({ ...editing, is_published: v })} /><Label>Published</Label></div>
                 <Button onClick={handleSave} className="w-full">Save</Button>
