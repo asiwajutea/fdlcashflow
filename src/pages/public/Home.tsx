@@ -219,7 +219,7 @@ const Home = () => {
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/25 text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
+              <Button size="lg" variant="outline" asChild className="border-white/25 text-black hover:text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
