@@ -87,7 +87,7 @@ const PublicLayout = ({ children }: { children: React.ReactNode }) => {
 
             {/* CTA Buttons */}
             <div className="hidden md:flex items-center gap-2">
-              <Button variant="outline" size="sm" asChild className="border-[hsl(0,0%,85%)] text-white hover:bg-[hsl(214,85%,25%)]">
+              <Button variant="outline" size="sm" asChild className="border-[hsl(0,0%,85%)] text-black hover:bg-[hsl(214,85%,25%)] hover:text-white">
                 <Link to="/auth">Employee Login</Link>
               </Button>
               <Button size="sm" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white">
