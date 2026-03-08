@@ -14,6 +14,7 @@ const cmsLinks = [
   { title: 'Testimonials', description: 'Manage testimonials', icon: <MessageSquare className="h-6 w-6" />, path: '/cms/testimonials' },
   { title: 'Website Sections', description: 'Edit homepage and page content', icon: <Globe className="h-6 w-6" />, path: '/cms/sections' },
   { title: 'Contact Submissions', description: 'View contact form messages', icon: <FileText className="h-6 w-6" />, path: '/cms/contacts' },
+  { title: 'Team Members', description: 'Manage leadership team', icon: <Users className="h-6 w-6" />, path: '/cms/team' },
 ];
 
 const CMSDashboard = () => {

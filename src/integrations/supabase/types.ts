@@ -1094,6 +1094,42 @@ export type Database = {
         }
         Relationships: []
       }
+      team_members: {
+        Row: {
+          bio: string | null
+          created_at: string | null
+          display_order: number | null
+          full_name: string
+          id: string
+          image_url: string | null
+          is_published: boolean | null
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          full_name: string
+          id?: string
+          image_url?: string | null
+          is_published?: boolean | null
+          role?: string
+          updated_at?: string | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string | null
+          display_order?: number | null
+          full_name?: string
+          id?: string
+          image_url?: string | null
+          is_published?: boolean | null
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       testimonials: {
         Row: {
           author_image: string | null

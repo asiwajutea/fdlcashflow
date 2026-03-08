@@ -54,6 +54,7 @@ import CMSTestimonials from "./pages/cms/CMSTestimonials";
 import CMSSections from "./pages/cms/CMSSections";
 import CMSContacts from "./pages/cms/CMSContacts";
 import CMSHeroSlides from "./pages/cms/CMSHeroSlides";
+import CMSTeamMembers from "./pages/cms/CMSTeamMembers";
 
 const queryClient = new QueryClient();
 
@@ -123,6 +124,7 @@ const AppRoutes = () => (
     <Route path="/cms/sections" element={<AvatarGuard><CMSSections /></AvatarGuard>} />
     <Route path="/cms/contacts" element={<AvatarGuard><CMSContacts /></AvatarGuard>} />
     <Route path="/cms/hero-slides" element={<AvatarGuard><CMSHeroSlides /></AvatarGuard>} />
+    <Route path="/cms/team" element={<AvatarGuard><CMSTeamMembers /></AvatarGuard>} />
 
     <Route path="*" element={<NotFound />} />
   </Routes>
