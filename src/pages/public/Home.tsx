@@ -219,7 +219,7 @@ const Home = () => {
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/25 text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
+              <Button size="lg" variant="outline" asChild className="bg-transparent border-white/25 text-primary-foreground hover:bg-white/10 hover:text-white backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
@@ -308,7 +308,7 @@ const Home = () => {
                 )}
               </div>
               <Button size="lg" variant="outline" asChild className="border-card-foreground/20 text-card-foreground hover:bg-card-foreground/5 rounded-xl group">
-                <Link to="/about" className="text-primary-foreground">
+                <Link to="/about">
                   Learn More About Us
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -642,10 +642,10 @@ const Home = () => {
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="bg-transparent border-white/20 text-primary-foreground hover:bg-white/10 hover:text-white px-10 h-13 text-base rounded-xl">
               <Link to="/contact">Partner With Us</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="bg-transparent border-white/20 text-primary-foreground hover:bg-white/10 hover:text-white px-10 h-13 text-base rounded-xl">
               <Link to="/careers">Join Our Team</Link>
             </Button>
           </div>

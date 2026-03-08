@@ -178,7 +178,7 @@ const InnovationDetail = () => {
                 Contact Us <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button asChild variant="outline" size="lg" className="rounded-full border-white/20 text-white/80 hover:bg-white/10 px-8">
+            <Button asChild variant="outline" size="lg" className="bg-transparent rounded-full border-white/20 text-white/80 hover:bg-white/10 hover:text-white px-8">
               <Link to="/innovations">
                 View All Innovations
               </Link>
