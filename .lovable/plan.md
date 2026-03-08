@@ -1,40 +1,113 @@
+## Plan: Mobile Optimization, Screening Enhancements & Voice Recording
 
+### Overview
 
-## Plan: Redesign Events Page (Listing + Detail)
+Four workstreams: (1) mobile-responsive fixes for Homepage and Apply pages, (2) enhanced AI screening prompt for field-work-specific questions (this is for field-related job screening), (3) making screening accessible to candidates from their dashboard, and (4) voice recording for long-answer questions with HR playback.
 
-Redesign both `Events.tsx` and `EventDetail.tsx` to match the Services page premium editorial aesthetic — cinematic hero, scroll animations, glassmorphic elements, image-blended cards, and polished layouts.
+---
 
-### Changes
+### 1. Mobile Optimization
 
-#### 1. `src/pages/public/Events.tsx` — Full Redesign
+**Homepage (`src/pages/public/Home.tsx`)**
 
-- **Cinematic Hero**: Full-width banner with event-themed background image, gradient overlays, grid pattern, glassmorphic badge ("Our Events"), animated heading — identical pattern to Services hero
-- **Intro Section**: Positioning statement about events with `useInView` fade-up
-- **Events Grid**: Cards with:
-  - Event `image_url` blended with navy gradient overlay (fallback images for events without photos)
-  - Calendar icon accent container
-  - Event date displayed on cards when available
-  - Hover scale + shadow transitions, staggered `useInView` fade-up
-  - "Learn more" arrow on hover
-  - Rounded-2xl styling
-- **Upcoming Events Highlight**: Dark navy section (similar to "How We Work" process section) showcasing what makes the events special — e.g. 3-4 value props like "World-Class Talent", "Cultural Celebration", "Community Impact", "Unforgettable Experiences"
-- **CTA Section**: Full-width gradient section — "Want to Partner With Us?" with Contact button
+- Reduce hero height on mobile (`h-[450px]` instead of `650px`)
+- Scale down hero text sizes for small screens (e.g., `text-3xl` on mobile)
+- Reduce CTA button spacing and padding on mobile
+- Make animated shapes smaller/hidden on mobile (`hidden md:block` for some)
+- Ensure stats grid, services grid, events grid, and testimonials all render cleanly on mobile (most already use responsive classes but need fine-tuning)
 
-#### 2. `src/pages/public/EventDetail.tsx` — Full Redesign
+**Apply Page (`src/pages/Apply.tsx`)**
 
-- **Cinematic Hero**: Taller hero with event image as background, deep gradient overlays, breadcrumb back-link, glassmorphic badge, animated title + event date with text shadows
-- **Content Area**: Split layout (2/3 + 1/3) with:
-  - Left: Description paragraphs with improved typography
-  - Right: Sticky sidebar with event image card, registration CTA button, contact button
-- **Gallery Section**: Enhanced with `useInView` animations, hover effects on thumbnails
-- **More Events Section**: Grid of 3 other events at the bottom for cross-navigation
-- **CTA Strip**: Gradient banner at bottom
+- On mobile, stack the layout vertically (already `flex-col lg:flex-row`) -- verify the sticky form doesn't cause issues on mobile
+- Reduce image banner height on mobile
+- Ensure form inputs and accordion are touch-friendly
 
-### Files Changed
-| File | Action |
-|------|--------|
-| `src/pages/public/Events.tsx` | Full redesign |
-| `src/pages/public/EventDetail.tsx` | Full redesign |
+**Careers Page (`src/pages/public/Careers.tsx`)**
 
-No database or routing changes needed.
+- Already mostly responsive, minor padding tweaks
 
+---
+
+### 2. Enhanced Screening Questions for Field Work
+
+**File: `supabase/functions/generate-screening/index.ts**`
+
+- Update the system prompt to explicitly instruct the AI to include questions covering:
+  1. Current location and willingness to relocate temporarily
+  2. Past field work experience
+  3. Understanding that the role involves field work and interaction with strangers
+  4. Medical fitness for field work (self-declaration, no paperwork)
+  5. Salary expectations
+  6. Ability to work in a team and unsupervised
+  7. Other relevant field-role screening questions
+- Keep the existing structured output format (mix of multiple_choice and short_answer)
+
+---
+
+### 3. Candidate Access to Screening
+
+Currently, the `/screening?applicationId=xxx` page exists and works, but candidates may not know how to get there. 
+
+**Candidate Dashboard Integration:**
+
+- In the candidate's dashboard or application status view, add a "Complete Screening" button/link that navigates to `/screening?applicationId=xxx` when a screening record exists but hasn't been answered yet
+- Search for where candidate applications are displayed and add the screening link there
+
+---
+
+### 4. Voice Recording for Short-Answer Questions
+
+**Database: Create a storage bucket**
+
+- Create a `screening-audio` storage bucket (public) for storing voice recordings
+
+**New Component: `VoiceRecorder.tsx**`
+
+- Uses the browser's `MediaRecorder` API to record audio from the microphone
+- Shows record/stop/play controls
+- On stop, uploads the audio file to the `screening-audio` bucket
+- Stores the public URL in the answer field (e.g., `audio::https://...url`)
+
+**Screening Page (`src/pages/Screening.tsx`)**
+
+- For `short_answer` type questions, show both the textarea AND a voice record button
+- Candidate can type OR record (or both)
+- Display audio player for already-recorded answers
+
+**Screening View Dialog (`src/components/hr/ScreeningViewDialog.tsx`)**
+
+- When an answer contains an audio URL (prefixed with `audio::`), render an `<audio>` player so HR can listen to the response
+- Show text answers normally alongside audio
+
+**Score Screening Edge Function (`supabase/functions/score-screening/index.ts`)**
+
+- When an answer is audio-only (`audio::url`), note it as "Voice response provided" in the Q&A text sent to AI for scoring, since the AI can't listen to audio
+- The AI will score based on text answers and note voice responses
+
+---
+
+### Technical Details
+
+**Storage bucket migration:**
+
+```sql
+INSERT INTO storage.buckets (id, name, public) VALUES ('screening-audio', 'screening-audio', true);
+-- RLS: anyone authenticated can upload, public can read
+CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'screening-audio');
+CREATE POLICY "Public read" ON storage.objects FOR SELECT USING (bucket_id = 'screening-audio');
+```
+
+**VoiceRecorder component pattern:**
+
+- `navigator.mediaDevices.getUserMedia({ audio: true })`
+- `new MediaRecorder(stream, { mimeType: 'audio/webm' })`
+- Collect chunks, create blob, upload to storage bucket
+- Return public URL via callback
+
+**Answer format convention:**
+
+- Text answer: stored as plain string
+- Audio answer: stored as `audio::https://...public-url`
+- Both: stored as `text content\naudio::https://...public-url`
+
+This allows backward compatibility and easy parsing in both the scoring function and the review dialog.
