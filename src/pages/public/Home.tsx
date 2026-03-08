@@ -645,7 +645,7 @@ const Home = () => {
             <Button size="lg" variant="outline" asChild className="border-white/20 text-black hover:text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
               <Link to="/contact">Partner With Us</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="border-white/20 text-black hover:text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
               <Link to="/careers">Join Our Team</Link>
             </Button>
           </div>
