@@ -27,6 +27,18 @@ const processSteps = [
   { icon: <CheckCircle className="h-6 w-6" />, title: 'Deliver', desc: 'Ensuring exceptional outcomes that exceed expectations' },
 ];
 
+const fallbackImages: Record<string, string> = {
+  'event-management': 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+  'general-merchandize': 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=800&q=80',
+  'saas-technology': 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=800&q=80',
+  'edutech': 'https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=800&q=80',
+  'oral-genealogy': 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+};
+const defaultFallback = 'https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=800&q=80';
+const getFallbackImage = (slug: string) => {
+  const key = Object.keys(fallbackImages).find(k => slug.toLowerCase().includes(k.replace(/-/g, ' ').substring(0, 6)));
+  return key ? fallbackImages[key] : defaultFallback;
+};
 const Services = () => {
   const [services, setServices] = useState<any[]>([]);
 
@@ -109,14 +121,15 @@ const Services = () => {
                   className={`h-full border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 hover:-translate-y-2 rounded-2xl overflow-hidden ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
                   style={{ animationDelay: `${(i + 1) * 100}ms` }}
                 >
-                  {/* Image or gradient fallback */}
+                  {/* Image with navy blend */}
                   <div className="relative h-48 overflow-hidden">
-                    {s.image_url ? (
-                      <img src={s.image_url} alt={s.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-[hsl(214,95%,15%)] via-[hsl(214,95%,20%)] to-[hsl(214,85%,30%)]" />
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+                    <img
+                      src={s.image_url || getFallbackImage(s.slug || s.title)}
+                      alt={s.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[hsl(214,95%,10%)] via-[hsl(214,95%,12%)/0.6] to-[hsl(214,95%,15%)/0.35]" />
                     <div className="absolute bottom-4 left-4">
                       <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-brand-red-orange to-brand-red-orange-dark flex items-center justify-center shadow-glow-orange">
                         <Sparkles className="h-5 w-5 text-primary-foreground" />
