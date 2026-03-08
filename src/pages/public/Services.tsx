@@ -39,8 +39,7 @@ const getFallbackImage = (slug: string) => {
   const key = Object.keys(fallbackImages).find(k => slug.toLowerCase().includes(k.replace(/-/g, ' ').substring(0, 6)));
   return key ? fallbackImages[key] : defaultFallback;
 };
-
-
+const Services = () => {
   const [services, setServices] = useState<any[]>([]);
 
   const introSection = useInView(0.2);
