@@ -1,11 +1,19 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useCapabilities } from '@/hooks/useCapabilities';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -14,12 +22,30 @@ interface DashboardLayoutProps {
   title: string;
 }
 
+const NAV_ITEMS = [
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, capability: null },
+  { path: '/generate-invoice', label: 'Generate Invoice', icon: FileText, capability: 'generate_invoice' },
+  { path: '/bulk-invoice', label: 'Bulk Invoice', icon: FileStack, capability: 'bulk_invoice' },
+  { path: '/invoice-list', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
+  { path: '/invoice-statistics', label: 'Statistics', icon: BarChart3, capability: 'view_statistics' },
+  { path: '/daily-tracker', label: 'Daily Tracker', icon: CalendarClock, capability: 'view_daily_tracker' },
+  { path: '/employee-management', label: 'Employees', icon: Users, capability: 'manage_employees' },
+  { path: '/company-settings', label: 'Company Settings', icon: Settings, capability: 'manage_company_settings' },
+  { path: '/user-management', label: 'User Management', icon: Users, capability: 'manage_users' },
+  { path: '/applications', label: 'HR Recruitment', icon: Briefcase, capability: 'manage_recruitment' },
+  { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
+  { path: '/jobs', label: 'Job Openings', icon: Megaphone, capability: null },
+  { path: '/inbox', label: 'Inbox', icon: Mail, capability: null },
+];
+
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   title
 }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, fullName, role, avatarUrl, signOut } = useAuth();
+  const { hasCapability } = useCapabilities(user?.id ?? null);
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
@@ -48,21 +74,57 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     navigate('/auth');
   };
 
+  const visibleNavItems = NAV_ITEMS.filter(item => {
+    if (!item.capability) return true;
+    if (role === 'admin') return true;
+    return hasCapability(item.capability);
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-card-border shadow-financial-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div
-              className="flex items-center space-x-4 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={() => navigate('/dashboard')}>
+            <div className="flex items-center space-x-3">
+              {/* Navigation Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="shrink-0">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  {visibleNavItems.map((item, index) => {
+                    const Icon = item.icon;
+                    const isActive = location.pathname === item.path;
+                    return (
+                      <React.Fragment key={item.path}>
+                        {index === 1 && <DropdownMenuSeparator />}
+                        {index === 5 && <DropdownMenuSeparator />}
+                        {index === 8 && <DropdownMenuSeparator />}
+                        <DropdownMenuItem
+                          onClick={() => navigate(item.path)}
+                          className={isActive ? 'bg-accent font-semibold' : ''}
+                        >
+                          <Icon className="mr-2 h-4 w-4" />
+                          {item.label}
+                        </DropdownMenuItem>
+                      </React.Fragment>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-              <div className="bg-gradient-primary p-2 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-primary-dark">FDL Workforce</h1>
-                <p className="text-sm text-muted-foreground">Footprints Dynasty Limited</p>
+              <div
+                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => navigate('/dashboard')}>
+                <div className="bg-gradient-primary p-2 rounded-lg">
+                  <BarChart3 className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div className="hidden sm:block">
+                  <h1 className="text-xl font-bold text-primary-dark">FDL Workforce</h1>
+                  <p className="text-sm text-muted-foreground">Footprints Dynasty Limited</p>
+                </div>
               </div>
             </div>
             <div className="flex items-center space-x-4">
@@ -123,3 +185,4 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     </div>);
 
 };
+
