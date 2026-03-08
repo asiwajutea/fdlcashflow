@@ -195,7 +195,7 @@ const Home = () => {
                 pointerEvents: currentSlide === index ? 'auto' : 'none'
               }}>
               
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-navy border border-white/15 backdrop-blur-sm text-white text-xs sm:text-sm font-medium mb-4 sm:mb-6">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-4 sm:mb-6 bg-primary">
                   <Star className="h-3 w-3 text-brand-red-orange-light" />
                   Making a Difference
                 </div>
@@ -219,7 +219,7 @@ const Home = () => {
                   <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="bg-transparent border-white/25 text-primary-foreground hover:bg-white/10 hover:text-white backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
+              <Button size="lg" variant="outline" asChild className="border-white/25 text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
@@ -308,7 +308,7 @@ const Home = () => {
                 )}
               </div>
               <Button size="lg" variant="outline" asChild className="border-card-foreground/20 text-card-foreground hover:bg-card-foreground/5 rounded-xl group">
-                <Link to="/about">
+                <Link to="/about" className="text-primary-foreground">
                   Learn More About Us
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -358,7 +358,7 @@ const Home = () => {
             <p className="text-muted-foreground max-w-xl mx-auto text-base">Comprehensive solutions that drive impact across multiple industries</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {services.slice(0, 6).map((service, i) =>
+            {services.map((service, i) =>
             <Link key={service.id} to={`/services/${service.slug}`}>
                 <Card
                 className={`h-full border-0 bg-card shadow-sm hover:shadow-card-hover transition-all duration-500 hover:-translate-y-2 group overflow-hidden rounded-2xl ${servicesSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
@@ -440,7 +440,7 @@ const Home = () => {
             <p className="text-white/50 max-w-xl mx-auto">Our signature events that celebrate talent, culture, and community</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {events.slice(0, 6).map((event, i) =>
+            {events.map((event, i) =>
             <Link key={event.id} to={`/events/${event.slug}`}>
                 <div
                 className={`group relative rounded-2xl overflow-hidden bg-[hsl(214,85%,15%)] border border-white/5 hover:border-brand-red-orange/30 transition-all duration-500 hover:-translate-y-2 ${eventsSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
@@ -486,7 +486,7 @@ const Home = () => {
             <p className="text-muted-foreground max-w-md text-base">Technology and programs driving meaningful impact across communities</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            {innovations.slice(0, 4).map((innovation, i) =>
+            {innovations.map((innovation, i) =>
             <Link key={innovation.id} to={`/innovations/${innovation.slug}`}>
                 <Card
                 className={`h-full border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 hover:-translate-y-1 group rounded-2xl overflow-hidden ${innovationsSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
@@ -642,10 +642,10 @@ const Home = () => {
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="bg-transparent border-white/20 text-primary-foreground hover:bg-white/10 hover:text-white px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
               <Link to="/contact">Partner With Us</Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="bg-transparent border-white/20 text-primary-foreground hover:bg-white/10 hover:text-white px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
               <Link to="/careers">Join Our Team</Link>
             </Button>
           </div>
