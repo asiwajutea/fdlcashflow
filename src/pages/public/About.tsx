@@ -358,7 +358,7 @@ const About = () => {
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/25 text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-base px-8 h-12 rounded-xl">
+            <Button size="lg" variant="outline" asChild className="bg-transparent border-white/25 text-primary-foreground hover:bg-white/10 hover:text-white backdrop-blur-sm text-base px-8 h-12 rounded-xl">
               <Link to="/services">Explore Services</Link>
             </Button>
           </div>
