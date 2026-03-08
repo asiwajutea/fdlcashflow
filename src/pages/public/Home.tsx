@@ -440,7 +440,7 @@ const Home = () => {
             <p className="text-white/50 max-w-xl mx-auto">Our signature events that celebrate talent, culture, and community</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {events.map((event, i) =>
+            {events.slice(0, 6).map((event, i) =>
             <Link key={event.id} to={`/events/${event.slug}`}>
                 <div
                 className={`group relative rounded-2xl overflow-hidden bg-[hsl(214,85%,15%)] border border-white/5 hover:border-brand-red-orange/30 transition-all duration-500 hover:-translate-y-2 ${eventsSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
