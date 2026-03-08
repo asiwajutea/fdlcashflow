@@ -131,8 +131,8 @@ const About = () => {
             <div className={`relative ${storySection.inView ? 'animate-slide-in-right' : 'opacity-0'}`}>
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-financial-lg">
                 <img
-                  src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80"
-                  alt="Team collaboration at Footprints Dynasty"
+                  src="https://scontent.fiba2-1.fna.fbcdn.net/v/t39.30808-6/500705145_1163530129120455_5687538974511575555_n.jpg?stp=dst-jpg_p526x296_tt6&_nc_cat=100&ccb=1-7&_nc_sid=7b2446&_nc_ohc=fEsPKBH2jMYQ7kNvwEd25NP&_nc_oc=AdnpVV0XjhwlznRQQxtcfIOB_RBVYua8RTgiRqDCvuSTIkeqmvCFJ2i893BszHlb0fw&_nc_zt=23&_nc_ht=scontent.fiba2-1.fna&_nc_gid=8nmdHcoTUSxV3Yp-NkVmZg&oh=00_Afu47wPwtvpZFay0IKQ7HmRddKQGvpEU-gH3o8BrSV-RcQ&oe=69A771E8"
+                  alt="Young woman speaking at Footprints Dynasty event"
                   className="w-full h-full object-cover"
                   loading="lazy"
                 />
