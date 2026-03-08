@@ -358,7 +358,7 @@ const Home = () => {
             <p className="text-muted-foreground max-w-xl mx-auto text-base">Comprehensive solutions that drive impact across multiple industries</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-            {services.map((service, i) =>
+            {services.slice(0, 6).map((service, i) =>
             <Link key={service.id} to={`/services/${service.slug}`}>
                 <Card
                 className={`h-full border-0 bg-card shadow-sm hover:shadow-card-hover transition-all duration-500 hover:-translate-y-2 group overflow-hidden rounded-2xl ${servicesSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
