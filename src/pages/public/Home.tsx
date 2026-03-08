@@ -642,7 +642,7 @@ const Home = () => {
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
+            <Button size="lg" variant="outline" asChild className="border-white/20 text-black hover:text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
               <Link to="/contact">Partner With Us</Link>
             </Button>
             <Button size="lg" variant="outline" asChild className="border-white/20 text-primary-foreground hover:bg-white/10 px-10 h-13 text-base rounded-xl">
