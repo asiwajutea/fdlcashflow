@@ -185,7 +185,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     </div>);
 
 };
-
   return (
     <div className="min-h-screen bg-background">
       <header className="bg-card border-b border-card-border shadow-financial-sm">
