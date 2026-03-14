@@ -44,7 +44,7 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { path: '/daily-tracker', label: 'Daily Tracker', icon: CalendarClock, capability: 'view_daily_tracker' },
-      { path: '/employee-management', label: 'Employees', icon: Users, capability: 'manage_employees' },
+      { path: '/employees', label: 'Employees', icon: Users, capability: 'manage_employees' },
       { path: '/company-settings', label: 'Company Settings', icon: Settings, capability: 'manage_company_settings' },
     ],
   },

@@ -180,18 +180,27 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
 
           {/* CTA Section */}
           <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2 border-t border-white/10 bg-[hsl(214,95%,8%)]">
-            <Button variant="outline" size="default" asChild className="w-full border-white/20 text-white hover:bg-white/10 justify-start gap-2">
-              <Link to="/auth" onClick={() => setMobileOpen(false)} className="text-primary-dark">
-                <LogIn className="h-4 w-4" />
-                Employee Login
-              </Link>
-            </Button>
-            <Button size="default" asChild className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
-              <Link to="/apply" onClick={() => setMobileOpen(false)}>
-                <Briefcase className="h-4 w-4" />
-                Apply for Job
-              </Link>
-            </Button>
+            {user ? (
+              <Button size="default" onClick={() => { setMobileOpen(false); navigate(role === 'candidate' ? '/' : '/dashboard'); }} className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
+                <LayoutDashboard className="h-4 w-4" />
+                Go to Dashboard
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" size="default" asChild className="w-full border-white/20 text-white hover:bg-white/10 justify-start gap-2">
+                  <Link to="/auth" onClick={() => setMobileOpen(false)} className="text-primary-dark">
+                    <LogIn className="h-4 w-4" />
+                    Employee Login
+                  </Link>
+                </Button>
+                <Button size="default" asChild className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
+                  <Link to="/apply" onClick={() => setMobileOpen(false)}>
+                    <Briefcase className="h-4 w-4" />
+                    Apply for Job
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>

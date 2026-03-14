@@ -403,8 +403,13 @@ const UserManagement = () => {
                           <TableCell>
                             <div className="flex items-center gap-2">
                               <span className="font-mono">
-                                {showPasscode[u.id] ? u.passcode : '••••••••'}
+                                {showPasscode[u.id] ? (u.passcode || 'Not set') : '••••••••'}
                               </span>
+                              {showPasscode[u.id] && u.passcode && (
+                                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(u.passcode!)}>
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                              )}
                               <Button size="sm" variant="ghost" onClick={() => setShowPasscode({ ...showPasscode, [u.id]: !showPasscode[u.id] })}>
                                 {showPasscode[u.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                               </Button>
