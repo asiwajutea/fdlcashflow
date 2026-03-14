@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/generate-invoice', label: 'Generate Invoice', icon: FileText, capability: 'generate_invoice' },
       { path: '/bulk-invoice', label: 'Bulk Invoice', icon: FileStack, capability: 'bulk_invoice' },
-      { path: '/invoice-list', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
+      { path: '/invoices', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
       { path: '/invoice-statistics', label: 'Statistics', icon: BarChart3, capability: 'view_statistics' },
     ],
   },
