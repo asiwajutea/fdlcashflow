@@ -79,14 +79,10 @@ serve(async (req) => {
     }
 
     // Update profile fields
-    if (full_name !== undefined || is_active !== undefined) {
-      const profileUpdates: any = {};
-      if (full_name !== undefined) profileUpdates.full_name = full_name;
-      if (is_active !== undefined) profileUpdates.is_active = is_active;
-
+    if (full_name !== undefined) {
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
-        .update(profileUpdates)
+        .update({ full_name })
         .eq('id', user_id);
       if (profileError) {
         console.error('Profile update error:', profileError);
