@@ -128,7 +128,7 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
           }>
           
           {/* Menu Header */}
-          <div className="px-6 pt-20 pb-4 border-b border-white/10">
+          <div className="px-6 pt-20 pb-4 border-b border-white/10 py-[50px]">
             <div className="flex items-center gap-3">
               <img src={fdlLogo} alt="FDL Logo" className="h-12 w-12 rounded-full object-cover ring-2 ring-[hsl(28,100%,55%)]/30" />
               <div>
