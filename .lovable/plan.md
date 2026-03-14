@@ -1,113 +1,52 @@
-## Plan: Mobile Optimization, Screening Enhancements & Voice Recording
+## Plan: Fix Three Issues
 
-### Overview
+### Issue 1: Public nav should reflect login state
 
-Four workstreams: (1) mobile-responsive fixes for Homepage and Apply pages, (2) enhanced AI screening prompt for field-work-specific questions (this is for field-related job screening), (3) making screening accessible to candidates from their dashboard, and (4) voice recording for long-answer questions with HR playback.
+**Problem:** When a user is logged in, the PublicLayout header still shows "Employee Login" and "Apply for Job" buttons.
+**Solution:** Import and use `useAuth` in `PublicLayout.tsx`. When `user` is logged in, replace those two buttons with a "Go to Dashboard" button (and show the user's name/avatar).
 
----
+**Changes:**
 
-### 1. Mobile Optimization
-
-**Homepage (`src/pages/public/Home.tsx`)**
-
-- Reduce hero height on mobile (`h-[450px]` instead of `650px`)
-- Scale down hero text sizes for small screens (e.g., `text-3xl` on mobile)
-- Reduce CTA button spacing and padding on mobile
-- Make animated shapes smaller/hidden on mobile (`hidden md:block` for some)
-- Ensure stats grid, services grid, events grid, and testimonials all render cleanly on mobile (most already use responsive classes but need fine-tuning)
-
-**Apply Page (`src/pages/Apply.tsx`)**
-
-- On mobile, stack the layout vertically (already `flex-col lg:flex-row`) -- verify the sticky form doesn't cause issues on mobile
-- Reduce image banner height on mobile
-- Ensure form inputs and accordion are touch-friendly
-
-**Careers Page (`src/pages/public/Careers.tsx`)**
-
-- Already mostly responsive, minor padding tweaks
+- `src/components/PublicLayout.tsx`: Import `useAuth`, conditionally render dashboard link vs login/apply buttons in both desktop and mobile menus.
 
 ---
 
-### 2. Enhanced Screening Questions for Field Work
+### Issue 2: Employee Management 404
 
-**File: `supabase/functions/generate-screening/index.ts**`
+**Problem:** `DashboardLayout.tsx` nav links to `/employee-management` (line 47), but `App.tsx` registers the route as `/employees` (line 142).
+**Solution:** Update the nav path in `DashboardLayout.tsx` from `/employee-management` to `/employees` to match the actual route.
 
-- Update the system prompt to explicitly instruct the AI to include questions covering:
-  1. Current location and willingness to relocate temporarily
-  2. Past field work experience
-  3. Understanding that the role involves field work and interaction with strangers
-  4. Medical fitness for field work (self-declaration, no paperwork)
-  5. Salary expectations
-  6. Ability to work in a team and unsupervised
-  7. Other relevant field-role screening questions
-- Keep the existing structured output format (mix of multiple_choice and short_answer)
+**Changes:**
+
+- `src/components/DashboardLayout.tsx`: Change path from `/employee-management` to `/employees`.
 
 ---
 
-### 3. Candidate Access to Screening
+### Issue 3: Role update and passcode display not working
 
-Currently, the `/screening?applicationId=xxx` page exists and works, but candidates may not know how to get there. 
+**Problem:** Two sub-issues:
 
-**Candidate Dashboard Integration:**
+1. **Passcode not showing:** The `get-users` edge function reads `profileResult.data?.is_active` (line 69) but the `profiles` table has no `is_active` column — it defaults to `true` via `??`. The passcode itself (`profileResult.data?.passcode`) should work. However, the `profiles` RLS policy only allows users to read their **own** profile (`id = auth.uid()`), but the edge function uses the **service role key** which bypasses RLS. So the passcode fetch should work server-side. The likely issue is that the passcode value in the database is the default `'00000000'` and the eye toggle reveals it but it looks "empty" or confusing. Need to verify the get-users function is actually returning passcode data correctly.
+2. **Role update not working:** The `update-user` edge function updates `user_roles` with `.update({ role }).eq('user_id', user_id)`. The `role` column is of type `app_role` enum which has values `admin`, `employee`, `guest` (not `candidate`). If updating from `guest` to `employee`, this should work. The issue may be that the `update-user` function validates against `['admin', 'employee', 'guest']` (line 93) but the enum `app_role` might not include all values, or there could be a silent error not surfaced to the UI.
 
-- In the candidate's dashboard or application status view, add a "Complete Screening" button/link that navigates to `/screening?applicationId=xxx` when a screening record exists but hasn't been answered yet
-- Search for where candidate applications are displayed and add the screening link there
+**Root cause identified:** The `update-user` function's role update uses `.update({ role })` which sets the column value. But the `app_role` enum values need to match exactly. Looking at the `handle_new_user` trigger, it casts to `app_role` — the enum includes `admin`, `moderator`, `user` based on the standard template, but the actual database shows roles like `employee`, `guest`, `candidate`. The edge function validates `['admin', 'employee', 'guest']` which should be fine.
 
----
+**Most likely cause for role update failure:** The response from `update-user` doesn't report individual operation errors — if the role update SQL fails silently (no matching row, or constraint violation), it returns `success: true` anyway. Need to add error checking on the role update operation.
 
-### 4. Voice Recording for Short-Answer Questions
+**Changes:**
 
-**Database: Create a storage bucket**
-
-- Create a `screening-audio` storage bucket (public) for storing voice recordings
-
-**New Component: `VoiceRecorder.tsx**`
-
-- Uses the browser's `MediaRecorder` API to record audio from the microphone
-- Shows record/stop/play controls
-- On stop, uploads the audio file to the `screening-audio` bucket
-- Stores the public URL in the answer field (e.g., `audio::https://...url`)
-
-**Screening Page (`src/pages/Screening.tsx`)**
-
-- For `short_answer` type questions, show both the textarea AND a voice record button
-- Candidate can type OR record (or both)
-- Display audio player for already-recorded answers
-
-**Screening View Dialog (`src/components/hr/ScreeningViewDialog.tsx`)**
-
-- When an answer contains an audio URL (prefixed with `audio::`), render an `<audio>` player so HR can listen to the response
-- Show text answers normally alongside audio
-
-**Score Screening Edge Function (`supabase/functions/score-screening/index.ts`)**
-
-- When an answer is audio-only (`audio::url`), note it as "Voice response provided" in the Q&A text sent to AI for scoring, since the AI can't listen to audio
-- The AI will score based on text answers and note voice responses
+- `supabase/functions/update-user/index.ts`: Add proper error handling for the role update query (check for errors after the `.update()` call). Also add error handling for profile updates.
+- `supabase/functions/get-users/index.ts`: The passcode display issue — verify the function returns passcode. It does (line 68). The client-side code toggles visibility correctly. The issue may be that some users have `null` passcode. Ensure the UI handles null gracefully.
+- `src/pages/UserManagement.tsx`: Update passcode display to show "Not set" when passcode is null instead of showing dots.
 
 ---
 
-### Technical Details
+### Summary of file changes
 
-**Storage bucket migration:**
 
-```sql
-INSERT INTO storage.buckets (id, name, public) VALUES ('screening-audio', 'screening-audio', true);
--- RLS: anyone authenticated can upload, public can read
-CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'screening-audio');
-CREATE POLICY "Public read" ON storage.objects FOR SELECT USING (bucket_id = 'screening-audio');
-```
-
-**VoiceRecorder component pattern:**
-
-- `navigator.mediaDevices.getUserMedia({ audio: true })`
-- `new MediaRecorder(stream, { mimeType: 'audio/webm' })`
-- Collect chunks, create blob, upload to storage bucket
-- Return public URL via callback
-
-**Answer format convention:**
-
-- Text answer: stored as plain string
-- Audio answer: stored as `audio::https://...public-url`
-- Both: stored as `text content\naudio::https://...public-url`
-
-This allows backward compatibility and easy parsing in both the scoring function and the review dialog.
+| File                                      | Change                                      |
+| ----------------------------------------- | ------------------------------------------- |
+| `src/components/PublicLayout.tsx`         | Add auth-aware header buttons               |
+| `src/components/DashboardLayout.tsx`      | Fix `/employee-management` → `/employees`   |
+| `supabase/functions/update-user/index.ts` | Add error handling for role/profile updates |
+| `src/pages/UserManagement.tsx`            | Handle null passcode display                |
