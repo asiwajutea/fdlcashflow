@@ -91,12 +91,24 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
 
             {/* CTA Buttons */}
             <div className="hidden md:flex items-center gap-2">
-              <Button variant="outline" size="sm" asChild className="border-[hsl(0,0%,85%)] text-black hover:bg-[hsl(214,85%,25%)] hover:text-white">
-                <Link to="/auth">Employee Login</Link>
-              </Button>
-              <Button size="sm" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white">
-                <Link to="/apply">Apply for Job</Link>
-              </Button>
+              {user ? (
+                <Button size="sm" onClick={() => navigate(role === 'candidate' ? '/' : '/dashboard')} className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white gap-2">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={avatarUrl || undefined} />
+                    <AvatarFallback className="text-[10px] bg-white/20">{fullName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
+                  </Avatar>
+                  {fullName || 'Dashboard'}
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" size="sm" asChild className="border-[hsl(0,0%,85%)] text-black hover:bg-[hsl(214,85%,25%)] hover:text-white">
+                    <Link to="/auth">Employee Login</Link>
+                  </Button>
+                  <Button size="sm" asChild className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white">
+                    <Link to="/apply">Apply for Job</Link>
+                  </Button>
+                </>
+              )}
             </div>
 
             {/* Mobile Toggle */}
