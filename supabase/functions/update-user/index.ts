@@ -97,15 +97,32 @@ serve(async (req) => {
         throw new Error('Invalid role');
       }
 
-      const { error: roleUpdateError, count } = await supabaseAdmin
+      const { data: updatedRoles, error: roleUpdateError } = await supabaseAdmin
         .from('user_roles')
         .update({ role })
-        .eq('user_id', user_id);
+        .eq('user_id', user_id)
+        .select('id');
+
       if (roleUpdateError) {
         console.error('Role update error:', roleUpdateError);
         throw new Error(`Failed to update role: ${roleUpdateError.message}`);
       }
-      console.log(`Role update for user ${user_id}: role=${role}, rows affected=${count}`);
+
+      // Some legacy users may not have a user_roles row yet.
+      if (!updatedRoles || updatedRoles.length === 0) {
+        const { error: roleInsertError } = await supabaseAdmin
+          .from('user_roles')
+          .insert({ user_id, role });
+
+        if (roleInsertError) {
+          console.error('Role insert error:', roleInsertError);
+          throw new Error(`Failed to set role: ${roleInsertError.message}`);
+        }
+
+        console.log(`Role row created for user ${user_id}: role=${role}`);
+      } else {
+        console.log(`Role updated for user ${user_id}: role=${role}, rows affected=${updatedRoles.length}`);
+      }
     }
 
     return new Response(
