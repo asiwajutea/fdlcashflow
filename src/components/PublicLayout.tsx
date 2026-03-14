@@ -21,6 +21,8 @@ const navLinks = [
 const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, fullName, avatarUrl, role } = useAuth();
 
   // Force light mode on all public pages
   useEffect(() => {
