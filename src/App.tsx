@@ -87,19 +87,19 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
-    },
-  },
+      gcTime: 10 * 60 * 1000
+    }
+  }
 });
 
-const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
+const LoadingFallback = () =>
+<div className="min-h-screen flex items-center justify-center bg-background">
     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-  </div>
-);
+  </div>;
+
 
 // Guard for backend routes only
-const AvatarGuard = ({ children }: { children: React.ReactNode }) => {
+const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
   const { user, avatarUrl, loading } = useAuth();
   if (loading) return null;
   if (!user) return <>{children}</>;
@@ -109,8 +109,8 @@ const AvatarGuard = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const AppRoutes = () => (
-  <Suspense fallback={<LoadingFallback />}>
+const AppRoutes = () =>
+<Suspense fallback={<LoadingFallback />}>
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<Home />} />
@@ -128,7 +128,7 @@ const AppRoutes = () => (
       <Route path="/contact" element={<Contact />} />
 
       {/* Auth */}
-      <Route path="/auth" element={<Auth />} />
+      <Route path="/auth" element={<Auth />} className="bg-secondary-foreground" />
       <Route path="/apply" element={<Apply />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
 
@@ -167,11 +167,11 @@ const AppRoutes = () => (
 
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </Suspense>
-);
+  </Suspense>;
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
+
+const App = () =>
+<QueryClientProvider client={queryClient}>
     <ThemeProvider defaultTheme="light" storageKey="fdl-theme">
       <TooltipProvider>
         <Toaster />
@@ -181,7 +181,7 @@ const App = () => (
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
-  </QueryClientProvider>
-);
+  </QueryClientProvider>;
+
 
 export default App;
