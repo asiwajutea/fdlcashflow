@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronRight, LogIn, Briefcase, Home, Info, Layers, Calendar, Lightbulb, Image, Users, BookOpen, Mail, Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, ChevronRight, LogIn, Briefcase, Home, Info, Layers, Calendar, Lightbulb, Image, Users, BookOpen, Mail, Facebook, Twitter, Linkedin, Instagram, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useAuth } from '@/hooks/useAuth';
 import fdlLogo from '@/assets/fdl-logo.jpg';
 
 const navLinks = [
