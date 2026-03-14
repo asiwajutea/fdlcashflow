@@ -36,7 +36,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/generate-invoice', label: 'Generate Invoice', icon: FileText, capability: 'generate_invoice' },
       { path: '/bulk-invoice', label: 'Bulk Invoice', icon: FileStack, capability: 'bulk_invoice' },
-      { path: '/invoice-list', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
+      { path: '/invoices', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
       { path: '/invoice-statistics', label: 'Statistics', icon: BarChart3, capability: 'view_statistics' },
     ],
   },
@@ -44,7 +44,7 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { path: '/daily-tracker', label: 'Daily Tracker', icon: CalendarClock, capability: 'view_daily_tracker' },
-      { path: '/employee-management', label: 'Employees', icon: Users, capability: 'manage_employees' },
+      { path: '/employees', label: 'Employees', icon: Users, capability: 'manage_employees' },
       { path: '/company-settings', label: 'Company Settings', icon: Settings, capability: 'manage_company_settings' },
     ],
   },

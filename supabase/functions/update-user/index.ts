@@ -84,23 +84,32 @@ serve(async (req) => {
       if (full_name !== undefined) profileUpdates.full_name = full_name;
       if (is_active !== undefined) profileUpdates.is_active = is_active;
 
-      await supabaseAdmin
+      const { error: profileError } = await supabaseAdmin
         .from('profiles')
         .update(profileUpdates)
         .eq('id', user_id);
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw new Error(`Failed to update profile: ${profileError.message}`);
+      }
     }
 
     // Update role if provided
     if (role) {
-      const validRoles = ['admin', 'employee', 'guest'];
+      const validRoles = ['admin', 'employee', 'guest', 'candidate'];
       if (!validRoles.includes(role)) {
         throw new Error('Invalid role');
       }
 
-      await supabaseAdmin
+      const { error: roleUpdateError, count } = await supabaseAdmin
         .from('user_roles')
         .update({ role })
         .eq('user_id', user_id);
+      if (roleUpdateError) {
+        console.error('Role update error:', roleUpdateError);
+        throw new Error(`Failed to update role: ${roleUpdateError.message}`);
+      }
+      console.log(`Role update for user ${user_id}: role=${role}, rows affected=${count}`);
     }
 
     return new Response(

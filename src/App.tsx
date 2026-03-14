@@ -128,7 +128,7 @@ const AppRoutes = () =>
       <Route path="/contact" element={<Contact />} />
 
       {/* Auth */}
-      <Route path="/auth" element={<Auth />} className="bg-secondary-foreground" />
+      <Route path="/auth" element={<Auth />} />
       <Route path="/apply" element={<Apply />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
 
