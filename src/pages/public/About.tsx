@@ -116,7 +116,7 @@ const About = () => {
                 From Vision to <span className="text-brand-red-orange">Impact</span>
               </h2>
               <div className="space-y-4 text-muted-foreground leading-relaxed">
-                <p>Founded in 2019, Footprints Dynasty Ltd (RC: 1554073) began with a bold vision — to make a meaningful difference across Nigerian industries. From humble beginnings, we have grown into a multifaceted enterprise spanning events, technology, education, and cultural preservation.</p>
+                <p>Founded in 2019, Footprints Dynasty Ltd (RC: 1554073) began with a bold vision — to make a meaningful difference across African industries. From humble beginnings, we have grown into a multifaceted enterprise spanning events, technology, education, and cultural preservation.</p>
                 <p>What started as a passion project has evolved into a movement that touches thousands of lives. Our events celebrate talent and culture, our technology solutions drive digital transformation, and our education programs empower the next generation.</p>
                 <p>Today, we stand as a testament to what's possible when <strong className="text-brand-red-orange font-semibold">innovation meets purpose</strong>, and ambition meets action.</p>
               </div>
@@ -325,7 +325,7 @@ const About = () => {
           {/* Fallback when no team members */}
           {teamMembers.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-white/40 text-lg">Team members will appear here once added via the CMS.</p>
+              <p className="text-white/40 text-lg">Leadership profiles loading… The brilliant minds behind our mission will appear here shortly.</p>
             </div>
           )}
         </div>
