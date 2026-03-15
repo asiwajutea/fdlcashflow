@@ -296,7 +296,7 @@ const Home = () => {
                 We Are <span className="text-brand-red-orange">Footprints Dynasty</span>
               </h2>
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-6">
-                Footprints Dynasty Ltd (RC: 1554073) is a forward-thinking Nigerian enterprise founded in 2019.
+                Footprints Dynasty Ltd (RC: 1554073) is a forward-thinking African enterprise founded in 2019.
                 We specialize in event management, technology solutions, education innovation, and cultural preservation —
                 driven by our mission of <strong className="text-brand-red-orange font-semibold">Making a Difference</strong> in every community we serve.
               </p>
