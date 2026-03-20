@@ -201,59 +201,129 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                
-                {/* PASSWORD */}
-                <div>
-                  <Label htmlFor="signup-password">Password</Label>
-                  <div className="relative mt-1">
-                    <Input
-                      id="signup-password"
-                      type={showPassword ? "text" : "password"}
-                      value={signupData.password}
-                      onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
-                      placeholder="At least 6 characters"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
+  <form onSubmit={handleSignUp} className="space-y-4">
+    <div>
+      <Label>I am signing up as</Label>
+      <Select
+        value={signupData.signupType}
+        onValueChange={(v: 'employee' | 'candidate') =>
+          setSignupData({ ...signupData, signupType: v })
+        }
+      >
+        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          <SelectItem value="employee">Employee</SelectItem>
+          <SelectItem value="candidate">
+            <span className="flex items-center gap-1">Job Applicant</span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
 
-                {/* CONFIRM PASSWORD */}
-                <div>
-                  <Label htmlFor="signup-confirm">Confirm Password</Label>
-                  <div className="relative mt-1">
-                    <Input
-                      id="signup-confirm"
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={signupData.confirmPassword}
-                      onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })}
-                      placeholder="Re-enter password"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                    >
-                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                </div>
+      {signupData.signupType === 'candidate' && (
+        <p className="text-xs text-primary mt-1 flex items-center gap-1">
+          <Briefcase className="h-3 w-3" /> You'll be able to browse and apply for open positions
+        </p>
+      )}
+    </div>
 
-                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </Button>
+    <div>
+      <Label htmlFor="signup-name">Full Name</Label>
+      <Input
+        id="signup-name"
+        type="text"
+        value={signupData.fullName}
+        onChange={(e) =>
+          setSignupData({ ...signupData, fullName: e.target.value })
+        }
+        placeholder="John Doe"
+        required
+        className="mt-1"
+      />
+    </div>
 
-              </form>
-            </TabsContent>
+    <div>
+      <Label htmlFor="signup-email">Email</Label>
+      <Input
+        id="signup-email"
+        type="email"
+        value={signupData.email}
+        onChange={(e) =>
+          setSignupData({ ...signupData, email: e.target.value })
+        }
+        placeholder="your@email.com"
+        required
+        className="mt-1"
+      />
+    </div>
+
+    {/* ✅ PASSWORD WITH TOGGLE */}
+    <div>
+      <Label htmlFor="signup-password">Password</Label>
+      <div className="relative mt-1">
+        <Input
+          id="signup-password"
+          type={showPassword ? "text" : "password"}
+          value={signupData.password}
+          onChange={(e) =>
+            setSignupData({ ...signupData, password: e.target.value })
+          }
+          placeholder="At least 6 characters"
+          required
+        />
+        <button
+          type="button"
+          onClick={() => setShowPassword(!showPassword)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        >
+          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+    </div>
+
+    {/* ✅ CONFIRM PASSWORD WITH TOGGLE */}
+    <div>
+      <Label htmlFor="signup-confirm">Confirm Password</Label>
+      <div className="relative mt-1">
+        <Input
+          id="signup-confirm"
+          type={showConfirmPassword ? "text" : "password"}
+          value={signupData.confirmPassword}
+          onChange={(e) =>
+            setSignupData({ ...signupData, confirmPassword: e.target.value })
+          }
+          placeholder="Re-enter password"
+          required
+        />
+        <button
+          type="button"
+          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        >
+          {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+        </button>
+      </div>
+    </div>
+
+    <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
+      <UserPlus className="h-4 w-4 mr-2" />
+      {loading ? 'Creating Account...' : 'Create Account'}
+    </Button>
+
+    <div className="text-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+      {signupData.signupType === 'candidate' ? (
+        <>
+          <p className="font-medium">Job Applicant Registration</p>
+          <p>After signing up, you can log in immediately to browse and apply for jobs.</p>
+        </>
+      ) : (
+        <>
+          <p className="font-medium">After signing up:</p>
+          <p>Contact your administrator to receive your access code for login.</p>
+        </>
+      )}
+    </div>
+  </form>
+</TabsContent>
           </Tabs>
         )}
       </Card>
