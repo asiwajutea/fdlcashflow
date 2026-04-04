@@ -139,15 +139,12 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left Column — Text Content */}
-            <div className="text-center lg:text-left order-1 relative" style={{ minHeight: '280px' }}>
+            <div className="text-center lg:text-left order-1 relative">
               {slides.map((slide, index) => (
-                <div
-                  key={index}
-                  className="absolute top-0 left-0 right-0 transition-opacity duration-[1800ms] ease-in-out"
-                  style={{
-                    opacity: currentSlide === index ? 1 : 0,
-                    pointerEvents: currentSlide === index ? 'auto' : 'none'
-                  }}
+                currentSlide === index && (
+                  <div
+                    key={index}
+                    className="transition-opacity duration-700 ease-in-out"
                 >
                   <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[hsl(214,95%,15%)]/8 border border-[hsl(214,95%,15%)]/10 text-[hsl(214,95%,15%)] text-xs sm:text-sm font-medium mb-5">
                     <Star className="h-3 w-3 text-[hsl(28,100%,55%)]" />
@@ -166,7 +163,7 @@ const Home = () => {
               ))}
 
               {/* CTA Buttons — always visible, positioned below text area */}
-              <div className="absolute bottom-5 left-0 right-0 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                   <Link to="/services">
                     Explore Our Services
