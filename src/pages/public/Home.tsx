@@ -109,8 +109,7 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [testimonials.length]);
 
-  const prevSlide = useCallback(() => setCurrentSlide((prev) => (prev - 1 + (heroSlides.length || 1)) % (heroSlides.length || 1)), [heroSlides.length]);
-  const nextSlide = useCallback(() => setCurrentSlide((prev) => (prev + 1) % (heroSlides.length || 1)), [heroSlides.length]);
+  // Navigation arrows removed — auto-advance + dots only
 
   const fallbackSlides = [
   { title: 'Making a Difference', accent: 'Across Industries', subtitle: 'Delivering excellence in Events, Technology, Education, and Cultural Preservation.', image_url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1920&q=80' }];
