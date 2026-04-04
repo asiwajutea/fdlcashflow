@@ -155,7 +155,7 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
           </div>
 
           {/* Nav Links */}
-          <nav className="px-3 py-4 space-y-0.5 overflow-y-auto max-h-[calc(100vh-280px)]">
+          <nav className="px-3 py-4 space-y-0.5 overflow-y-auto max-h-[calc(100vh-200px)]">
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -176,6 +176,21 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
                 </Link>);
 
             })}
+            {/* Apply for Job as a nav link (last item) */}
+            {!user && (
+              <Link
+                to="/apply"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                location.pathname === '/apply' ?
+                'bg-[hsl(28,100%,55%)]/15 text-[hsl(28,100%,55%)]' :
+                'text-white/70 hover:text-white hover:bg-white/5'}`
+                }>
+                <Briefcase className={`h-4.5 w-4.5 shrink-0 ${location.pathname === '/apply' ? 'text-[hsl(28,100%,55%)]' : 'text-white/40 group-hover:text-white/70'}`} />
+                <span className="flex-1">Apply for Job</span>
+                <ChevronRight className={`h-4 w-4 transition-transform duration-200 ${location.pathname === '/apply' ? 'text-[hsl(28,100%,55%)]' : 'text-white/20 group-hover:text-white/40 group-hover:translate-x-0.5'}`} />
+              </Link>
+            )}
           </nav>
 
           {/* CTA Section */}
@@ -186,20 +201,12 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
                 Go to Dashboard
               </Button> :
 
-            <>
-                <Button variant="outline" size="default" asChild className="w-full border-white/20 text-white hover:bg-white/10 justify-start gap-2">
-                  <Link to="/auth" onClick={() => setMobileOpen(false)} className="text-primary-dark">
-                    <LogIn className="h-4 w-4" />
-                    Employee Login
-                  </Link>
-                </Button>
-                <Button size="default" asChild className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
-                  <Link to="/apply" onClick={() => setMobileOpen(false)}>
-                    <Briefcase className="h-4 w-4" />
-                    Apply for Job
-                  </Link>
-                </Button>
-              </>
+              <Button size="default" asChild className="w-full bg-[hsl(214,95%,15%)] hover:bg-[hsl(214,95%,20%)] text-white justify-start gap-2 border border-white/20">
+                <Link to="/auth" onClick={() => setMobileOpen(false)}>
+                  <LogIn className="h-4 w-4" />
+                  Employee Login
+                </Link>
+              </Button>
             }
           </div>
         </div>
