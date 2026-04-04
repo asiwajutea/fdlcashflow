@@ -214,8 +214,8 @@ const Home = () => {
                       <Users className="h-5 w-5 text-[hsl(28,100%,55%)]" />
                     </div>
                     <div>
-                      <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">15,000+</div>
-                      <div className="text-xs text-[hsl(214,10%,50%)]">Young Adults Impacted</div>
+                      <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">10,000+</div>
+                      <div className="text-xs text-[hsl(214,10%,50%)]">People Impacted</div>
                     </div>
                   </div>
                 </div>
