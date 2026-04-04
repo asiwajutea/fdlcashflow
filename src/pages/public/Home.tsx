@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Calendar, Monitor, GraduationCap, ShoppingBag, BookOpen,
-  Sparkles, Users, Award, TrendingUp, ChevronLeft, ChevronRight, Quote,
+  Sparkles, Users, Award, TrendingUp, Quote,
   MapPin, Phone, Mail, Play, Star, CheckCircle, Target, Globe, Heart } from
 'lucide-react';
 import { Button } from '@/components/ui/button';
