@@ -128,106 +128,113 @@ const Home = () => {
   return (
     <PublicLayout>
       {/* ═══════════════════════════════════════════ */}
-      {/* HERO SECTION — Cinematic Full-Screen        */}
+      {/* HERO SECTION — Split Layout with Gradient   */}
       {/* ═══════════════════════════════════════════ */}
-      <section className="relative h-[100svh] min-h-[550px] max-h-[900px] overflow-hidden">
-        {/* Background slides */}
-        {slides.map((slide, index) =>
-        <div
-          key={index}
-          className="absolute inset-0 transition-opacity duration-[2500ms] ease-in-out"
-          style={{ opacity: currentSlide === index ? 1 : 0 }}>
-          
-            <img
-            src={slide.image_url}
-            alt=""
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-[12000ms] ease-out"
-            style={{ transform: currentSlide === index ? 'scale(1.08)' : 'scale(1)' }}
-            loading={index === 0 ? 'eager' : 'lazy'} />
-          
-          </div>
-        )}
-
-        {/* Gradient overlays */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[hsl(214,95%,6%)/0.92] via-[hsl(214,95%,8%)/0.82] to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[hsl(214,95%,6%)/0.95] via-transparent to-[hsl(214,95%,6%)/0.3]" />
-
-        {/* Subtle grid pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'linear-gradient(hsl(0,0%,100%) 1px, transparent 1px), linear-gradient(90deg, hsl(0,0%,100%) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
+      <section className="relative min-h-[550px] md:min-h-[600px] lg:min-h-[650px] overflow-hidden bg-gradient-to-br from-[hsl(190,45%,35%)] via-[hsl(195,40%,30%)] to-[hsl(200,38%,25%)]">
+        {/* Subtle pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.04]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(0,0%,100%) 1px, transparent 0)',
+          backgroundSize: '30px 30px'
         }} />
 
-        {/* Decorative elements */}
-        <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none hidden md:block">
-          <div className="absolute top-[15%] right-[8%] w-72 h-72 rounded-full border border-brand-red-orange/10 animate-[spin_30s_linear_infinite]" />
-          <div className="absolute top-[12%] right-[6%] w-80 h-80 rounded-full border border-white/[0.04] animate-[spin_45s_linear_infinite_reverse]" />
-          <div className="absolute bottom-[25%] right-[12%] w-3 h-3 rounded-full bg-brand-red-orange/40 animate-[bounce_3s_ease-in-out_infinite]" />
-          <div className="absolute bottom-[40%] right-[20%] w-2 h-2 rounded-full bg-white/30 animate-[bounce_2.5s_ease-in-out_infinite_0.5s]" />
-          {/* Vertical accent line */}
-          <div className="absolute top-0 bottom-0 right-[45%] w-px bg-gradient-to-b from-transparent via-brand-red-orange/10 to-transparent" />
-        </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-24">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            {/* Left Column — Text Content */}
+            <div className="text-center lg:text-left order-1">
+              {slides.map((slide, index) => (
+                <div
+                  key={index}
+                  className="transition-all duration-[1200ms] ease-in-out"
+                  style={{
+                    opacity: currentSlide === index ? 1 : 0,
+                    transform: currentSlide === index ? 'translateY(0)' : 'translateY(20px)',
+                    position: index === 0 ? 'relative' : 'absolute',
+                    top: index === 0 ? undefined : 0,
+                    left: index === 0 ? undefined : 0,
+                    right: index === 0 ? undefined : 0,
+                    pointerEvents: currentSlide === index ? 'auto' : 'none'
+                  }}
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-5">
+                    <Star className="h-3 w-3 text-[hsl(28,100%,65%)]" />
+                    Making a Difference
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-white leading-[1.1] mb-4 tracking-tight">
+                    {slide.title}{' '}
+                    <span className="text-[hsl(28,100%,65%)]">
+                      {slide.accent}
+                    </span>
+                  </h1>
+                  <p className="text-sm sm:text-base md:text-lg mb-6 leading-relaxed text-white/75 max-w-lg mx-auto lg:mx-0">
+                    {slide.subtitle}
+                  </p>
+                </div>
+              ))}
 
-        {/* Content */}
-        <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-28 sm:pb-32 md:pb-36">
-          <div className="max-w-3xl relative">
-            {/* Invisible spacer */}
-            <div className="invisible" aria-hidden="true">
-              <div className="inline-block px-4 py-1.5 rounded-full text-sm font-medium mb-6">
-                Making a Difference
+              {/* CTA Buttons — always visible */}
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start relative z-10">
+                <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 h-11 sm:h-12 rounded-xl group">
+                  <Link to="/services">
+                    Explore Our Services
+                    <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </Button>
+                <Button size="lg" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
+                  <Link to="/contact">Book a Consultation</Link>
+                </Button>
               </div>
-              <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-4 md:mb-6">
-                {slides[0]?.title} {slides[0]?.accent}
-              </h1>
-              <p className="text-sm sm:text-lg md:text-xl mb-6 md:mb-8 leading-relaxed max-w-2xl">
-                {slides[0]?.subtitle}
-              </p>
             </div>
 
-            {/* Active slide text */}
-            {slides.map((slide, index) =>
-            <div
-              key={index}
-              className="absolute inset-0 transition-all duration-[1500ms] ease-in-out"
-              style={{
-                opacity: currentSlide === index ? 1 : 0,
-                transform: currentSlide === index ? 'translateY(0)' : 'translateY(30px)',
-                pointerEvents: currentSlide === index ? 'auto' : 'none'
-              }}>
-              
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-4 sm:mb-6 bg-primary">
-                  <Star className="h-3 w-3 text-brand-red-orange-light" />
-                  Making a Difference
-                </div>
-                <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-[1.1] mb-3 sm:mb-5 md:mb-6 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7),_0_1px_4px_rgba(0,0,0,0.9)]">
-                  {slide.title}{' '}
-                  <span className="text-brand-red-orange-light drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))]">
-                    {slide.accent}
-                  </span>
-                </h1>
-                <p className="text-sm sm:text-lg md:text-xl mb-6 md:mb-8 leading-relaxed max-w-2xl text-white/80 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] [text-shadow:_0_1px_6px_rgba(0,0,0,0.9)]">
-                  {slide.subtitle}
-                </p>
-              </div>
-            )}
+            {/* Right Column — Image Card */}
+            <div className="relative order-2 flex justify-center lg:justify-end">
+              <div className="relative w-full max-w-md lg:max-w-lg xl:max-w-xl">
+                {slides.map((slide, index) => (
+                  <div
+                    key={index}
+                    className="transition-all duration-[1200ms] ease-in-out"
+                    style={{
+                      opacity: currentSlide === index ? 1 : 0,
+                      transform: currentSlide === index ? 'scale(1)' : 'scale(0.95)',
+                      position: index === 0 ? 'relative' : 'absolute',
+                      top: index === 0 ? undefined : 0,
+                      left: index === 0 ? undefined : 0,
+                      right: index === 0 ? undefined : 0,
+                      pointerEvents: currentSlide === index ? 'auto' : 'none'
+                    }}
+                  >
+                    <div className="rounded-2xl overflow-hidden shadow-2xl aspect-[4/3]">
+                      <img
+                        src={slide.image_url}
+                        alt={slide.title}
+                        className="w-full h-full object-cover"
+                        loading={index === 0 ? 'eager' : 'lazy'}
+                      />
+                    </div>
+                  </div>
+                ))}
 
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2 sm:pt-4">
-              <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-primary-foreground text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 h-11 sm:h-12 rounded-xl group">
-                <Link to="/services">
-                  Explore Our Services
-                  <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="border-white/25 text-black hover:text-primary-foreground hover:bg-white/10 backdrop-blur-sm text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
-                <Link to="/contact">Book a Consultation</Link>
-              </Button>
+                {/* Floating stat badge */}
+                <div className="absolute -bottom-4 -left-4 sm:-bottom-5 sm:-left-5 bg-white rounded-xl shadow-xl p-3 sm:p-4 z-20">
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl bg-[hsl(190,45%,35%)]/15 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-[hsl(190,45%,35%)]" />
+                    </div>
+                    <div>
+                      <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">15,000+</div>
+                      <div className="text-xs text-[hsl(214,10%,50%)]">Young Adults Impacted</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Decorative border */}
+                <div className="absolute -top-3 -right-3 w-full h-full rounded-2xl border-2 border-white/10 -z-10" />
+              </div>
             </div>
           </div>
         </div>
 
         {/* Slide Navigation — bottom center */}
-        <div className="absolute bottom-6 sm:bottom-10 left-0 right-0 flex items-center justify-center gap-3 z-20">
+        <div className="absolute bottom-5 sm:bottom-8 left-0 right-0 flex items-center justify-center gap-3 z-20">
           <button onClick={prevSlide} className="p-2 text-white/40 hover:text-white transition-colors" aria-label="Previous slide">
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -240,7 +247,6 @@ const Home = () => {
             'w-3 bg-white/25 hover:bg-white/40'}`
             }
             aria-label={`Go to slide ${index + 1}`} />
-
           )}
           <button onClick={nextSlide} className="p-2 text-white/40 hover:text-white transition-colors" aria-label="Next slide">
             <ChevronRight className="h-5 w-5" />
