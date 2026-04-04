@@ -1,8 +1,8 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Calendar, Monitor, GraduationCap, ShoppingBag, BookOpen,
-  Sparkles, Users, Award, TrendingUp, ChevronLeft, ChevronRight, Quote,
+  Sparkles, Users, Award, TrendingUp, Quote,
   MapPin, Phone, Mail, Play, Star, CheckCircle, Target, Globe, Heart } from
 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -109,8 +109,7 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [testimonials.length]);
 
-  const prevSlide = useCallback(() => setCurrentSlide((prev) => (prev - 1 + (heroSlides.length || 1)) % (heroSlides.length || 1)), [heroSlides.length]);
-  const nextSlide = useCallback(() => setCurrentSlide((prev) => (prev + 1) % (heroSlides.length || 1)), [heroSlides.length]);
+  // Navigation arrows removed — auto-advance + dots only
 
   const fallbackSlides = [
   { title: 'Making a Difference', accent: 'Across Industries', subtitle: 'Delivering excellence in Events, Technology, Education, and Cultural Preservation.', image_url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1920&q=80' }];
@@ -130,56 +129,51 @@ const Home = () => {
       {/* ═══════════════════════════════════════════ */}
       {/* HERO SECTION — Split Layout with Gradient   */}
       {/* ═══════════════════════════════════════════ */}
-      <section className="relative min-h-[550px] md:min-h-[600px] lg:min-h-[650px] overflow-hidden bg-gradient-to-br from-[hsl(190,45%,35%)] via-[hsl(195,40%,30%)] to-[hsl(200,38%,25%)]">
+      <section className="relative min-h-[550px] md:min-h-[600px] lg:min-h-[650px] overflow-hidden bg-white">
         {/* Subtle pattern overlay */}
-        <div className="absolute inset-0 opacity-[0.04]" style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(0,0%,100%) 1px, transparent 0)',
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, hsl(214,95%,15%) 1px, transparent 0)',
           backgroundSize: '30px 30px'
         }} />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left Column — Text Content */}
-            <div className="text-center lg:text-left order-1">
+            <div className="text-center lg:text-left order-1 relative" style={{ minHeight: '280px' }}>
               {slides.map((slide, index) => (
                 <div
                   key={index}
-                  className="transition-all duration-[1200ms] ease-in-out"
+                  className="absolute top-0 left-0 right-0 transition-opacity duration-[1800ms] ease-in-out"
                   style={{
                     opacity: currentSlide === index ? 1 : 0,
-                    transform: currentSlide === index ? 'translateY(0)' : 'translateY(20px)',
-                    position: index === 0 ? 'relative' : 'absolute',
-                    top: index === 0 ? undefined : 0,
-                    left: index === 0 ? undefined : 0,
-                    right: index === 0 ? undefined : 0,
                     pointerEvents: currentSlide === index ? 'auto' : 'none'
                   }}
                 >
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-5">
-                    <Star className="h-3 w-3 text-[hsl(28,100%,65%)]" />
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[hsl(214,95%,15%)]/8 border border-[hsl(214,95%,15%)]/10 text-[hsl(214,95%,15%)] text-xs sm:text-sm font-medium mb-5">
+                    <Star className="h-3 w-3 text-[hsl(28,100%,55%)]" />
                     Making a Difference
                   </div>
-                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-white leading-[1.1] mb-4 tracking-tight">
+                  <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-[hsl(214,95%,15%)] leading-[1.1] mb-4 tracking-tight">
                     {slide.title}{' '}
-                    <span className="text-[hsl(28,100%,65%)]">
+                    <span className="text-[hsl(28,100%,55%)]">
                       {slide.accent}
                     </span>
                   </h1>
-                  <p className="text-sm sm:text-base md:text-lg mb-6 leading-relaxed text-white/75 max-w-lg mx-auto lg:mx-0">
+                  <p className="text-sm sm:text-base md:text-lg leading-relaxed text-[hsl(214,20%,40%)] max-w-lg mx-auto lg:mx-0">
                     {slide.subtitle}
                   </p>
                 </div>
               ))}
 
-              {/* CTA Buttons — always visible */}
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start relative z-10">
-                <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)/0.3] border-0 h-11 sm:h-12 rounded-xl group">
+              {/* CTA Buttons — always visible, positioned below text area */}
+              <div className="absolute bottom-0 left-0 right-0 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+                <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                   <Link to="/services">
                     Explore Our Services
                     <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild className="border-white/30 text-white hover:bg-white/10 text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
+                <Button size="lg" variant="outline" asChild className="border-[hsl(214,95%,15%)]/20 text-[hsl(214,95%,15%)] hover:bg-[hsl(214,95%,15%)]/5 text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
                   <Link to="/contact">Book a Consultation</Link>
                 </Button>
               </div>
@@ -191,10 +185,9 @@ const Home = () => {
                 {slides.map((slide, index) => (
                   <div
                     key={index}
-                    className="transition-all duration-[1200ms] ease-in-out"
+                    className="transition-opacity duration-[1800ms] ease-in-out"
                     style={{
                       opacity: currentSlide === index ? 1 : 0,
-                      transform: currentSlide === index ? 'scale(1)' : 'scale(0.95)',
                       position: index === 0 ? 'relative' : 'absolute',
                       top: index === 0 ? undefined : 0,
                       left: index === 0 ? undefined : 0,
@@ -214,10 +207,10 @@ const Home = () => {
                 ))}
 
                 {/* Floating stat badge */}
-                <div className="absolute -bottom-4 -left-4 sm:-bottom-5 sm:-left-5 bg-white rounded-xl shadow-xl p-3 sm:p-4 z-20">
+                <div className="absolute -bottom-4 -left-4 sm:-bottom-5 sm:-left-5 bg-white rounded-xl shadow-xl p-3 sm:p-4 z-20 border border-[hsl(214,20%,90%)]">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-xl bg-[hsl(190,45%,35%)]/15 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-[hsl(190,45%,35%)]" />
+                    <div className="h-10 w-10 rounded-xl bg-[hsl(28,100%,55%)]/10 flex items-center justify-center">
+                      <Users className="h-5 w-5 text-[hsl(28,100%,55%)]" />
                     </div>
                     <div>
                       <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">15,000+</div>
@@ -227,30 +220,24 @@ const Home = () => {
                 </div>
 
                 {/* Decorative border */}
-                <div className="absolute -top-3 -right-3 w-full h-full rounded-2xl border-2 border-white/10 -z-10" />
+                <div className="absolute -top-3 -right-3 w-full h-full rounded-2xl border-2 border-[hsl(214,20%,90%)] -z-10" />
               </div>
             </div>
           </div>
         </div>
 
-        {/* Slide Navigation — bottom center */}
+        {/* Slide Navigation — dots only, no arrows */}
         <div className="absolute bottom-5 sm:bottom-8 left-0 right-0 flex items-center justify-center gap-3 z-20">
-          <button onClick={prevSlide} className="p-2 text-white/40 hover:text-white transition-colors" aria-label="Previous slide">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
           {slides.map((_, index) =>
           <button
             key={index}
             onClick={() => setCurrentSlide(index)}
             className={`h-1.5 rounded-full transition-all duration-500 ${currentSlide === index ?
             'w-10 bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)]' :
-            'w-3 bg-white/25 hover:bg-white/40'}`
+            'w-3 bg-[hsl(214,20%,80%)] hover:bg-[hsl(214,20%,60%)]'}`
             }
             aria-label={`Go to slide ${index + 1}`} />
           )}
-          <button onClick={nextSlide} className="p-2 text-white/40 hover:text-white transition-colors" aria-label="Next slide">
-            <ChevronRight className="h-5 w-5" />
-          </button>
         </div>
       </section>
 
