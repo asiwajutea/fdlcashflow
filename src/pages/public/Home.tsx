@@ -166,7 +166,7 @@ const Home = () => {
               ))}
 
               {/* CTA Buttons — always visible, positioned below text area */}
-              <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+              <div className="absolute bottom-5 left-0 right-0 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                   <Link to="/services">
                     Explore Our Services
