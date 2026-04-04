@@ -1,113 +1,54 @@
-## Plan: Mobile Optimization, Screening Enhancements & Voice Recording
 
-### Overview
 
-Four workstreams: (1) mobile-responsive fixes for Homepage and Apply pages, (2) enhanced AI screening prompt for field-work-specific questions (this is for field-related job screening), (3) making screening accessible to candidates from their dashboard, and (4) voice recording for long-answer questions with HR playback.
+## Plan: Redesign Hero Section + Fix Employee Login
 
----
+### Part 1: Hero Section Redesign
 
-### 1. Mobile Optimization
+**Current state:** Full-screen hero with background images, dark gradient overlays, and text positioned bottom-left.
 
-**Homepage (`src/pages/public/Home.tsx`)**
+**Target design (from screenshots):** A split-layout hero with:
+- Teal/steel-blue gradient background (no full-bleed image)
+- Left side: badge, title, subtitle, and CTA buttons ("Register Now" / "Sign In" style)
+- Right side: Featured image in a rounded card with a floating stat badge overlay
+- Mobile: Stacked layout — text on top, image below, all centered
+- Carousel transitions both the text AND the image card with each slide
+- Existing slide navigation dots remain at the bottom
 
-- Reduce hero height on mobile (`h-[450px]` instead of `650px`)
-- Scale down hero text sizes for small screens (e.g., `text-3xl` on mobile)
-- Reduce CTA button spacing and padding on mobile
-- Make animated shapes smaller/hidden on mobile (`hidden md:block` for some)
-- Ensure stats grid, services grid, events grid, and testimonials all render cleanly on mobile (most already use responsive classes but need fine-tuning)
+**Data source:** Existing `hero_slides` table (title, accent, subtitle, image_url) — no schema changes needed.
 
-**Apply Page (`src/pages/Apply.tsx`)**
+**Changes to `src/pages/public/Home.tsx`:**
+- Replace the full-bleed background image hero with a two-column layout
+- Background: solid teal-to-dark gradient (matching the screenshots, approximately `from-[#3a8e9e] via-[#357a8a] to-[#2c6070]`)
+- Left column: "THE CHURCH OF..." badge becomes the company tagline badge, slide title/accent, subtitle, two CTA buttons (primary orange + white outline)
+- Right column: Slide image displayed in a `rounded-2xl` card with shadow and a floating stat badge (e.g. "15,000+ Young Adults")
+- Both columns animate/transition with each slide change (opacity + translateY)
+- Mobile layout: single column, centered text, image below
+- Keep the slide auto-advance (8s), dot navigation, and prev/next arrows
+- Keep the stats counter section below unchanged
 
-- On mobile, stack the layout vertically (already `flex-col lg:flex-row`) -- verify the sticky form doesn't cause issues on mobile
-- Reduce image banner height on mobile
-- Ensure form inputs and accordion are touch-friendly
+### Part 2: Fix Employee Login (Signup Trigger Missing)
 
-**Careers Page (`src/pages/public/Careers.tsx`)**
+**Root cause found:** The `handle_new_user()` function exists in the database but has **no trigger attached** to `auth.users`. When a user signs up, no profile or role row is created, so:
+- Login fails because `user_roles` query returns null (no role → redirected to passcode step)
+- Passcode check fails because `profiles` has no row for the user
 
-- Already mostly responsive, minor padding tweaks
-
----
-
-### 2. Enhanced Screening Questions for Field Work
-
-**File: `supabase/functions/generate-screening/index.ts**`
-
-- Update the system prompt to explicitly instruct the AI to include questions covering:
-  1. Current location and willingness to relocate temporarily
-  2. Past field work experience
-  3. Understanding that the role involves field work and interaction with strangers
-  4. Medical fitness for field work (self-declaration, no paperwork)
-  5. Salary expectations
-  6. Ability to work in a team and unsupervised
-  7. Other relevant field-role screening questions
-- Keep the existing structured output format (mix of multiple_choice and short_answer)
-
----
-
-### 3. Candidate Access to Screening
-
-Currently, the `/screening?applicationId=xxx` page exists and works, but candidates may not know how to get there. 
-
-**Candidate Dashboard Integration:**
-
-- In the candidate's dashboard or application status view, add a "Complete Screening" button/link that navigates to `/screening?applicationId=xxx` when a screening record exists but hasn't been answered yet
-- Search for where candidate applications are displayed and add the screening link there
-
----
-
-### 4. Voice Recording for Short-Answer Questions
-
-**Database: Create a storage bucket**
-
-- Create a `screening-audio` storage bucket (public) for storing voice recordings
-
-**New Component: `VoiceRecorder.tsx**`
-
-- Uses the browser's `MediaRecorder` API to record audio from the microphone
-- Shows record/stop/play controls
-- On stop, uploads the audio file to the `screening-audio` bucket
-- Stores the public URL in the answer field (e.g., `audio::https://...url`)
-
-**Screening Page (`src/pages/Screening.tsx`)**
-
-- For `short_answer` type questions, show both the textarea AND a voice record button
-- Candidate can type OR record (or both)
-- Display audio player for already-recorded answers
-
-**Screening View Dialog (`src/components/hr/ScreeningViewDialog.tsx`)**
-
-- When an answer contains an audio URL (prefixed with `audio::`), render an `<audio>` player so HR can listen to the response
-- Show text answers normally alongside audio
-
-**Score Screening Edge Function (`supabase/functions/score-screening/index.ts`)**
-
-- When an answer is audio-only (`audio::url`), note it as "Voice response provided" in the Q&A text sent to AI for scoring, since the AI can't listen to audio
-- The AI will score based on text answers and note voice responses
-
----
-
-### Technical Details
-
-**Storage bucket migration:**
+**Fix:** Create a database migration to attach the trigger:
 
 ```sql
-INSERT INTO storage.buckets (id, name, public) VALUES ('screening-audio', 'screening-audio', true);
--- RLS: anyone authenticated can upload, public can read
-CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'screening-audio');
-CREATE POLICY "Public read" ON storage.objects FOR SELECT USING (bucket_id = 'screening-audio');
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 ```
 
-**VoiceRecorder component pattern:**
+This will ensure that every new signup automatically creates the corresponding `profiles` and `user_roles` rows.
 
-- `navigator.mediaDevices.getUserMedia({ audio: true })`
-- `new MediaRecorder(stream, { mimeType: 'audio/webm' })`
-- Collect chunks, create blob, upload to storage bucket
-- Return public URL via callback
+Additionally, manually fix the two existing broken users (adeolabunmi53@gmail.com and adeolabunmi94@gmail.com) by inserting their missing profile and role rows.
 
-**Answer format convention:**
+### Files Changed
 
-- Text answer: stored as plain string
-- Audio answer: stored as `audio::https://...public-url`
-- Both: stored as `text content\naudio::https://...public-url`
+| File | Change |
+|------|--------|
+| `src/pages/public/Home.tsx` | Redesign hero section to split-layout with gradient background and image card |
+| Migration SQL | Create trigger `on_auth_user_created` on `auth.users`, backfill broken user data |
 
-This allows backward compatibility and easy parsing in both the scoring function and the review dialog.
