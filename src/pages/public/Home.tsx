@@ -166,7 +166,7 @@ const Home = () => {
               ))}
 
               {/* CTA Buttons — always visible, positioned below text area */}
-              <div className="absolute bottom-0 left-0 right-0 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+              <div className="mt-6 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                   <Link to="/services">
                     Explore Our Services
@@ -213,8 +213,8 @@ const Home = () => {
                       <Users className="h-5 w-5 text-[hsl(28,100%,55%)]" />
                     </div>
                     <div>
-                      <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">15,000+</div>
-                      <div className="text-xs text-[hsl(214,10%,50%)]">Young Adults Impacted</div>
+                      <div className="text-xl sm:text-2xl font-bold text-[hsl(214,95%,15%)]">10,000+</div>
+                      <div className="text-xs text-[hsl(214,10%,50%)]">People Impacted</div>
                     </div>
                   </div>
                 </div>
