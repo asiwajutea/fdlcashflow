@@ -113,7 +113,11 @@ const RoleManagement = ({ onRolesChange }: RoleManagementProps) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (role: CustomRole) => {
+    if (SYSTEM_ROLE_NAMES.includes(role.name)) {
+      toast({ title: 'Cannot delete', description: 'System roles cannot be deleted', variant: 'destructive' });
+      return;
+    }
     if (!confirm('Are you sure you want to delete this role template?')) return;
 
     try {
