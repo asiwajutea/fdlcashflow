@@ -17,6 +17,7 @@ const Auth = () => {
   const [activeTab, setActiveTab] = useState('login');
   const [loading, setLoading] = useState(false);
   const [loginStep, setLoginStep] = useState<'credentials' | 'passcode'>('credentials');
+  const [storedUserId, setStoredUserId] = useState<string | null>(null);
   const [passcode, setPasscode] = useState('');
 
   // ✅ NEW STATES
@@ -39,8 +40,11 @@ const Auth = () => {
       });
       if (authError) throw authError;
 
+      const userId = authData.user.id;
+      setStoredUserId(userId);
+
       const { data: roleData } = await supabase
-        .from('user_roles').select('role').eq('user_id', authData.user.id).single();
+        .from('user_roles').select('role').eq('user_id', userId).single();
 
       if (roleData?.role === 'candidate') {
         toast({ title: "Success", description: "Login successful" });
@@ -60,21 +64,25 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Session expired. Please sign in again.');
+      if (!storedUserId) throw new Error('Session expired. Please sign in again.');
 
       const { data: profileData, error: profileError } = await supabase
-        .from('profiles').select('passcode').eq('id', session.user.id).single();
+        .from('profiles').select('passcode').eq('id', storedUserId).single();
       if (profileError) throw profileError;
 
       if (!profileData.passcode || profileData.passcode === '00000000') {
         await supabase.auth.signOut();
-        throw new Error('Your account is pending approval. Please contact the administrator for your access code.');
+        setLoginStep('credentials');
+        setPasscode('');
+        setStoredUserId(null);
+        toast({ title: "Verification Failed", description: 'Your account is pending approval. Please contact the administrator for your access code.', variant: "destructive" });
+        return;
       }
 
       if (profileData.passcode !== passcode) {
-        await supabase.auth.signOut();
-        throw new Error('Invalid access code');
+        setPasscode('');
+        toast({ title: "Invalid Code", description: 'Invalid access code. Please try again.', variant: "destructive" });
+        return;
       }
 
       toast({ title: "Success", description: "Login successful" });
@@ -82,6 +90,7 @@ const Auth = () => {
     } catch (error: any) {
       setLoginStep('credentials');
       setPasscode('');
+      setStoredUserId(null);
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
