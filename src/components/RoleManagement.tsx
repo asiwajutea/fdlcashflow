@@ -11,7 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
-import { Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, Lock } from 'lucide-react';
+
+const SYSTEM_ROLE_NAMES = ['Admin', 'Employee', 'Guest', 'Candidate'];
 
 export interface CustomRole {
   id: string;
