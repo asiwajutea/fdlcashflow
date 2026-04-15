@@ -23,7 +23,7 @@ const CMSHeroSlides = () => {
     const { data } = await db.from('hero_slides').select('*').order('display_order');
     setItems(data || []);
   };
-  useEffect(() => { fetchData(); }, []);ng
+  useEffect(() => { fetchData(); }, []);
 
   const handleSave = async () => {
     if (!editing.title) { toast.error('Title required'); return; }
