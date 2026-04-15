@@ -190,9 +190,15 @@ const RoleManagement = ({ onRolesChange }: RoleManagementProps) => {
                         <Button size="sm" variant="outline" onClick={() => openDialog(role)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDelete(role.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {SYSTEM_ROLE_NAMES.includes(role.name) ? (
+                          <Button size="sm" variant="outline" disabled title="System role">
+                            <Lock className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => handleDelete(role)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
