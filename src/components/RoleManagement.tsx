@@ -11,7 +11,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
-import { Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Plus, Edit, Trash2, Shield, Lock } from 'lucide-react';
+
+const SYSTEM_ROLE_NAMES = ['Admin', 'Employee', 'Guest', 'Candidate'];
 
 export interface CustomRole {
   id: string;
@@ -111,14 +113,18 @@ const RoleManagement = ({ onRolesChange }: RoleManagementProps) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (role: CustomRole) => {
+    if (SYSTEM_ROLE_NAMES.includes(role.name)) {
+      toast({ title: 'Cannot delete', description: 'System roles cannot be deleted', variant: 'destructive' });
+      return;
+    }
     if (!confirm('Are you sure you want to delete this role template?')) return;
 
     try {
       const { error } = await db
         .from('custom_roles')
         .delete()
-        .eq('id', id);
+        .eq('id', role.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Role deleted' });
       fetchRoles();
@@ -184,9 +190,15 @@ const RoleManagement = ({ onRolesChange }: RoleManagementProps) => {
                         <Button size="sm" variant="outline" onClick={() => openDialog(role)}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleDelete(role.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {SYSTEM_ROLE_NAMES.includes(role.name) ? (
+                          <Button size="sm" variant="outline" disabled title="System role">
+                            <Lock className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        ) : (
+                          <Button size="sm" variant="outline" onClick={() => handleDelete(role)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
