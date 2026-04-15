@@ -47,6 +47,7 @@ const Interviews = lazy(() => import("./pages/Interviews"));
 const Offers = lazy(() => import("./pages/Offers"));
 const Inbox = lazy(() => import("./pages/Inbox"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
+const Profile = lazy(() => import("./pages/Profile"));
 
 // CMS pages
 const CMSDashboard = lazy(() => import("./pages/cms/CMSDashboard"));
@@ -131,6 +132,7 @@ const AppRoutes = () =>
       <Route path="/auth" element={<Auth />} />
       <Route path="/apply" element={<Apply />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
+      <Route path="/profile" element={<AvatarGuard><Profile /></AvatarGuard>} />
 
       {/* Backend routes */}
       <Route path="/dashboard" element={<AvatarGuard><Index /></AvatarGuard>} />

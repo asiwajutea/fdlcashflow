@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Camera, Upload, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ImageCropper } from '@/components/ImageCropper';
 
 const ProfileSetup = () => {
   const navigate = useNavigate();
@@ -14,7 +15,9 @@ const ProfileSetup = () => {
   const { user, fullName, loading: authLoading } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,21 +27,27 @@ const ProfileSetup = () => {
       toast({ title: 'Invalid file', description: 'Please upload an image file.', variant: 'destructive' });
       return;
     }
-    setFile(f);
-    setPreviewUrl(URL.createObjectURL(f));
+    const url = URL.createObjectURL(f);
+    setRawImageSrc(url);
+    setCropperOpen(true);
+  };
+
+  const handleCropComplete = (blob: Blob) => {
+    setCroppedBlob(blob);
+    setPreviewUrl(URL.createObjectURL(blob));
+    setCropperOpen(false);
   };
 
   const handleUpload = async () => {
-    if (!user || !file) return;
+    if (!user || !croppedBlob) return;
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop();
-      const filePath = `${user.id}/avatar.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, file, { upsert: true });
+      const filePath = `${user.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(filePath, croppedBlob, { upsert: true, contentType: 'image/jpeg' });
       if (uploadError) throw uploadError;
 
       const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const avatarUrl = urlData.publicUrl;
+      const avatarUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
       const { error: updateError } = await (supabase as any)
         .from('profiles')
@@ -47,7 +56,6 @@ const ProfileSetup = () => {
       if (updateError) throw updateError;
 
       toast({ title: 'Profile picture uploaded!' });
-      // Force page reload to update auth state
       window.location.href = '/';
     } catch (error: any) {
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
@@ -91,27 +99,35 @@ const ProfileSetup = () => {
             </div>
           </div>
 
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-          />
+          <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
 
-          {!file && (
+          {!croppedBlob && (
             <Button variant="outline" className="w-full gap-2" onClick={() => inputRef.current?.click()}>
               <Upload className="h-4 w-4" /> Choose Photo
             </Button>
           )}
 
-          {file && (
-            <Button className="w-full" onClick={handleUpload} disabled={uploading}>
-              {uploading ? 'Uploading...' : 'Save & Continue'}
-            </Button>
+          {croppedBlob && (
+            <div className="space-y-2">
+              <Button className="w-full" onClick={handleUpload} disabled={uploading}>
+                {uploading ? 'Uploading...' : 'Save & Continue'}
+              </Button>
+              <Button variant="outline" className="w-full" onClick={() => inputRef.current?.click()}>
+                Choose Different Photo
+              </Button>
+            </div>
           )}
         </CardContent>
       </Card>
+
+      {rawImageSrc && (
+        <ImageCropper
+          open={cropperOpen}
+          imageSrc={rawImageSrc}
+          onClose={() => setCropperOpen(false)}
+          onCropComplete={handleCropComplete}
+        />
+      )}
     </div>
   );
 };
