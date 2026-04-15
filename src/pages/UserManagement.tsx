@@ -191,7 +191,7 @@ const UserManagement = () => {
       if (enabled) {
         await supabase
           .from('user_capabilities')
-          .insert({ user_id: userId, capability, granted_by: user?.id });
+          .insert({ user_id: userId, capability });
       } else {
         await supabase
           .from('user_capabilities')

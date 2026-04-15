@@ -29,6 +29,7 @@ const NAV_SECTIONS = [
     label: 'General',
     items: [
       { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, capability: null },
+      { path: '/profile', label: 'My Profile', icon: User, capability: null },
     ],
   },
   {
