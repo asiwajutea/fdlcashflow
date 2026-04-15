@@ -124,7 +124,7 @@ const RoleManagement = ({ onRolesChange }: RoleManagementProps) => {
       const { error } = await db
         .from('custom_roles')
         .delete()
-        .eq('id', id);
+        .eq('id', role.id);
       if (error) throw error;
       toast({ title: 'Success', description: 'Role deleted' });
       fetchRoles();
