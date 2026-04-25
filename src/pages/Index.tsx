@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import EmployeeDashboard from './EmployeeDashboard';
+import { AccessCodeModal } from '@/components/AccessCodeModal';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
@@ -233,7 +235,22 @@ const CandidateDashboard = () => {
 const Index = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, role, loading, signOut, hasCapability } = useAuth();
+
+  const [accessCodeModal, setAccessCodeModal] = useState<{ open: boolean; passcode: string }>({ open: false, passcode: '' });
+  useEffect(() => {
+    const showFlag = (location.state as any)?.showAccessCode;
+    if (showFlag && user) {
+      (async () => {
+        const { data } = await (supabase as any).from('profiles').select('passcode, passcode_acknowledged').eq('id', user.id).maybeSingle();
+        if (data && !data.passcode_acknowledged && data.passcode && data.passcode !== '00000000') {
+          setAccessCodeModal({ open: true, passcode: data.passcode });
+        }
+        window.history.replaceState({}, document.title);
+      })();
+    }
+  }, [user, location.state]);
 
   const canAccess = useCallback((capability: string) => {
     return role === 'admin' || hasCapability(capability);
@@ -457,11 +474,28 @@ const Index = () => {
     return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
   }
 
-  // Candidate role: show candidate dashboard
+  // Candidate role
   if (role === 'candidate') {
     return (
       <DashboardLayout title="Candidate Dashboard">
         <CandidateDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  // Employee role: personalized dashboard (no access to admin financial dashboard)
+  if (role === 'employee') {
+    return (
+      <DashboardLayout title="My Dashboard">
+        <EmployeeDashboard />
+        {user && (
+          <AccessCodeModal
+            open={accessCodeModal.open}
+            passcode={accessCodeModal.passcode}
+            userId={user.id}
+            onAcknowledged={() => setAccessCodeModal({ open: false, passcode: '' })}
+          />
+        )}
       </DashboardLayout>
     );
   }

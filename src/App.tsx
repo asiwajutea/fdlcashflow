@@ -49,6 +49,14 @@ const Inbox = lazy(() => import("./pages/Inbox"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Profile = lazy(() => import("./pages/Profile"));
 
+// Employee skeleton pages
+const MyInvoices = lazy(() => import("./pages/employee/MyInvoices"));
+const ActivityReport = lazy(() => import("./pages/employee/ActivityReport"));
+const EmpFinance = lazy(() => import("./pages/employee/Finance"));
+const Suggestions = lazy(() => import("./pages/employee/Suggestions"));
+const KnowledgeBase = lazy(() => import("./pages/employee/KnowledgeBase"));
+const EmployeeSupport = lazy(() => import("./pages/employee/EmployeeSupport"));
+
 // CMS pages
 const CMSDashboard = lazy(() => import("./pages/cms/CMSDashboard"));
 const CMSServices = lazy(() => import("./pages/cms/CMSServices"));
@@ -63,6 +71,10 @@ const CMSContacts = lazy(() => import("./pages/cms/CMSContacts"));
 const CMSHeroSlides = lazy(() => import("./pages/cms/CMSHeroSlides"));
 const CMSTeamMembers = lazy(() => import("./pages/cms/CMSTeamMembers"));
 const CMSMediaLibrary = lazy(() => import("./pages/cms/CMSMediaLibrary"));
+const CMSPositions = lazy(() => import("./pages/cms/CMSPositions"));
+const CMSDepartments = lazy(() => import("./pages/cms/CMSDepartments"));
+const CMSProjects = lazy(() => import("./pages/cms/CMSProjects"));
+const CMSTeams = lazy(() => import("./pages/cms/CMSTeams"));
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
@@ -152,6 +164,14 @@ const AppRoutes = () =>
       <Route path="/offers" element={<AvatarGuard><Offers /></AvatarGuard>} />
       <Route path="/inbox" element={<AvatarGuard><Inbox /></AvatarGuard>} />
 
+      {/* Employee skeleton routes */}
+      <Route path="/my-invoices" element={<AvatarGuard><MyInvoices /></AvatarGuard>} />
+      <Route path="/activity-report" element={<AvatarGuard><ActivityReport /></AvatarGuard>} />
+      <Route path="/my-finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
+      <Route path="/suggestions" element={<AvatarGuard><Suggestions /></AvatarGuard>} />
+      <Route path="/knowledge-base" element={<AvatarGuard><KnowledgeBase /></AvatarGuard>} />
+      <Route path="/employee-support" element={<AvatarGuard><EmployeeSupport /></AvatarGuard>} />
+
       {/* CMS routes */}
       <Route path="/cms" element={<AvatarGuard><CMSDashboard /></AvatarGuard>} />
       <Route path="/cms/services" element={<AvatarGuard><CMSServices /></AvatarGuard>} />
@@ -166,6 +186,10 @@ const AppRoutes = () =>
       <Route path="/cms/hero-slides" element={<AvatarGuard><CMSHeroSlides /></AvatarGuard>} />
       <Route path="/cms/team" element={<AvatarGuard><CMSTeamMembers /></AvatarGuard>} />
       <Route path="/cms/media" element={<AvatarGuard><CMSMediaLibrary /></AvatarGuard>} />
+      <Route path="/cms/positions" element={<AvatarGuard><CMSPositions /></AvatarGuard>} />
+      <Route path="/cms/departments" element={<AvatarGuard><CMSDepartments /></AvatarGuard>} />
+      <Route path="/cms/projects" element={<AvatarGuard><CMSProjects /></AvatarGuard>} />
+      <Route path="/cms/teams" element={<AvatarGuard><CMSTeams /></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

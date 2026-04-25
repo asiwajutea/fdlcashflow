@@ -51,13 +51,16 @@ serve(async (req) => {
       throw new Error('Only admins can update users');
     }
 
-    const { user_id, full_name, role, is_active, new_password, regenerate_passcode } = await req.json();
+    const body = await req.json();
+    const {
+      user_id, full_name, role, is_active, new_password, regenerate_passcode,
+      birthday, gender, employee_id, phone, employment_start_date,
+      position_id, department_id, project_id, team_id
+    } = body;
 
     if (!user_id) {
       throw new Error('user_id is required');
     }
-
-    const updates: any = {};
 
     // Update password if provided
     if (new_password) {
@@ -78,11 +81,23 @@ serve(async (req) => {
         .eq('id', user_id);
     }
 
-    // Update profile fields
-    if (full_name !== undefined) {
+    // Update profile fields (any provided)
+    const profileUpdates: Record<string, any> = {};
+    if (full_name !== undefined) profileUpdates.full_name = full_name;
+    if (birthday !== undefined) profileUpdates.birthday = birthday || null;
+    if (gender !== undefined) profileUpdates.gender = gender || null;
+    if (employee_id !== undefined) profileUpdates.employee_id = employee_id || null;
+    if (phone !== undefined) profileUpdates.phone = phone || null;
+    if (employment_start_date !== undefined) profileUpdates.employment_start_date = employment_start_date || null;
+    if (position_id !== undefined) profileUpdates.position_id = position_id || null;
+    if (department_id !== undefined) profileUpdates.department_id = department_id || null;
+    if (project_id !== undefined) profileUpdates.project_id = project_id || null;
+    if (team_id !== undefined) profileUpdates.team_id = team_id || null;
+
+    if (Object.keys(profileUpdates).length > 0) {
       const { error: profileError } = await supabaseAdmin
         .from('profiles')
-        .update({ full_name })
+        .update(profileUpdates)
         .eq('id', user_id);
       if (profileError) {
         console.error('Profile update error:', profileError);

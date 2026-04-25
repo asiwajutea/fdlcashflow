@@ -396,6 +396,33 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           account_number: string | null
@@ -883,30 +910,146 @@ export type Database = {
         }
         Relationships: []
       }
+      positions: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          approval_status: string
           avatar_url: string | null
+          birthday: string | null
           created_at: string
+          department_id: string | null
+          employee_id: string | null
+          employment_start_date: string | null
           full_name: string | null
+          gender: string | null
           id: string
           passcode: string | null
+          passcode_acknowledged: boolean
+          phone: string | null
+          position_id: string | null
+          project_id: string | null
+          team_id: string | null
           updated_at: string
         }
         Insert: {
+          approval_status?: string
           avatar_url?: string | null
+          birthday?: string | null
           created_at?: string
+          department_id?: string | null
+          employee_id?: string | null
+          employment_start_date?: string | null
           full_name?: string | null
+          gender?: string | null
           id: string
           passcode?: string | null
+          passcode_acknowledged?: boolean
+          phone?: string | null
+          position_id?: string | null
+          project_id?: string | null
+          team_id?: string | null
           updated_at?: string
         }
         Update: {
+          approval_status?: string
           avatar_url?: string | null
+          birthday?: string | null
           created_at?: string
+          department_id?: string | null
+          employee_id?: string | null
+          employment_start_date?: string | null
           full_name?: string | null
+          gender?: string | null
           id?: string
           passcode?: string | null
+          passcode_acknowledged?: boolean
+          phone?: string | null
+          position_id?: string | null
+          project_id?: string | null
+          team_id?: string | null
           updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_department_fk"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_position_fk"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_project_fk"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_team_fk"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
         }
         Relationships: []
       }
@@ -1159,6 +1302,44 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      teams: {
+        Row: {
+          created_at: string
+          department_id: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          department_id?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       testimonials: {
         Row: {
