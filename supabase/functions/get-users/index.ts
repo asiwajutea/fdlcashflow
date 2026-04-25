@@ -61,12 +61,24 @@ serve(async (req) => {
           supabaseAdmin.from('user_capabilities').select('capability').eq('user_id', user.id)
         ]);
 
+        const p = profileResult.data || {};
         return {
           id: user.id,
           email: user.email,
-          full_name: profileResult.data?.full_name || user.user_metadata?.full_name || null,
-          passcode: profileResult.data?.passcode || null,
-          is_active: profileResult.data?.is_active ?? true,
+          full_name: p.full_name || user.user_metadata?.full_name || null,
+          passcode: p.passcode || null,
+          is_active: p.is_active ?? true,
+          approval_status: p.approval_status || 'approved',
+          passcode_acknowledged: p.passcode_acknowledged ?? true,
+          birthday: p.birthday || null,
+          gender: p.gender || null,
+          employee_id: p.employee_id || null,
+          phone: p.phone || null,
+          employment_start_date: p.employment_start_date || null,
+          position_id: p.position_id || null,
+          department_id: p.department_id || null,
+          project_id: p.project_id || null,
+          team_id: p.team_id || null,
           role: roleResult.data?.role || 'guest',
           capabilities: capabilitiesResult.data?.map(c => c.capability) || [],
           created_at: user.created_at
