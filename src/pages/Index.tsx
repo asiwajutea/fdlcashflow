@@ -474,11 +474,28 @@ const Index = () => {
     return <div className="min-h-screen flex items-center justify-center"><p className="text-muted-foreground">Loading...</p></div>;
   }
 
-  // Candidate role: show candidate dashboard
+  // Candidate role
   if (role === 'candidate') {
     return (
       <DashboardLayout title="Candidate Dashboard">
         <CandidateDashboard />
+      </DashboardLayout>
+    );
+  }
+
+  // Employee role: personalized dashboard (no access to admin financial dashboard)
+  if (role === 'employee') {
+    return (
+      <DashboardLayout title="My Dashboard">
+        <EmployeeDashboard />
+        {user && (
+          <AccessCodeModal
+            open={accessCodeModal.open}
+            passcode={accessCodeModal.passcode}
+            userId={user.id}
+            onAcknowledged={() => setAccessCodeModal({ open: false, passcode: '' })}
+          />
+        )}
       </DashboardLayout>
     );
   }
