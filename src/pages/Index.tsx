@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import EmployeeDashboard from './EmployeeDashboard';
+import { AccessCodeModal } from '@/components/AccessCodeModal';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { MetricCards } from '@/components/MetricCards';
 import { WeeklyDataEntry, WeeklyData } from '@/components/WeeklyDataEntry';
