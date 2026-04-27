@@ -55,6 +55,7 @@ const ActivityReport = lazy(() => import("./pages/employee/ActivityReport"));
 const EmpFinance = lazy(() => import("./pages/employee/Finance"));
 const Suggestions = lazy(() => import("./pages/employee/Suggestions"));
 const KnowledgeBase = lazy(() => import("./pages/employee/KnowledgeBase"));
+const KBArticle = lazy(() => import("./pages/employee/KnowledgeBaseArticle"));
 const EmployeeSupport = lazy(() => import("./pages/employee/EmployeeSupport"));
 
 // CMS pages
@@ -75,6 +76,8 @@ const CMSPositions = lazy(() => import("./pages/cms/CMSPositions"));
 const CMSDepartments = lazy(() => import("./pages/cms/CMSDepartments"));
 const CMSProjects = lazy(() => import("./pages/cms/CMSProjects"));
 const CMSTeams = lazy(() => import("./pages/cms/CMSTeams"));
+const CMSKnowledgeBase = lazy(() => import("./pages/cms/CMSKnowledgeBase"));
+const CMSKBCategories = lazy(() => import("./pages/cms/CMSKBCategories"));
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
@@ -170,6 +173,7 @@ const AppRoutes = () =>
       <Route path="/my-finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
       <Route path="/suggestions" element={<AvatarGuard><Suggestions /></AvatarGuard>} />
       <Route path="/knowledge-base" element={<AvatarGuard><KnowledgeBase /></AvatarGuard>} />
+      <Route path="/knowledge-base/:slug" element={<AvatarGuard><KBArticle /></AvatarGuard>} />
       <Route path="/employee-support" element={<AvatarGuard><EmployeeSupport /></AvatarGuard>} />
 
       {/* CMS routes */}
@@ -190,6 +194,8 @@ const AppRoutes = () =>
       <Route path="/cms/departments" element={<AvatarGuard><CMSDepartments /></AvatarGuard>} />
       <Route path="/cms/projects" element={<AvatarGuard><CMSProjects /></AvatarGuard>} />
       <Route path="/cms/teams" element={<AvatarGuard><CMSTeams /></AvatarGuard>} />
+      <Route path="/cms/knowledge-base" element={<AvatarGuard><CMSKnowledgeBase /></AvatarGuard>} />
+      <Route path="/cms/kb-categories" element={<AvatarGuard><CMSKBCategories /></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
