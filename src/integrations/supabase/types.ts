@@ -825,6 +825,114 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_articles: {
+        Row: {
+          attachments: Json
+          body: string
+          category_id: string | null
+          cover_image: string
+          created_at: string
+          created_by: string | null
+          department_id: string | null
+          id: string
+          is_pinned: boolean
+          published_at: string | null
+          slug: string
+          status: string
+          summary: string
+          tags: Json
+          title: string
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          attachments?: Json
+          body?: string
+          category_id?: string | null
+          cover_image?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_pinned?: boolean
+          published_at?: string | null
+          slug: string
+          status?: string
+          summary?: string
+          tags?: Json
+          title: string
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          attachments?: Json
+          body?: string
+          category_id?: string | null
+          cover_image?: string
+          created_at?: string
+          created_by?: string | null
+          department_id?: string | null
+          id?: string
+          is_pinned?: boolean
+          published_at?: string | null
+          slug?: string
+          status?: string
+          summary?: string
+          tags?: Json
+          title?: string
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kb_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_articles_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_categories: {
+        Row: {
+          created_at: string
+          description: string
+          display_order: number
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           body: string
@@ -943,12 +1051,14 @@ export type Database = {
           avatar_url: string | null
           birthday: string | null
           created_at: string
+          cv_url: string | null
           department_id: string | null
           employee_id: string | null
           employment_start_date: string | null
           full_name: string | null
           gender: string | null
           id: string
+          id_card_url: string | null
           passcode: string | null
           passcode_acknowledged: boolean
           phone: string | null
@@ -962,12 +1072,14 @@ export type Database = {
           avatar_url?: string | null
           birthday?: string | null
           created_at?: string
+          cv_url?: string | null
           department_id?: string | null
           employee_id?: string | null
           employment_start_date?: string | null
           full_name?: string | null
           gender?: string | null
           id: string
+          id_card_url?: string | null
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
@@ -981,12 +1093,14 @@ export type Database = {
           avatar_url?: string | null
           birthday?: string | null
           created_at?: string
+          cv_url?: string | null
           department_id?: string | null
           employee_id?: string | null
           employment_start_date?: string | null
           full_name?: string | null
           gender?: string | null
           id?: string
+          id_card_url?: string | null
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
