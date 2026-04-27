@@ -422,13 +422,18 @@ const UserManagement = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
+                        <TableHead>Approval</TableHead>
                         <TableHead>Passcode</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((u) => (
+                      {users
+                        .filter(u => statusFilter === 'all' || (u.approval_status || 'approved') === statusFilter)
+                        .map((u) => {
+                        const status = u.approval_status || 'approved';
+                        return (
                         <TableRow key={u.id}>
                           <TableCell className="font-medium">{u.full_name || '-'}</TableCell>
                           <TableCell>{u.email}</TableCell>
@@ -436,6 +441,23 @@ const UserManagement = () => {
                             <Badge variant={u.role === 'admin' ? 'default' : u.role === 'employee' ? 'secondary' : 'outline'}>
                               {u.role}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={status === 'approved' ? 'default' : status === 'pending' ? 'secondary' : 'destructive'}>
+                                {status}
+                              </Badge>
+                              {status === 'pending' && (
+                                <>
+                                  <Button size="sm" variant="default" className="h-7 px-2" onClick={() => handleApproval(u.id, 'approve')}>
+                                    <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                                  </Button>
+                                  <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => handleApproval(u.id, 'reject')}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -471,7 +493,8 @@ const UserManagement = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
