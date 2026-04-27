@@ -9,9 +9,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Lock, UserPlus, Briefcase, ArrowLeft, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import {
+  Lock, UserPlus, Briefcase, ArrowLeft, ArrowRight, ShieldCheck, Eye, EyeOff,
+  User as UserIcon, Building2, FileText, Check, Upload
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LookupItem { id: string; name: string; }
+
+const STEPS = [
+  { key: 'account', label: 'Account', icon: UserIcon },
+  { key: 'personal', label: 'Personal', icon: UserIcon },
+  { key: 'work', label: 'Work', icon: Building2 },
+  { key: 'documents', label: 'Documents', icon: FileText },
+] as const;
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -27,12 +38,17 @@ const Auth = () => {
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
 
+  // Signup wizard state
+  const [step, setStep] = useState(0);
   const [signupData, setSignupData] = useState({
     email: '', password: '', confirmPassword: '', fullName: '',
     signupType: 'employee' as 'employee' | 'candidate',
-    birthday: '', gender: '', positionId: '', departmentId: '',
-    projectId: '', teamId: '', employmentStartDate: '', employeeId: '', phone: ''
+    birthday: '', gender: '', phone: '',
+    positionId: '', departmentId: '', projectId: '', teamId: '',
+    employmentStartDate: '', employeeId: ''
   });
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
 
   const [positions, setPositions] = useState<LookupItem[]>([]);
   const [departments, setDepartments] = useState<LookupItem[]>([]);
@@ -40,8 +56,6 @@ const Auth = () => {
   const [teams, setTeams] = useState<LookupItem[]>([]);
 
   useEffect(() => {
-    // Lookups are readable to authenticated users only; for signup we still fetch
-    // (anon key) — for now we attempt and gracefully fall back to empty.
     const loadLookups = async () => {
       const [p, d, pr, t] = await Promise.all([
         (supabase as any).from('positions').select('id,name').eq('is_active', true).order('display_order'),
@@ -77,7 +91,6 @@ const Auth = () => {
         return;
       }
 
-      // Employee/admin: check approval status + acknowledged
       const { data: profileData } = await (supabase as any)
         .from('profiles')
         .select('approval_status, passcode_acknowledged')
@@ -90,17 +103,16 @@ const Auth = () => {
       if (status === 'pending') {
         await supabase.auth.signOut();
         setStoredUserId(null);
-        toast({ title: "Pending Approval", description: "Your account is awaiting admin approval. You'll be able to sign in after an administrator approves your registration.", variant: "destructive" });
+        toast({ title: "Pending Approval", description: "Your account is awaiting admin approval.", variant: "destructive" });
         return;
       }
       if (status === 'rejected') {
         await supabase.auth.signOut();
         setStoredUserId(null);
-        toast({ title: "Access Denied", description: "Your registration was not approved. Please contact your administrator.", variant: "destructive" });
+        toast({ title: "Access Denied", description: "Your registration was not approved.", variant: "destructive" });
         return;
       }
 
-      // Approved + first login (not acknowledged) → skip passcode, navigate with state
       if (!acknowledged && roleData?.role === 'employee') {
         toast({ title: "Welcome!", description: "Your account is now active. Please review your access code." });
         navigate('/dashboard', { state: { showAccessCode: true } });
@@ -120,32 +132,24 @@ const Auth = () => {
     setLoading(true);
     try {
       if (!storedUserId) throw new Error('Session expired. Please sign in again.');
-
       const { data: profileData, error: profileError } = await supabase
         .from('profiles').select('passcode').eq('id', storedUserId).single();
       if (profileError) throw profileError;
-
       if (!profileData.passcode || profileData.passcode === '00000000') {
         await supabase.auth.signOut();
-        setLoginStep('credentials');
-        setPasscode('');
-        setStoredUserId(null);
-        toast({ title: "Verification Failed", description: 'Your account is pending approval. Please contact the administrator.', variant: "destructive" });
+        setLoginStep('credentials'); setPasscode(''); setStoredUserId(null);
+        toast({ title: "Verification Failed", description: 'Pending approval.', variant: "destructive" });
         return;
       }
-
       if (profileData.passcode !== passcode) {
         setPasscode('');
-        toast({ title: "Invalid Code", description: 'Invalid access code. Please try again.', variant: "destructive" });
+        toast({ title: "Invalid Code", description: 'Invalid access code.', variant: "destructive" });
         return;
       }
-
       toast({ title: "Success", description: "Login successful" });
       navigate('/dashboard');
     } catch (error: any) {
-      setLoginStep('credentials');
-      setPasscode('');
-      setStoredUserId(null);
+      setLoginStep('credentials'); setPasscode(''); setStoredUserId(null);
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -154,65 +158,128 @@ const Auth = () => {
 
   const handleBackToCredentials = async () => {
     await supabase.auth.signOut();
-    setLoginStep('credentials');
-    setPasscode('');
+    setLoginStep('credentials'); setPasscode('');
+  };
+
+  const isEmployee = signupData.signupType === 'employee';
+  const totalSteps = isEmployee ? STEPS.length : 1;
+
+  const validateStep = (s: number): string | null => {
+    if (s === 0) {
+      if (!signupData.fullName.trim()) return 'Full name is required';
+      if (!signupData.email.trim()) return 'Email is required';
+      if (signupData.password.length < 6) return 'Password must be at least 6 characters';
+      if (signupData.password !== signupData.confirmPassword) return 'Passwords do not match';
+      return null;
+    }
+    if (!isEmployee) return null;
+    if (s === 1) {
+      if (!signupData.birthday) return 'Birthday is required';
+      if (!signupData.gender) return 'Gender is required';
+      if (!signupData.phone.trim()) return 'Phone number is required';
+      return null;
+    }
+    if (s === 2) {
+      if (!signupData.positionId) return 'Position is required';
+      if (!signupData.departmentId) return 'Department is required';
+      if (!signupData.projectId) return 'Project is required';
+      return null;
+    }
+    return null; // documents step is fully optional
+  };
+
+  const goNext = () => {
+    const err = validateStep(step);
+    if (err) { toast({ title: 'Required', description: err, variant: 'destructive' }); return; }
+    setStep(s => Math.min(s + 1, totalSteps - 1));
+  };
+  const goBack = () => setStep(s => Math.max(s - 1, 0));
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>, setter: (f: File | null) => void) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Max 10MB.', variant: 'destructive' });
+      return;
+    }
+    setter(f);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Final validation across all required steps
+    for (let i = 0; i < (isEmployee ? 3 : 1); i++) {
+      const err = validateStep(i);
+      if (err) { setStep(i); toast({ title: 'Required', description: err, variant: 'destructive' }); return; }
+    }
     setLoading(true);
     try {
-      if (signupData.password !== signupData.confirmPassword) throw new Error('Passwords do not match');
-      if (signupData.password.length < 6) throw new Error('Password must be at least 6 characters');
-      if (!signupData.fullName.trim()) throw new Error('Full name is required');
-
-      const isCandidate = signupData.signupType === 'candidate';
-
-      // Employee-only mandatory checks
-      if (!isCandidate) {
-        if (!signupData.birthday) throw new Error('Birthday is required');
-        if (!signupData.gender) throw new Error('Gender is required');
-        if (!signupData.positionId) throw new Error('Position is required');
-        if (!signupData.departmentId) throw new Error('Department is required');
-        if (!signupData.projectId) throw new Error('Project is required');
-        if (!signupData.teamId) throw new Error('Team is required');
-        if (!signupData.employmentStartDate) throw new Error('Employment start date is required');
-      }
-
       const metadata: Record<string, any> = {
         full_name: signupData.fullName,
-        role: isCandidate ? 'candidate' : 'employee',
+        role: isEmployee ? 'employee' : 'candidate',
         passcode: '00000000'
       };
-      if (!isCandidate) {
+      if (isEmployee) {
         metadata.birthday = signupData.birthday;
         metadata.gender = signupData.gender;
+        metadata.phone = signupData.phone;
         metadata.position_id = signupData.positionId;
         metadata.department_id = signupData.departmentId;
         metadata.project_id = signupData.projectId;
-        metadata.team_id = signupData.teamId;
-        metadata.employment_start_date = signupData.employmentStartDate;
-        metadata.employee_id = signupData.employeeId;
-        metadata.phone = signupData.phone;
+        if (signupData.teamId) metadata.team_id = signupData.teamId;
+        if (signupData.employmentStartDate) metadata.employment_start_date = signupData.employmentStartDate;
+        if (signupData.employeeId) metadata.employee_id = signupData.employeeId;
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: signupData.email, password: signupData.password,
         options: { data: metadata, emailRedirectTo: window.location.origin }
       });
       if (error) throw error;
 
-      if (isCandidate) {
-        toast({ title: "Account Created", description: "You can now log in and apply for jobs." });
-      } else {
-        await supabase.auth.signOut();
-        toast({ title: "Registration Submitted", description: "Your account is awaiting admin approval. You'll be able to sign in once an administrator approves your registration." });
+      const userId = signUpData.user?.id;
+      // Optional file uploads (only if session exists, e.g. autoConfirm)
+      if (userId && (cvFile || idFile)) {
+        const updates: Record<string, any> = {};
+        try {
+          if (cvFile) {
+            const ext = cvFile.name.split('.').pop() || 'pdf';
+            const path = `${userId}/cv.${ext}`;
+            const { error: upErr } = await supabase.storage.from('resumes').upload(path, cvFile, { upsert: true });
+            if (!upErr) {
+              const { data: urlData } = supabase.storage.from('resumes').getPublicUrl(path);
+              updates.cv_url = urlData.publicUrl;
+            }
+          }
+          if (idFile) {
+            const ext = idFile.name.split('.').pop() || 'pdf';
+            const path = `${userId}/id-card.${ext}`;
+            const { error: upErr } = await supabase.storage.from('documents').upload(path, idFile, { upsert: true });
+            if (!upErr) updates.id_card_url = path;
+          }
+          if (Object.keys(updates).length > 0) {
+            await (supabase as any).from('profiles').update(updates).eq('id', userId);
+          }
+        } catch (uploadErr) {
+          console.warn('Document upload failed (will retry from profile):', uploadErr);
+        }
       }
+
+      if (isEmployee) {
+        await supabase.auth.signOut();
+        toast({ title: "Registration Submitted", description: "Your account is awaiting admin approval." });
+      } else {
+        toast({ title: "Account Created", description: "You can now log in and apply for jobs." });
+      }
+
+      // Reset
       setSignupData({
         email: '', password: '', confirmPassword: '', fullName: '', signupType: 'employee',
-        birthday: '', gender: '', positionId: '', departmentId: '', projectId: '',
-        teamId: '', employmentStartDate: '', employeeId: '', phone: ''
+        birthday: '', gender: '', phone: '',
+        positionId: '', departmentId: '', projectId: '', teamId: '',
+        employmentStartDate: '', employeeId: ''
       });
+      setCvFile(null); setIdFile(null); setStep(0);
       setActiveTab('login');
     } catch (error: any) {
       toast({ title: "Sign Up Failed", description: error.message || "Failed to create account", variant: "destructive" });
@@ -220,8 +287,6 @@ const Auth = () => {
       setLoading(false);
     }
   };
-
-  const isEmployee = signupData.signupType === 'employee';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-4">
@@ -255,7 +320,7 @@ const Auth = () => {
             </Button>
           </form>
         ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setStep(0); }} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="login">Sign In</TabsTrigger>
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
@@ -283,147 +348,235 @@ const Auth = () => {
             </TabsContent>
 
             <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div>
-                  <Label>I am signing up as</Label>
-                  <Select value={signupData.signupType} onValueChange={(v: 'employee' | 'candidate') => setSignupData({ ...signupData, signupType: v })}>
-                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="employee">Employee</SelectItem>
-                      <SelectItem value="candidate"><span className="flex items-center gap-1">Job Applicant</span></SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {signupData.signupType === 'candidate' && (
-                    <p className="text-xs text-primary mt-1 flex items-center gap-1">
-                      <Briefcase className="h-3 w-3" /> You'll be able to browse and apply for open positions
-                    </p>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="signup-name">Full Name *</Label>
-                    <Input id="signup-name" value={signupData.fullName} onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })} placeholder="John Doe" required className="mt-1" />
+              {/* Stepper */}
+              {isEmployee && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-between">
+                    {STEPS.map((s, i) => {
+                      const Icon = s.icon;
+                      const done = i < step;
+                      const current = i === step;
+                      return (
+                        <React.Fragment key={s.key}>
+                          <div className="flex flex-col items-center flex-1">
+                            <div className={cn(
+                              "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors",
+                              done && "bg-primary border-primary text-primary-foreground",
+                              current && "border-primary text-primary bg-primary/10",
+                              !done && !current && "border-muted text-muted-foreground"
+                            )}>
+                              {done ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
+                            </div>
+                            <span className={cn("text-xs mt-1 font-medium", current ? "text-primary" : "text-muted-foreground")}>
+                              {s.label}
+                            </span>
+                          </div>
+                          {i < STEPS.length - 1 && (
+                            <div className={cn("h-0.5 flex-1 -mt-5 mx-1", i < step ? "bg-primary" : "bg-muted")} />
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
-                  <div>
-                    <Label htmlFor="signup-email">Email *</Label>
-                    <Input id="signup-email" type="email" value={signupData.email} onChange={(e) => setSignupData({ ...signupData, email: e.target.value })} placeholder="your@email.com" required className="mt-1" />
-                  </div>
                 </div>
+              )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="signup-password">Password *</Label>
-                    <div className="relative mt-1">
-                      <Input id="signup-password" type={showPassword ? "text" : "password"} value={signupData.password} onChange={(e) => setSignupData({ ...signupData, password: e.target.value })} placeholder="At least 6 characters" required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
+              <form onSubmit={handleSignUp} className="space-y-5">
+                {/* STEP 0: Account */}
+                {step === 0 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-1">Create Your Account</h3>
+                      <p className="text-sm text-muted-foreground">Tell us who you are and choose a password.</p>
                     </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="signup-confirm">Confirm Password *</Label>
-                    <div className="relative mt-1">
-                      <Input id="signup-confirm" type={showConfirmPassword ? "text" : "password"} value={signupData.confirmPassword} onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })} placeholder="Re-enter password" required />
-                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
-                {isEmployee && (
-                  <>
-                    <div className="border-t pt-4">
-                      <p className="text-sm font-semibold mb-3 text-foreground">Employee Details</p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="signup-birthday">Birthday *</Label>
-                          <Input id="signup-birthday" type="date" value={signupData.birthday} onChange={(e) => setSignupData({ ...signupData, birthday: e.target.value })} required className="mt-1" />
+                    <div>
+                      <Label>I am signing up as</Label>
+                      <Select value={signupData.signupType} onValueChange={(v: 'employee' | 'candidate') => { setSignupData({ ...signupData, signupType: v }); setStep(0); }}>
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="employee">Employee</SelectItem>
+                          <SelectItem value="candidate">Job Applicant</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {signupData.signupType === 'candidate' && (
+                        <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                          <Briefcase className="h-3 w-3" /> You'll browse and apply for open positions
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="signup-name">Full Name *</Label>
+                        <Input id="signup-name" value={signupData.fullName} onChange={(e) => setSignupData({ ...signupData, fullName: e.target.value })} placeholder="John Doe" className="mt-1" />
+                      </div>
+                      <div>
+                        <Label htmlFor="signup-email">Email *</Label>
+                        <Input id="signup-email" type="email" value={signupData.email} onChange={(e) => setSignupData({ ...signupData, email: e.target.value })} placeholder="your@email.com" className="mt-1" />
+                      </div>
+                      <div>
+                        <Label htmlFor="signup-password">Password *</Label>
+                        <div className="relative mt-1">
+                          <Input id="signup-password" type={showPassword ? "text" : "password"} value={signupData.password} onChange={(e) => setSignupData({ ...signupData, password: e.target.value })} placeholder="At least 6 characters" />
+                          <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
                         </div>
-                        <div>
-                          <Label>Gender *</Label>
-                          <Select value={signupData.gender} onValueChange={(v) => setSignupData({ ...signupData, gender: v })}>
-                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select gender" /></SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="male">Male</SelectItem>
-                              <SelectItem value="female">Female</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                              <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Position / Designation *</Label>
-                          <Select value={signupData.positionId} onValueChange={(v) => setSignupData({ ...signupData, positionId: v })}>
-                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select position" /></SelectTrigger>
-                            <SelectContent>
-                              {positions.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Department *</Label>
-                          <Select value={signupData.departmentId} onValueChange={(v) => setSignupData({ ...signupData, departmentId: v })}>
-                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
-                            <SelectContent>
-                              {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Project *</Label>
-                          <Select value={signupData.projectId} onValueChange={(v) => setSignupData({ ...signupData, projectId: v })}>
-                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select project" /></SelectTrigger>
-                            <SelectContent>
-                              {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label>Team *</Label>
-                          <Select value={signupData.teamId} onValueChange={(v) => setSignupData({ ...signupData, teamId: v })}>
-                            <SelectTrigger className="mt-1"><SelectValue placeholder="Select team" /></SelectTrigger>
-                            <SelectContent>
-                              {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label htmlFor="signup-start">Employment Start Date *</Label>
-                          <Input id="signup-start" type="date" value={signupData.employmentStartDate} onChange={(e) => setSignupData({ ...signupData, employmentStartDate: e.target.value })} required className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="signup-emp-id">Employee ID</Label>
-                          <Input id="signup-emp-id" value={signupData.employeeId} onChange={(e) => setSignupData({ ...signupData, employeeId: e.target.value })} placeholder="Optional" className="mt-1" />
-                        </div>
-                        <div className="md:col-span-2">
-                          <Label htmlFor="signup-phone">Phone</Label>
-                          <Input id="signup-phone" value={signupData.phone} onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })} placeholder="Optional" className="mt-1" />
+                      </div>
+                      <div>
+                        <Label htmlFor="signup-confirm">Confirm Password *</Label>
+                        <div className="relative mt-1">
+                          <Input id="signup-confirm" type={showConfirmPassword ? "text" : "password"} value={signupData.confirmPassword} onChange={(e) => setSignupData({ ...signupData, confirmPassword: e.target.value })} placeholder="Re-enter password" />
+                          <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </>
+                  </div>
                 )}
 
-                <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </Button>
+                {/* STEP 1: Personal Info (employee only) */}
+                {isEmployee && step === 1 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-1">Personal Information</h3>
+                      <p className="text-sm text-muted-foreground">A few personal details to complete your profile.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="signup-birthday">Birthday *</Label>
+                        <Input id="signup-birthday" type="date" value={signupData.birthday} onChange={(e) => setSignupData({ ...signupData, birthday: e.target.value })} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label>Gender *</Label>
+                        <Select value={signupData.gender} onValueChange={(v) => setSignupData({ ...signupData, gender: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue placeholder="Select gender" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">Male</SelectItem>
+                            <SelectItem value="female">Female</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                            <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label htmlFor="signup-phone">Phone Number *</Label>
+                        <Input id="signup-phone" value={signupData.phone} onChange={(e) => setSignupData({ ...signupData, phone: e.target.value })} placeholder="+234..." className="mt-1" />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
-                <div className="text-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-                  {signupData.signupType === 'candidate' ? (
-                    <>
-                      <p className="font-medium">Job Applicant Registration</p>
-                      <p>After signing up, you can log in immediately to browse and apply for jobs.</p>
-                    </>
+                {/* STEP 2: Work Details */}
+                {isEmployee && step === 2 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-1">Work Details</h3>
+                      <p className="text-sm text-muted-foreground">Help us assign you to the right team.</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label>Position / Designation *</Label>
+                        <Select value={signupData.positionId} onValueChange={(v) => setSignupData({ ...signupData, positionId: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue placeholder="Select position" /></SelectTrigger>
+                          <SelectContent>{positions.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Department *</Label>
+                        <Select value={signupData.departmentId} onValueChange={(v) => setSignupData({ ...signupData, departmentId: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
+                          <SelectContent>{departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Project *</Label>
+                        <Select value={signupData.projectId} onValueChange={(v) => setSignupData({ ...signupData, projectId: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue placeholder="Select project" /></SelectTrigger>
+                          <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Team <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                        <Select value={signupData.teamId} onValueChange={(v) => setSignupData({ ...signupData, teamId: v })}>
+                          <SelectTrigger className="mt-1"><SelectValue placeholder="Select team" /></SelectTrigger>
+                          <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="signup-start">Employment Start Date <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                        <Input id="signup-start" type="date" value={signupData.employmentStartDate} onChange={(e) => setSignupData({ ...signupData, employmentStartDate: e.target.value })} className="mt-1" />
+                      </div>
+                      <div>
+                        <Label htmlFor="signup-emp-id">Employee ID <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                        <Input id="signup-emp-id" value={signupData.employeeId} onChange={(e) => setSignupData({ ...signupData, employeeId: e.target.value })} placeholder="Optional" className="mt-1" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 3: Documents (optional) */}
+                {isEmployee && step === 3 && (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground mb-1">Documents <span className="text-sm font-normal text-muted-foreground">(optional)</span></h3>
+                      <p className="text-sm text-muted-foreground">Upload now or skip — you can always add these later from your Profile page.</p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="border-2 border-dashed border-muted rounded-lg p-4">
+                        <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> CV / Resume</Label>
+                        <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => handleFile(e, setCvFile)} />
+                        {cvFile && <p className="text-xs text-primary mt-2 flex items-center gap-1"><Check className="h-3 w-3" /> {cvFile.name}</p>}
+                      </div>
+                      <div className="border-2 border-dashed border-muted rounded-lg p-4">
+                        <Label className="flex items-center gap-2 mb-2"><FileText className="h-4 w-4" /> ID Card</Label>
+                        <Input type="file" accept=".pdf,image/*" onChange={(e) => handleFile(e, setIdFile)} />
+                        {idFile && <p className="text-xs text-primary mt-2 flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground text-center">Skip if you'd rather upload from your Profile page after approval.</p>
+                  </div>
+                )}
+
+                {/* Step navigation */}
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  {step > 0 ? (
+                    <Button type="button" variant="outline" onClick={goBack}>
+                      <ArrowLeft className="h-4 w-4 mr-2" /> Back
+                    </Button>
+                  ) : <span />}
+
+                  {step < totalSteps - 1 ? (
+                    <Button type="button" onClick={goNext} className="bg-gradient-primary ml-auto">
+                      Next <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
                   ) : (
-                    <>
-                      <p className="font-medium">After signing up:</p>
-                      <p>Your account will require admin approval. Once approved, log in to view your personal access code.</p>
-                    </>
+                    <Button type="submit" className="bg-gradient-primary ml-auto" disabled={loading}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      {loading ? 'Creating...' : 'Create Account'}
+                    </Button>
                   )}
                 </div>
+
+                {step === totalSteps - 1 && (
+                  <div className="text-center text-sm text-muted-foreground bg-muted/50 p-3 rounded-md mt-2">
+                    {isEmployee ? (
+                      <>
+                        <p className="font-medium">After signing up:</p>
+                        <p>Your account will require admin approval. Once approved, log in to view your personal access code.</p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="font-medium">Job Applicant Registration</p>
+                        <p>Sign up and log in immediately to browse and apply for jobs.</p>
+                      </>
+                    )}
+                  </div>
+                )}
               </form>
             </TabsContent>
           </Tabs>

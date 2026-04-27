@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Camera, Save, User } from 'lucide-react';
+import { Camera, Save, User, FileText, Upload, Check, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ImageCropper } from '@/components/ImageCropper';
 
@@ -37,6 +37,12 @@ const Profile = () => {
     project_id: '',
     team_id: '',
   });
+
+  const [cvUrl, setCvUrl] = useState<string>('');
+  const [idCardPath, setIdCardPath] = useState<string>('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idSignedUrl, setIdSignedUrl] = useState<string>('');
 
   // Lookup data
   const [positions, setPositions] = useState<Lookup[]>([]);
@@ -67,6 +73,12 @@ const Profile = () => {
         project_id: p.project_id || '',
         team_id: p.team_id || '',
       });
+      setCvUrl(p.cv_url || '');
+      setIdCardPath(p.id_card_url || '');
+      if (p.id_card_url) {
+        const { data: signed } = await supabase.storage.from('documents').createSignedUrl(p.id_card_url, 3600);
+        setIdSignedUrl(signed?.signedUrl || '');
+      }
       setPositions(posRes.data || []);
       setDepartments(deptRes.data || []);
       setProjects(projRes.data || []);
@@ -115,6 +127,22 @@ const Profile = () => {
         if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         updates.avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
+      }
+
+      if (cvFile) {
+        const ext = cvFile.name.split('.').pop() || 'pdf';
+        const path = `${user.id}/cv.${ext}`;
+        const { error: cvErr } = await supabase.storage.from('resumes').upload(path, cvFile, { upsert: true });
+        if (cvErr) throw cvErr;
+        const { data: cvUrlData } = supabase.storage.from('resumes').getPublicUrl(path);
+        updates.cv_url = cvUrlData.publicUrl;
+      }
+      if (idFile) {
+        const ext = idFile.name.split('.').pop() || 'pdf';
+        const path = `${user.id}/id-card.${ext}`;
+        const { error: idErr } = await supabase.storage.from('documents').upload(path, idFile, { upsert: true });
+        if (idErr) throw idErr;
+        updates.id_card_url = path;
       }
 
       const { error } = await (supabase as any).from('profiles').update(updates).eq('id', user.id);
@@ -241,6 +269,33 @@ const Profile = () => {
                     {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="font-semibold text-foreground mb-1 flex items-center gap-2"><FileText className="h-4 w-4" /> Documents</h3>
+              <p className="text-xs text-muted-foreground mb-4">Optional. Upload or replace your CV and ID card.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                  <Label className="text-sm">CV / Resume</Label>
+                  {cvUrl && !cvFile && (
+                    <a href={cvUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                      <ExternalLink className="h-3 w-3" /> View current CV
+                    </a>
+                  )}
+                  <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
+                  {cvFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {cvFile.name}</p>}
+                </div>
+                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                  <Label className="text-sm">ID Card</Label>
+                  {idSignedUrl && !idFile && (
+                    <a href={idSignedUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                      <ExternalLink className="h-3 w-3" /> View current ID
+                    </a>
+                  )}
+                  <Input type="file" accept=".pdf,image/*" onChange={(e) => setIdFile(e.target.files?.[0] || null)} />
+                  {idFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
+                </div>
               </div>
             </div>
 

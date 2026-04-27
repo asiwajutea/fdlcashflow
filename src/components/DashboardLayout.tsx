@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -55,6 +55,13 @@ const NAV_SECTIONS = [
       { path: '/user-management', label: 'User Management', icon: Users, capability: 'manage_users' },
       { path: '/applications', label: 'HR Recruitment', icon: Briefcase, capability: 'manage_recruitment' },
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
+    ],
+  },
+  {
+    label: 'Resources',
+    items: [
+      { path: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen, capability: null },
+      { path: '/cms/knowledge-base', label: 'Manage Knowledge Base', icon: BookOpen, capability: 'manage_knowledge_base' },
     ],
   },
   {
