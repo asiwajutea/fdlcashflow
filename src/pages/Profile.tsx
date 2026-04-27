@@ -129,6 +129,22 @@ const Profile = () => {
         updates.avatar_url = `${urlData.publicUrl}?t=${Date.now()}`;
       }
 
+      if (cvFile) {
+        const ext = cvFile.name.split('.').pop() || 'pdf';
+        const path = `${user.id}/cv.${ext}`;
+        const { error: cvErr } = await supabase.storage.from('resumes').upload(path, cvFile, { upsert: true });
+        if (cvErr) throw cvErr;
+        const { data: cvUrlData } = supabase.storage.from('resumes').getPublicUrl(path);
+        updates.cv_url = cvUrlData.publicUrl;
+      }
+      if (idFile) {
+        const ext = idFile.name.split('.').pop() || 'pdf';
+        const path = `${user.id}/id-card.${ext}`;
+        const { error: idErr } = await supabase.storage.from('documents').upload(path, idFile, { upsert: true });
+        if (idErr) throw idErr;
+        updates.id_card_url = path;
+      }
+
       const { error } = await (supabase as any).from('profiles').update(updates).eq('id', user.id);
       if (error) throw error;
 
