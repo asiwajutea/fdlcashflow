@@ -45,6 +45,7 @@ const UserManagement = () => {
   const [showPasscode, setShowPasscode] = useState<Record<string, boolean>>({});
   const [createdPasscode, setCreatedPasscode] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   // Create user form
   const [newUser, setNewUser] = useState({
