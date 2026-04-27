@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 import RoleManagement, { CustomRole } from '@/components/RoleManagement';
-import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy } from 'lucide-react';
+import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Filter } from 'lucide-react';
 
 interface User {
   id: string;
@@ -29,6 +29,7 @@ interface User {
   role: 'admin' | 'employee' | 'guest';
   capabilities: string[];
   created_at: string;
+  approval_status?: 'pending' | 'approved' | 'rejected';
 }
 
 const UserManagement = () => {
