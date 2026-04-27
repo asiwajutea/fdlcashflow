@@ -1,130 +1,134 @@
-## Plan: Employee Approval Flow, Expanded Registration, Personalized Employee Dashboard
+## Plan: Multi-Step Signup + Full Knowledge Base
 
-### Part 1: Database changes
+### Part 1: Multi-Step Signup Form
 
-**Migration adds to `profiles`:**
+**File:** `src/pages/Auth.tsx` (rewrite signup tab only)
 
-- `approval_status` text default `'pending'` (values: `pending`, `approved`, `rejected`)
-- `passcode_acknowledged` boolean default `false` (true after employee has viewed access code modal)
-- `birthday` date
-- `gender` text
-- `position_id` uuid (FK to new `positions` table)
-- `employment_start_date` date
-- `department_id` uuid (FK to new `departments` table)
-- `project_id` uuid (FK to new `projects` table)
-- `team_id` uuid (FK to new `teams` table)
-- `employee_id` text (unique)
-- `phone` text
+Convert the long signup into a stepper with progress indicator. Steps for **Employee**:
 
-**New CMS lookup tables** (admin-managed, all employees can read):
+1. **Account** — Sign up type, Full Name, Email, Password, Confirm Password
+2. **Personal Info** — Birthday*, Gender*, Phone* (now mandatory)
+3. **Work Details** — Position*, Department*, Project*, Team (optional), Employment Start Date (optional), Employee ID (optional)
+4. **Documents (optional)** — CV upload, ID Card upload, with "Skip — upload later from Profile" option
 
-- `positions` (id, name, description, is_active, display_order, created_at)
-- `departments` (id, name, description, is_active, display_order, created_at)
-- `projects` (id, name, description, is_active, display_order, created_at)
-- `teams` (id, name, department_id, description, is_active, display_order, created_at)
+For **Candidate**: collapses to a single step (Account only) since the rest doesn't apply.
 
-RLS: Admins manage; authenticated users read. Seed each with a few defaults (e.g. "General", "Operations").
+**UI:**
+- Progress bar with numbered step pills (1 Account → 2 Personal → 3 Work → 4 Documents)
+- "Back" / "Next" buttons; "Create Account" only on final step
+- Per-step validation before advancing
+- Section heading at top of each step
 
-**Update `handle_new_user` trigger:** for `employee` role, set `approval_status = 'pending'` and keep passcode placeholder `00000000`. Generate a real 8-digit passcode only on admin approval.
+**Validation changes:**
+- Remove mandatory: `team_id`, `employment_start_date`
+- Add mandatory: `phone`
+- Documents step: never mandatory
 
-### Part 2: Auth flow changes (`src/pages/Auth.tsx`)
+**File uploads (signup-time):**
+- Files held in component state during signup
+- After `signUp` succeeds, upload to existing `resumes` bucket (CV) and a new `documents` bucket (ID), keyed by `${user.id}/cv.{ext}` and `${user.id}/id-card.{ext}`
+- Save URLs to new `profiles.cv_url` and `profiles.id_card_url` columns
+- If signup fails or user skips, no upload happens — they can do it from Profile later
 
-**Signup (employee):**
+**Profile page additions** (`src/pages/Profile.tsx`):
+- Add "Documents" section with CV and ID Card uploaders
+- Show currently uploaded file (link + replace button) or upload button if missing
 
-- Expand form to include: birthday (date), gender (select), position (select from `positions`), department (select), project (select), team (select), employment start date, employee ID, phone. All mandatory except phone & employee ID (auto-generated if blank).
-- On submit: create auth user with metadata; trigger creates profile row; after signup, `UPDATE profiles` with the extra fields (or pass via metadata for trigger to insert). Sign out and show: "Account created. Awaiting admin approval — you'll be notified by email when approved."
+---
 
-**Login (employee):**
+### Part 2: Knowledge Base
 
-- Step 1: email + password (unchanged).
-- After `signInWithPassword` succeeds, fetch `profiles.approval_status` + `passcode_acknowledged` + `passcode`.
-  - If `approval_status = 'pending'` → sign out, show "Pending admin approval".
-  - If `approval_status = 'rejected'` → sign out, show rejection message.
-  - If `approval_status = 'approved'` AND `passcode_acknowledged = false` → **skip passcode step**, navigate to `/dashboard` with state to open the **AccessCodeModal**.
-  - Otherwise → show passcode step (existing behavior).
+A searchable, department-aware, admin-managed knowledge hub.
 
-**Access Code Modal (`src/components/AccessCodeModal.tsx` — new):**
+**Database (new migration):**
 
-- Shown once after first login post-approval.
-- Displays passcode masked (`••••••••`) with "Show" toggle (eye icon).
-- Warning text: "Write this access code down and keep it private. You will need it for every future login. No one — not even an administrator — has the right to ask you for this code."
-- Confirm button "I have written it down" → sets `passcode_acknowledged = true`, closes modal.
-- Cannot be dismissed by clicking outside or pressing Escape.
+```sql
+-- Categories (e.g., HR, IT, Finance, Field Operations, Onboarding)
+create table public.kb_categories (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  slug text not null unique,
+  description text default '',
+  icon text default 'BookOpen',  -- lucide icon name
+  display_order int default 0,
+  is_active boolean default true,
+  created_at timestamptz default now()
+);
 
-### Part 3: Admin approval UI (`src/pages/UserManagement.tsx`)
+-- Articles
+create table public.kb_articles (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  slug text not null unique,
+  category_id uuid references public.kb_categories(id) on delete set null,
+  department_id uuid references public.departments(id) on delete set null, -- optional dept scope; null = all
+  summary text default '',
+  body text default '',           -- markdown / rich text
+  tags jsonb default '[]'::jsonb,
+  cover_image text default '',
+  attachments jsonb default '[]'::jsonb,
+  status text default 'draft',    -- draft | published
+  view_count int default 0,
+  is_pinned boolean default false,
+  created_by uuid,
+  published_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index kb_articles_search_idx on public.kb_articles
+  using gin (to_tsvector('english', title || ' ' || summary || ' ' || body));
+```
 
-- Add "Approval Status" column and a "Pending Approvals" filter/tab.
-- Each pending employee row gets **Approve** / **Reject** buttons.
-- Approve action (via `update-user` edge function or new `approve-user` function): generates 8-digit passcode, sets `approval_status='approved'`, writes passcode to profile, assigns role-template capabilities for `employee`.
-- Admin can edit employee profile fields (birthday, position, department, etc.) inline in the user edit dialog — both before and after approval.
+**RLS:**
+- `kb_categories`: admins manage; all authenticated read active
+- `kb_articles`: admins (and users with new `manage_knowledge_base` capability) manage; authenticated read where `status='published'` AND (`department_id` is null OR matches user's `profiles.department_id`)
 
-### Part 4: CMS pages for lookups
+**New capability:** `manage_knowledge_base` (added to capability registry so admins can grant it to specific employees, e.g. dept leads).
 
-New CMS pages (linked from existing `/cms` dashboard under "Workforce Setup" section):
+**Storage bucket:** `kb-attachments` (public read) for cover images and attachments.
 
-- `/cms/positions` → CRUD list for positions
-- `/cms/departments` → CRUD list for departments
-- `/cms/projects` → CRUD list for projects
-- `/cms/teams` → CRUD list for teams (with department picker)
+---
 
-Each follows the existing CMS table+dialog pattern.
+**Employee-facing page:** `src/pages/employee/KnowledgeBase.tsx` (rewrite)
 
-### Part 5: Employee dashboard (personalized)
+Layout (modeled on Notion / Intercom Help):
+- **Hero search bar** at top (large, centered) — smart search with debounced full-text query against `kb_articles` (title, summary, body, tags). Shows live result dropdown as user types.
+- **Category grid** below — cards for each `kb_category` with icon, name, article count
+- **"Pinned / Featured"** row — articles with `is_pinned = true`
+- **"Recently updated"** list
+- **Department filter** chip — auto-filters to user's department + global (toggle to "All")
+- Click article → detail view at `/knowledge-base/:slug` rendering markdown, with "Was this helpful?" feedback (future), back link, related articles by tag
+- Increment `view_count` on article open
 
-`**src/pages/Index.tsx`:** when `role === 'employee'` (and not admin), render new `<EmployeeDashboard />` instead of the financial admin dashboard.
+**Smart search behavior:**
+- Debounced 250ms
+- Postgres full-text using the GIN index (`websearch_to_tsquery`)
+- Falls back to `ilike` on title for short queries (<3 chars)
+- Highlights matched terms in result snippets
+- Keyboard navigable (↑/↓/Enter)
 
-`**src/pages/EmployeeDashboard.tsx` — new component** with welcome card, quick stats (My Pending Tasks, Unread Messages, Open Jobs), and quick action buttons to: My Profile, Daily Tracker, Job Openings, Inbox, plus skeleton links to: My Invoices, Activity Report, Finance, Suggestion Box, Knowledge Base, Employee Support.
+**Admin pages:**
+- `src/pages/cms/CMSKnowledgeBase.tsx` — list, create, edit, delete articles. Filters by category, status, department. Markdown editor (textarea with preview tab — keep it simple, no new deps).
+- `src/pages/cms/CMSKBCategories.tsx` — manage categories (reuses `LookupCMSPage` pattern with extra `icon` field)
+- Add both to CMS Dashboard tiles
+- Add `/knowledge-base` route + `/knowledge-base/:slug` route in `App.tsx`
+- Add "Knowledge Base" entry under Administration nav (visible to admins + holders of `manage_knowledge_base`)
+- Employee nav link to `/knowledge-base` already wired
 
-### Part 6: Sidebar restriction (`src/components/DashboardLayout.tsx`)
+---
 
-Replace flat capability-only filtering with role-aware sections:
+### Files Created
+- `supabase/migrations/<ts>_kb_and_profile_docs.sql` — kb tables, RLS, indexes; adds `profiles.cv_url`, `profiles.id_card_url`; creates `documents` and `kb-attachments` storage buckets
+- `src/pages/employee/KnowledgeBase.tsx` (replaces stub)
+- `src/pages/employee/KnowledgeBaseArticle.tsx` (article detail)
+- `src/pages/cms/CMSKnowledgeBase.tsx`
+- `src/pages/cms/CMSKBCategories.tsx`
+- `src/components/SignupStepper.tsx` (small progress UI)
 
-- **Admin role:** sees all current sections.
-- **Employee role:** only "General" group (Dashboard, My Profile) + "Employee" group with: Daily Tracker, Job Openings, Inbox, My Invoices, Activity Report, Finance, Suggestions, Knowledge Base, Employee Support.
-- **Candidate role:** unchanged.
-
-### Part 7: Skeleton pages (employee-only routes)
-
-Create minimal stub pages (DashboardLayout + "Coming soon" card with title and short description) and add routes in `App.tsx`:
-
-- `src/pages/employee/MyInvoices.tsx` → `/my-invoices`
-- `src/pages/employee/ActivityReport.tsx` → `/activity-report`
-- `src/pages/employee/Finance.tsx` → `/my-finance`
-- `src/pages/employee/Suggestions.tsx` → `/suggestions`
-- `src/pages/employee/KnowledgeBase.tsx` → `/knowledge-base`
-- `src/pages/employee/Support.tsx` → `/employee-support`
-
-Daily Tracker (`src/pages/DailyTracker.tsx`) already exists — verify it filters `daily_transactions` by `created_by = user.id` for non-admins (read RLS already enforces this; just ensure UI doesn't show admin-only controls).
-
-### Part 8: Profile page (`src/pages/Profile.tsx`)
-
-Extend existing profile page so the employee can view & edit all the new fields (birthday, gender, position, department, project, team, employment start date, employee ID, phone) — using the same select dropdowns sourced from the CMS lookup tables.
-
-### Files Changed
-
-
-| File                                             | Change                                                                                                                              |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
-| New migration                                    | Add columns to `profiles`; create `positions`, `departments`, `projects`, `teams` tables with RLS; update `handle_new_user` trigger |
-| `src/pages/Auth.tsx`                             | Expanded signup form; new approval-aware login flow; show AccessCodeModal trigger                                                   |
-| `src/components/AccessCodeModal.tsx` (new)       | One-time passcode display modal                                                                                                     |
-| `src/pages/UserManagement.tsx`                   | Pending approval column, Approve/Reject actions, expanded edit dialog                                                               |
-| `supabase/functions/approve-user/index.ts` (new) | Generates passcode + sets approval_status                                                                                           |
-| `src/pages/cms/CMSPositions.tsx` (new)           | Manage positions                                                                                                                    |
-| `src/pages/cms/CMSDepartments.tsx` (new)         | Manage departments                                                                                                                  |
-| `src/pages/cms/CMSProjects.tsx` (new)            | Manage projects                                                                                                                     |
-| `src/pages/cms/CMSTeams.tsx` (new)               | Manage teams                                                                                                                        |
-| `src/pages/cms/CMSDashboard.tsx`                 | Add "Workforce Setup" section with new CMS links                                                                                    |
-| `src/pages/EmployeeDashboard.tsx` (new)          | Personalized employee landing                                                                                                       |
-| `src/pages/Index.tsx`                            | Route employees to EmployeeDashboard                                                                                                |
-| `src/components/DashboardLayout.tsx`             | Role-aware nav sections                                                                                                             |
-| `src/pages/employee/*.tsx` (6 new)               | Skeleton pages                                                                                                                      |
-| `src/pages/Profile.tsx`                          | Add new editable fields with CMS dropdowns                                                                                          |
-| `src/App.tsx`                                    | Register new routes                                                                                                                 |
-
-
-### Open assumption
-
-I'm assuming the **employee should auto-approve themselves into the dashboard immediately after the AccessCodeModal closes** (i.e. they're now a fully logged-in employee on first post-approval login, and on every future login they go through the normal passcode step). That matches your wording — confirm if you want a different flow.  
-  
-Yes, your assumption is right
+### Files Edited
+- `src/pages/Auth.tsx` — multi-step signup, validation changes, optional doc uploads
+- `src/pages/Profile.tsx` — add Documents section (CV + ID Card)
+- `src/App.tsx` — register new routes
+- `src/components/DashboardLayout.tsx` — add KB nav entry
+- `src/pages/cms/CMSDashboard.tsx` — add KB tiles
+- `src/hooks/useCapabilities.tsx` — register `manage_knowledge_base` capability
