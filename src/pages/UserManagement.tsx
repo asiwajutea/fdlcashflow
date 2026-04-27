@@ -18,7 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 import RoleManagement, { CustomRole } from '@/components/RoleManagement';
-import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy } from 'lucide-react';
+import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Filter } from 'lucide-react';
 
 interface User {
   id: string;
@@ -29,6 +29,7 @@ interface User {
   role: 'admin' | 'employee' | 'guest';
   capabilities: string[];
   created_at: string;
+  approval_status?: 'pending' | 'approved' | 'rejected';
 }
 
 const UserManagement = () => {
@@ -44,6 +45,7 @@ const UserManagement = () => {
   const [showPasscode, setShowPasscode] = useState<Record<string, boolean>>({});
   const [createdPasscode, setCreatedPasscode] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
 
   // Create user form
   const [newUser, setNewUser] = useState({
@@ -186,6 +188,26 @@ const UserManagement = () => {
     }
   };
 
+  const handleApproval = async (userId: string, action: 'approve' | 'reject') => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('approve-user', {
+        body: { user_id: userId, action },
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+      });
+      if (response.error) throw response.error;
+      toast({
+        title: action === 'approve' ? 'User Approved' : 'User Rejected',
+        description: action === 'approve'
+          ? 'Access code generated and shared. The user can now log in.'
+          : 'User has been rejected.'
+      });
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Action failed', variant: 'destructive' });
+    }
+  };
+
   const handleCapabilityToggle = async (userId: string, capability: string, enabled: boolean) => {
     try {
       if (enabled) {
@@ -296,7 +318,22 @@ const UserManagement = () => {
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    <SelectItem value="pending">Pending approval</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                {users.filter(u => u.approval_status === 'pending').length > 0 && (
+                  <Badge variant="destructive">{users.filter(u => u.approval_status === 'pending').length} pending</Badge>
+                )}
+              </div>
               <Dialog open={createDialogOpen} onOpenChange={(open) => {
                 setCreateDialogOpen(open);
                 if (!open) setCreatedPasscode(null);
@@ -385,13 +422,18 @@ const UserManagement = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Email</TableHead>
                         <TableHead>Role</TableHead>
+                        <TableHead>Approval</TableHead>
                         <TableHead>Passcode</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users.map((u) => (
+                      {users
+                        .filter(u => statusFilter === 'all' || (u.approval_status || 'approved') === statusFilter)
+                        .map((u) => {
+                        const status = u.approval_status || 'approved';
+                        return (
                         <TableRow key={u.id}>
                           <TableCell className="font-medium">{u.full_name || '-'}</TableCell>
                           <TableCell>{u.email}</TableCell>
@@ -399,6 +441,23 @@ const UserManagement = () => {
                             <Badge variant={u.role === 'admin' ? 'default' : u.role === 'employee' ? 'secondary' : 'outline'}>
                               {u.role}
                             </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={status === 'approved' ? 'default' : status === 'pending' ? 'secondary' : 'destructive'}>
+                                {status}
+                              </Badge>
+                              {status === 'pending' && (
+                                <>
+                                  <Button size="sm" variant="default" className="h-7 px-2" onClick={() => handleApproval(u.id, 'approve')}>
+                                    <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                                  </Button>
+                                  <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => handleApproval(u.id, 'reject')}>
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -434,7 +493,8 @@ const UserManagement = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}

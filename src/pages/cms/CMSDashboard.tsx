@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileText, Calendar, Sparkles, Image, BookOpen, Users, MessageSquare, Settings, Globe, SlidersHorizontal } from 'lucide-react';
+import { FileText, Calendar, Sparkles, Image, BookOpen, Users, MessageSquare, Settings, Globe, SlidersHorizontal, Briefcase, Building2, FolderKanban, UsersRound } from 'lucide-react';
 
 const cmsLinks = [
   { title: 'Media Library', description: 'Upload and manage images', icon: <Image className="h-6 w-6" />, path: '/cms/media' },
@@ -16,6 +16,10 @@ const cmsLinks = [
   { title: 'Website Sections', description: 'Edit homepage and page content', icon: <Globe className="h-6 w-6" />, path: '/cms/sections' },
   { title: 'Contact Submissions', description: 'View contact form messages', icon: <FileText className="h-6 w-6" />, path: '/cms/contacts' },
   { title: 'Team Members', description: 'Manage leadership team', icon: <Users className="h-6 w-6" />, path: '/cms/team' },
+  { title: 'Positions', description: 'Manage job positions/titles', icon: <Briefcase className="h-6 w-6" />, path: '/cms/positions' },
+  { title: 'Departments', description: 'Manage company departments', icon: <Building2 className="h-6 w-6" />, path: '/cms/departments' },
+  { title: 'Projects', description: 'Manage active projects', icon: <FolderKanban className="h-6 w-6" />, path: '/cms/projects' },
+  { title: 'Teams', description: 'Manage workforce teams', icon: <UsersRound className="h-6 w-6" />, path: '/cms/teams' },
 ];
 
 const CMSDashboard = () => {
