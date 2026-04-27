@@ -272,6 +272,33 @@ const Profile = () => {
               </div>
             </div>
 
+            <div className="border-t pt-6">
+              <h3 className="font-semibold text-foreground mb-1 flex items-center gap-2"><FileText className="h-4 w-4" /> Documents</h3>
+              <p className="text-xs text-muted-foreground mb-4">Optional. Upload or replace your CV and ID card.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                  <Label className="text-sm">CV / Resume</Label>
+                  {cvUrl && !cvFile && (
+                    <a href={cvUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                      <ExternalLink className="h-3 w-3" /> View current CV
+                    </a>
+                  )}
+                  <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
+                  {cvFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {cvFile.name}</p>}
+                </div>
+                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                  <Label className="text-sm">ID Card</Label>
+                  {idSignedUrl && !idFile && (
+                    <a href={idSignedUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                      <ExternalLink className="h-3 w-3" /> View current ID
+                    </a>
+                  )}
+                  <Input type="file" accept=".pdf,image/*" onChange={(e) => setIdFile(e.target.files?.[0] || null)} />
+                  {idFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
+                </div>
+              </div>
+            </div>
+
             <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4" />
               {saving ? 'Saving...' : 'Save Changes'}
