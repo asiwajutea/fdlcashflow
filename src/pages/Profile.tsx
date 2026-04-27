@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Camera, Save, User } from 'lucide-react';
+import { Camera, Save, User, FileText, Upload, Check, ExternalLink } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ImageCropper } from '@/components/ImageCropper';
 
@@ -37,6 +37,12 @@ const Profile = () => {
     project_id: '',
     team_id: '',
   });
+
+  const [cvUrl, setCvUrl] = useState<string>('');
+  const [idCardPath, setIdCardPath] = useState<string>('');
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [idFile, setIdFile] = useState<File | null>(null);
+  const [idSignedUrl, setIdSignedUrl] = useState<string>('');
 
   // Lookup data
   const [positions, setPositions] = useState<Lookup[]>([]);
@@ -67,6 +73,12 @@ const Profile = () => {
         project_id: p.project_id || '',
         team_id: p.team_id || '',
       });
+      setCvUrl(p.cv_url || '');
+      setIdCardPath(p.id_card_url || '');
+      if (p.id_card_url) {
+        const { data: signed } = await supabase.storage.from('documents').createSignedUrl(p.id_card_url, 3600);
+        setIdSignedUrl(signed?.signedUrl || '');
+      }
       setPositions(posRes.data || []);
       setDepartments(deptRes.data || []);
       setProjects(projRes.data || []);
