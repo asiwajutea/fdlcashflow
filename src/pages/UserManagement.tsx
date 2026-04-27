@@ -318,7 +318,22 @@ const UserManagement = () => {
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All users</SelectItem>
+                    <SelectItem value="pending">Pending approval</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+                {users.filter(u => u.approval_status === 'pending').length > 0 && (
+                  <Badge variant="destructive">{users.filter(u => u.approval_status === 'pending').length} pending</Badge>
+                )}
+              </div>
               <Dialog open={createDialogOpen} onOpenChange={(open) => {
                 setCreateDialogOpen(open);
                 if (!open) setCreatedPasscode(null);
