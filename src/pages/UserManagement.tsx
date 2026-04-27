@@ -206,6 +206,8 @@ const UserManagement = () => {
       toast({ title: 'Error', description: error.message || 'Action failed', variant: 'destructive' });
     }
   };
+
+  const handleCapabilityToggle = async (userId: string, capability: string, enabled: boolean) => {
     try {
       if (enabled) {
         await supabase
