@@ -187,7 +187,25 @@ const UserManagement = () => {
     }
   };
 
-  const handleCapabilityToggle = async (userId: string, capability: string, enabled: boolean) => {
+  const handleApproval = async (userId: string, action: 'approve' | 'reject') => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('approve-user', {
+        body: { user_id: userId, action },
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
+      });
+      if (response.error) throw response.error;
+      toast({
+        title: action === 'approve' ? 'User Approved' : 'User Rejected',
+        description: action === 'approve'
+          ? 'Access code generated and shared. The user can now log in.'
+          : 'User has been rejected.'
+      });
+      fetchUsers();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message || 'Action failed', variant: 'destructive' });
+    }
+  };
     try {
       if (enabled) {
         await supabase
