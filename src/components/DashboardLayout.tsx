@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -60,8 +60,10 @@ const NAV_SECTIONS = [
   {
     label: 'Resources',
     items: [
+      { path: '/activity-report', label: 'Activity Report', icon: ClipboardList, capability: null },
       { path: '/knowledge-base', label: 'Knowledge Base', icon: BookOpen, capability: null },
       { path: '/cms/knowledge-base', label: 'Manage Knowledge Base', icon: BookOpen, capability: 'manage_knowledge_base' },
+      { path: '/cms/activity-forms', label: 'Manage Activity Forms', icon: ClipboardList, capability: 'manage_activity_forms' },
     ],
   },
   {

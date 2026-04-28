@@ -14,6 +14,177 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_form_assignments: {
+        Row: {
+          assignment_type: string
+          capability_key: string | null
+          created_at: string
+          form_id: string
+          id: string
+          target_id: string | null
+        }
+        Insert: {
+          assignment_type: string
+          capability_key?: string | null
+          created_at?: string
+          form_id: string
+          id?: string
+          target_id?: string | null
+        }
+        Update: {
+          assignment_type?: string
+          capability_key?: string | null
+          created_at?: string
+          form_id?: string
+          id?: string
+          target_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_form_assignments_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "activity_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_form_fields: {
+        Row: {
+          created_at: string
+          display_order: number
+          field_key: string
+          field_type: string
+          form_id: string
+          help_text: string | null
+          id: string
+          is_required: boolean
+          label: string
+          lookup_source: string | null
+          options: Json | null
+          placeholder: string | null
+          validation: Json | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          field_key: string
+          field_type: string
+          form_id: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label: string
+          lookup_source?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          validation?: Json | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          field_key?: string
+          field_type?: string
+          form_id?: string
+          help_text?: string | null
+          id?: string
+          is_required?: boolean
+          label?: string
+          lookup_source?: string | null
+          options?: Json | null
+          placeholder?: string | null
+          validation?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_form_fields_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "activity_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_form_submissions: {
+        Row: {
+          answers: Json
+          form_id: string
+          id: string
+          period_key: string
+          submitted_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          form_id: string
+          id?: string
+          period_key: string
+          submitted_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          form_id?: string
+          id?: string
+          period_key?: string
+          submitted_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_form_submissions_form_id_fkey"
+            columns: ["form_id"]
+            isOneToOne: false
+            referencedRelation: "activity_forms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      activity_forms: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          due_day: number | null
+          due_time: string | null
+          frequency: string
+          id: string
+          is_active: boolean
+          manager_visible: boolean
+          reminders_enabled: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_day?: number | null
+          due_time?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          manager_visible?: boolean
+          reminders_enabled?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_day?: number | null
+          due_time?: string | null
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          manager_visible?: boolean
+          reminders_enabled?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           applied_at: string
@@ -1639,6 +1810,14 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      user_can_access_form: {
+        Args: { _form_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_has_capability: {
+        Args: { _cap: string; _user_id: string }
         Returns: boolean
       }
     }

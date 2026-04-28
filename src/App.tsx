@@ -78,6 +78,9 @@ const CMSProjects = lazy(() => import("./pages/cms/CMSProjects"));
 const CMSTeams = lazy(() => import("./pages/cms/CMSTeams"));
 const CMSKnowledgeBase = lazy(() => import("./pages/cms/CMSKnowledgeBase"));
 const CMSKBCategories = lazy(() => import("./pages/cms/CMSKBCategories"));
+const CMSActivityForms = lazy(() => import("./pages/cms/CMSActivityForms"));
+const CMSActivityFormBuilder = lazy(() => import("./pages/cms/CMSActivityFormBuilder"));
+const CMSFormSubmissions = lazy(() => import("./pages/cms/CMSFormSubmissions"));
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
@@ -196,6 +199,9 @@ const AppRoutes = () =>
       <Route path="/cms/teams" element={<AvatarGuard><CMSTeams /></AvatarGuard>} />
       <Route path="/cms/knowledge-base" element={<AvatarGuard><CMSKnowledgeBase /></AvatarGuard>} />
       <Route path="/cms/kb-categories" element={<AvatarGuard><CMSKBCategories /></AvatarGuard>} />
+      <Route path="/cms/activity-forms" element={<AvatarGuard><CMSActivityForms /></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id" element={<AvatarGuard><CMSActivityFormBuilder /></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id/submissions" element={<AvatarGuard><CMSFormSubmissions /></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
