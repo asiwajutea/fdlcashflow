@@ -28,6 +28,7 @@ export const ALL_CAPABILITIES = [
   { id: 'manage_website_content', label: 'Manage Website Content', description: 'Admin: manage public website CMS content' },
   { id: 'add_job_position', label: 'Add Job Position', description: 'Create and manage job postings' },
   { id: 'manage_knowledge_base', label: 'Manage Knowledge Base', description: 'Create and edit knowledge base articles and categories' },
+  { id: 'manage_activity_forms', label: 'Manage Activity Forms', description: 'Design forms, assign frequency and audience, and review submissions' },
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];
