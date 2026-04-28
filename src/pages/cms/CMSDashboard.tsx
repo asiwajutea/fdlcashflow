@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { FileText, Calendar, Sparkles, Image, BookOpen, Users, MessageSquare, Settings, Globe, SlidersHorizontal, Briefcase, Building2, FolderKanban, UsersRound, Lightbulb, FolderTree } from 'lucide-react';
+import { FileText, Calendar, Sparkles, Image, BookOpen, Users, MessageSquare, Settings, Globe, SlidersHorizontal, Briefcase, Building2, FolderKanban, UsersRound, Lightbulb, FolderTree, ClipboardList } from 'lucide-react';
 
 const cmsLinks = [
   { title: 'Media Library', description: 'Upload and manage images', icon: <Image className="h-6 w-6" />, path: '/cms/media' },
@@ -22,6 +22,7 @@ const cmsLinks = [
   { title: 'Teams', description: 'Manage workforce teams', icon: <UsersRound className="h-6 w-6" />, path: '/cms/teams' },
   { title: 'Knowledge Base', description: 'Create and edit help articles', icon: <Lightbulb className="h-6 w-6" />, path: '/cms/knowledge-base' },
   { title: 'KB Categories', description: 'Organize knowledge base sections', icon: <FolderTree className="h-6 w-6" />, path: '/cms/kb-categories' },
+  { title: 'Activity Forms', description: 'Design forms for daily/weekly reporting', icon: <ClipboardList className="h-6 w-6" />, path: '/cms/activity-forms' },
 ];
 
 const CMSDashboard = () => {
