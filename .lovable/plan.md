@@ -1,134 +1,77 @@
-## Plan: Multi-Step Signup + Full Knowledge Base
+## Goal
 
-### Part 1: Multi-Step Signup Form
+Populate the Knowledge Base with comprehensive, well-structured articles extracted from the two uploaded documents:
+1. **Footprints Dynasty Master Business Profile** — company overview, divisions, products, vision/mission.
+2. **Oral Genealogy Full Documentation (PET User Instructions)** — operational SOP for the genealogy field workforce.
 
-**File:** `src/pages/Auth.tsx` (rewrite signup tab only)
+All articles will be inserted via a data migration (Supabase insert) as `published`, scoped globally (no department restriction) so every employee sees them. Pinned where it helps onboarding.
 
-Convert the long signup into a stepper with progress indicator. Steps for **Employee**:
+## New Categories to Add
 
-1. **Account** — Sign up type, Full Name, Email, Password, Confirm Password
-2. **Personal Info** — Birthday*, Gender*, Phone* (now mandatory)
-3. **Work Details** — Position*, Department*, Project*, Team (optional), Employment Start Date (optional), Employee ID (optional)
-4. **Documents (optional)** — CV upload, ID Card upload, with "Skip — upload later from Profile" option
+The 6 existing categories cover most topics, but the Oral Genealogy content is large enough to deserve its own home. I'll add:
 
-For **Candidate**: collapses to a single step (Account only) since the rest doesn't apply.
+| Slug | Name | Icon | Order | Purpose |
+|---|---|---|---|---|
+| `company` | Company & Vision | `Building2` | 0 | Master profile, mission, brand positioning |
+| `oral-genealogy` | Oral Genealogy Project | `BookOpen` | 7 | Project philosophy, workflow, FamilySearch partnership |
+| `pet-tool` | Pedigree Entry Tool (PET) | `Laptop` | 8 | Step-by-step PET usage by role |
+| `products` | Products & Platforms | `Sparkles` | 9 | BAT, AVTool, EduFlash |
+| `events` | Events & Talent Programs | `Briefcase` | 10 | Bee Contest, SpeakUp, MAQ7 |
 
-**UI:**
-- Progress bar with numbered step pills (1 Account → 2 Personal → 3 Work → 4 Documents)
-- "Back" / "Next" buttons; "Create Account" only on final step
-- Per-step validation before advancing
-- Section heading at top of each step
+(Existing `Getting Started`, `HR & Policies`, `IT & Tools`, `Field Operations`, `Finance`, `Departments` are kept.)
 
-**Validation changes:**
-- Remove mandatory: `team_id`, `employment_start_date`
-- Add mandatory: `phone`
-- Documents step: never mandatory
+## Articles to Create (≈18 articles)
 
-**File uploads (signup-time):**
-- Files held in component state during signup
-- After `signUp` succeeds, upload to existing `resumes` bucket (CV) and a new `documents` bucket (ID), keyed by `${user.id}/cv.{ext}` and `${user.id}/id-card.{ext}`
-- Save URLs to new `profiles.cv_url` and `profiles.id_card_url` columns
-- If signup fails or user skips, no upload happens — they can do it from Profile later
+Each article is markdown, with `summary`, `tags`, `status='published'`, `department_id=NULL`. Pinned ones marked ⭐.
 
-**Profile page additions** (`src/pages/Profile.tsx`):
-- Add "Documents" section with CV and ID Card uploaders
-- Show currently uploaded file (link + replace button) or upload button if missing
+### Company & Vision
+1. ⭐ **Welcome to Footprints Dynasty Limited** — overview, what we do (heritage, youth, technology), brand positioning. Tags: overview, onboarding.
+2. **Our Vision, Mission & Brand Statement** — verbatim vision, mission, positioning. Tags: vision, mission, culture.
+3. **Our Core Business Divisions** — summary of all 5 divisions with internal links to the per-product articles. Tags: divisions, structure.
+4. **Integrated Growth Strategy & Cross-Selling** — how field network feeds events + EduFlash. Tags: strategy, sales.
 
----
+### Oral Genealogy Project
+5. ⭐ **About the African Oral Genealogy Project** — philosophy ("when an elder dies, a library burns"), FamilySearch + Zamoph partnership, Footprints' role. Tags: heritage, partners.
+6. **Genealogy Operations Workflow (End-to-End)** — the 8-step pipeline: Field Agents → Field Managers → PM → BAC → QA → Data Entry → PM review → VAC Ghana. Tags: workflow, sop.
+7. **Roles & Responsibilities in Genealogy Operations** — what each role does (Field Agent, Field Manager, BAC auditor, QA Manager, Data Entry Clerk, Production Manager, Owner). Tags: roles, operations.
 
-### Part 2: Knowledge Base
+### Pedigree Entry Tool (PET)
+8. ⭐ **PET Overview & System Requirements** — what PET is, browser/internet requirements, security rules (never share password). Tags: pet, security.
+9. **Creating & Recovering a FamilySearch Account** — sign-up steps + password/username recovery. Tags: familysearch, account.
+10. **PET Setup & First-Time Access** — what the Owner sends to Operations Manager, how to log in at familysearch.org/en/oral-gen/dashboard. Tags: setup, onboarding.
+11. **Data Entry Clerk Guide** — step-by-step transcription: Add Interview, attach ZIP/PDF, Interviewee RIN, relation codes (P/S/C), birth/death rules, Living dropdown, Begin Next Page, Submit for Review, handling Review Failed status. Tags: data-entry, sop.
+12. **Data Entry Manager Guide** — reviewing transcriptions, Awaiting Review queue (yellow/red labels), View PDF/Artifacts side-by-side, Approve vs Failed Review, sending back for rework, the Ready for Submission queue, printing Generation/Descendancy booklets (delivery within 30 days), clock-icon rework on Approved. Tags: review, qa.
+13. **Owner & Production Manager Guide** — Manage Users (add Production Managers, Data Managers, Data Clerks), do NOT create profiles for staff, bulk Add Interviews (Upload Folder vs Upload Files), Reports (Staff Payment, Booklet Delivery, Failed by Cloud Audit, Failed by VAC). Tags: management, reports.
+14. **Interview Status Reference** — table of all 10 statuses (Incomplete, Awaiting Review, Review Failed, Ready for Submission, Processing Submission, Submission Failed, Awaiting VAC Audit, VAC Audit Failed, VAC Audit Passed, Cancelled). Tags: status, reference.
+15. **PET Filters & Search** — Interview ID, Data Clerk, Interviewer ID, Start/End Date filters. Tags: search, filters.
+16. **Reporting Technical Problems & Helper Number** — what info to collect, support hours (Mon–Fri 5 AM – 1 PM Utah), WhatsApp +1 385 786 9177, Helper Number location. Tags: support, troubleshooting.
 
-A searchable, department-aware, admin-managed knowledge hub.
+### Products & Platforms
+17. **BAT — Back-End Audit Tool** — features, multi-tenant SaaS, licensing model. Tags: bat, saas, product.
+18. **AVTool — Audit Verification Tool** — problem solved, audio/photo proof, offline/online, geo evidence. Tags: avtool, verification.
+19. **EduFlash — Gamified Learning SaaS** — flashcards, payment tracking, school licensing, optional physical printing. Tags: eduflash, education.
 
-**Database (new migration):**
+### Events & Talent Programs
+20. **Events Division Overview** — Bee Contest (since 2019), SpeakUp, MAQ7 (Music/Art/Questionnaire), virtual/physical/hybrid capabilities. Tags: events, youth.
 
-```sql
--- Categories (e.g., HR, IT, Finance, Field Operations, Onboarding)
-create table public.kb_categories (
-  id uuid primary key default gen_random_uuid(),
-  name text not null,
-  slug text not null unique,
-  description text default '',
-  icon text default 'BookOpen',  -- lucide icon name
-  display_order int default 0,
-  is_active boolean default true,
-  created_at timestamptz default now()
-);
+### Getting Started (existing category)
+21. ⭐ **Knowledge Base — How to Use** — explain search, categories, pinned articles, and that more content is added regularly. Tags: kb, help.
 
--- Articles
-create table public.kb_articles (
-  id uuid primary key default gen_random_uuid(),
-  title text not null,
-  slug text not null unique,
-  category_id uuid references public.kb_categories(id) on delete set null,
-  department_id uuid references public.departments(id) on delete set null, -- optional dept scope; null = all
-  summary text default '',
-  body text default '',           -- markdown / rich text
-  tags jsonb default '[]'::jsonb,
-  cover_image text default '',
-  attachments jsonb default '[]'::jsonb,
-  status text default 'draft',    -- draft | published
-  view_count int default 0,
-  is_pinned boolean default false,
-  created_by uuid,
-  published_at timestamptz,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now()
-);
-create index kb_articles_search_idx on public.kb_articles
-  using gin (to_tsvector('english', title || ' ' || summary || ' ' || body));
-```
+## Technical Implementation
 
-**RLS:**
-- `kb_categories`: admins manage; all authenticated read active
-- `kb_articles`: admins (and users with new `manage_knowledge_base` capability) manage; authenticated read where `status='published'` AND (`department_id` is null OR matches user's `profiles.department_id`)
+1. **Migration #1 (schema-safe insert)**: a single `INSERT … ON CONFLICT DO NOTHING` on `kb_categories` for the 5 new categories (using `slug` as the conflict target — needs a unique constraint check; if absent we fall back to filtering by slug-not-exists).
+2. **Migration #2**: bulk `INSERT` into `kb_articles` for all ~21 articles. Each row sets:
+   - `title`, `slug` (kebab-case from title), `summary`, `body` (markdown), `tags` (jsonb array), `category_id` (subquery: `SELECT id FROM kb_categories WHERE slug = '…'`), `department_id = NULL`, `status = 'published'`, `published_at = now()`, `is_pinned` for the 4 starred items, `created_by = NULL` (system seed).
+3. Use `ON CONFLICT (slug) DO NOTHING` if `kb_articles.slug` is unique; otherwise insert plain (re-runs would duplicate, so we'll guard with `WHERE NOT EXISTS`).
+4. No code/UI changes required — the existing `KnowledgeBase.tsx`, `KnowledgeBaseArticle.tsx`, search (GIN), and category browse pages already render this content.
 
-**New capability:** `manage_knowledge_base` (added to capability registry so admins can grant it to specific employees, e.g. dept leads).
+## Files Touched
 
-**Storage bucket:** `kb-attachments` (public read) for cover images and attachments.
+- `supabase/migrations/<timestamp>_seed_kb_content.sql` — new migration with categories + articles.
+- No frontend files need editing.
 
----
+## Out of Scope
 
-**Employee-facing page:** `src/pages/employee/KnowledgeBase.tsx` (rewrite)
-
-Layout (modeled on Notion / Intercom Help):
-- **Hero search bar** at top (large, centered) — smart search with debounced full-text query against `kb_articles` (title, summary, body, tags). Shows live result dropdown as user types.
-- **Category grid** below — cards for each `kb_category` with icon, name, article count
-- **"Pinned / Featured"** row — articles with `is_pinned = true`
-- **"Recently updated"** list
-- **Department filter** chip — auto-filters to user's department + global (toggle to "All")
-- Click article → detail view at `/knowledge-base/:slug` rendering markdown, with "Was this helpful?" feedback (future), back link, related articles by tag
-- Increment `view_count` on article open
-
-**Smart search behavior:**
-- Debounced 250ms
-- Postgres full-text using the GIN index (`websearch_to_tsquery`)
-- Falls back to `ilike` on title for short queries (<3 chars)
-- Highlights matched terms in result snippets
-- Keyboard navigable (↑/↓/Enter)
-
-**Admin pages:**
-- `src/pages/cms/CMSKnowledgeBase.tsx` — list, create, edit, delete articles. Filters by category, status, department. Markdown editor (textarea with preview tab — keep it simple, no new deps).
-- `src/pages/cms/CMSKBCategories.tsx` — manage categories (reuses `LookupCMSPage` pattern with extra `icon` field)
-- Add both to CMS Dashboard tiles
-- Add `/knowledge-base` route + `/knowledge-base/:slug` route in `App.tsx`
-- Add "Knowledge Base" entry under Administration nav (visible to admins + holders of `manage_knowledge_base`)
-- Employee nav link to `/knowledge-base` already wired
-
----
-
-### Files Created
-- `supabase/migrations/<ts>_kb_and_profile_docs.sql` — kb tables, RLS, indexes; adds `profiles.cv_url`, `profiles.id_card_url`; creates `documents` and `kb-attachments` storage buckets
-- `src/pages/employee/KnowledgeBase.tsx` (replaces stub)
-- `src/pages/employee/KnowledgeBaseArticle.tsx` (article detail)
-- `src/pages/cms/CMSKnowledgeBase.tsx`
-- `src/pages/cms/CMSKBCategories.tsx`
-- `src/components/SignupStepper.tsx` (small progress UI)
-
-### Files Edited
-- `src/pages/Auth.tsx` — multi-step signup, validation changes, optional doc uploads
-- `src/pages/Profile.tsx` — add Documents section (CV + ID Card)
-- `src/App.tsx` — register new routes
-- `src/components/DashboardLayout.tsx` — add KB nav entry
-- `src/pages/cms/CMSDashboard.tsx` — add KB tiles
-- `src/hooks/useCapabilities.tsx` — register `manage_knowledge_base` capability
+- No avatars/images attached to articles (cover_image left blank). Admins can add them later via CMS.
+- Duplicate later pages (33–50) of the Oral Genealogy PDF are reprints of pages 1–17, so no extra content is lost.
+- Pages 33–50 onward of the second PDF were truncated at the 50-page parse limit, but inspection shows they repeat the same PET instructions verbatim — nothing new to extract.
