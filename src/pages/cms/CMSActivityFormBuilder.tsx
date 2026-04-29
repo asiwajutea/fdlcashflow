@@ -15,7 +15,7 @@ import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FieldRenderer, FieldDef } from '@/components/forms/FieldRenderer';
+import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 
 const FIELD_TYPES = [
@@ -34,6 +34,7 @@ const FIELD_TYPES = [
   { value: 'signature', label: 'Signature' },
   { value: 'section', label: 'Section Heading' },
   { value: 'lookup', label: 'Linked Data (Lookup)' },
+  { value: 'page_break', label: '— Page Break (new step) —' },
 ];
 
 const LOOKUP_SOURCES = ['departments', 'projects', 'teams', 'positions', 'employees'];
@@ -107,7 +108,7 @@ const CMSActivityFormBuilder = () => {
         is_required: false,
         options: [],
         display_order: fields.length,
-        validation: { step: 1 },
+        validation: {},
       },
     ];
     setFields(next);
@@ -286,21 +287,32 @@ const CMSActivityFormBuilder = () => {
           {fields.length === 0 && (
             <Card><CardContent className="pt-6 text-center text-muted-foreground text-sm">No fields yet — click "Add Field" below to start.</CardContent></Card>
           )}
-          {fields.map((f, idx) => {
+          {(() => {
+            // Compute step number for each field based on page_break positions
+            let cur = 1;
+            const stepByIdx: number[] = fields.map((f) => {
+              const s = cur;
+              if (f.field_type === 'page_break') cur++;
+              return s;
+            });
+            return fields.map((f, idx) => {
             const isOpen = expandedField === idx;
-            const step = (f.validation as any)?.step ?? 1;
+            const step = stepByIdx[idx];
+            const isBreak = f.field_type === 'page_break';
             return (
-              <Card key={idx} className={isOpen ? 'ring-2 ring-primary/30' : ''}>
+              <Card key={idx} className={`${isOpen ? 'ring-2 ring-primary/30' : ''} ${isBreak ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}>
                 <Collapsible open={isOpen} onOpenChange={(o) => setExpandedField(o ? idx : null)}>
                   <div className="flex items-center justify-between gap-2 px-4 py-3 flex-wrap">
                     <CollapsibleTrigger asChild>
                       <button className="flex items-center gap-2 flex-1 text-left hover:opacity-80">
                         <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
                         <Badge variant="outline">#{idx + 1}</Badge>
-                        <Badge variant="secondary" className="text-xs">Step {step}</Badge>
-                        <span className="font-medium text-foreground truncate">{f.label || 'Untitled'}</span>
-                        <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>
-                        {f.is_required && <Badge variant="destructive" className="text-xs">Required</Badge>}
+                        {!isBreak && <Badge variant="secondary" className="text-xs">Step {step}</Badge>}
+                        <span className="font-medium text-foreground truncate">
+                          {isBreak ? `↳ Page Break${(f.validation as any)?.step_name ? ` — Next step: ${(f.validation as any).step_name}` : ''}` : (f.label || 'Untitled')}
+                        </span>
+                        {!isBreak && <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>}
+                        {!isBreak && f.is_required && <Badge variant="destructive" className="text-xs">Required</Badge>}
                       </button>
                     </CollapsibleTrigger>
                     <div className="flex gap-1">
@@ -311,6 +323,28 @@ const CMSActivityFormBuilder = () => {
                   </div>
                   <CollapsibleContent>
                     <CardContent className="pt-0 pb-4 space-y-3">
+                      {isBreak ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <Label>Type</Label>
+                            <Select value={f.field_type} onValueChange={(v) => updateField(idx, { field_type: v })}>
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label>Next step name (optional)</Label>
+                            <Input
+                              value={(f.validation as any)?.step_name || ''}
+                              onChange={(e) => updateField(idx, { validation: { ...(f.validation || {}), step_name: e.target.value } })}
+                              placeholder="e.g. Personal Details"
+                            />
+                          </div>
+                          <p className="md:col-span-2 text-xs text-muted-foreground">All fields after this break will appear on a new page when users fill the form.</p>
+                        </div>
+                      ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div><Label>Label</Label><Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} /></div>
                         <div>
@@ -325,21 +359,17 @@ const CMSActivityFormBuilder = () => {
                         {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
                           <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} /></div>
                         )}
-                        <div>
-                          <Label>Step (for multi-step forms)</Label>
-                          <Input type="number" min={1} value={step} onChange={(e) => updateField(idx, { validation: { ...(f.validation || {}), step: Math.max(1, parseInt(e.target.value) || 1) } })} />
-                        </div>
                         <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => updateField(idx, { help_text: e.target.value })} /></div>
-                        {['select', 'multiselect', 'radio'].includes(f.field_type) && (
+                        {['select', 'multiselect', 'radio', 'checkbox'].includes(f.field_type) && (
                           <div className="md:col-span-2">
-                            <Label>Options (one per line OR comma-separated)</Label>
+                            <Label>Options (one per line)</Label>
                             <Textarea
                               rows={4}
-                              placeholder={'Option 1\nOption 2\nOption 3\n\n— or —\nOption 1, Option 2, Option 3'}
+                              placeholder={'Option 1\nOption 2\nOption 3'}
                               value={(f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n')}
-                              onChange={(e) => updateField(idx, { options: e.target.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean).map((s) => ({ label: s, value: s })) })}
+                              onChange={(e) => updateField(idx, { options: e.target.value.split('\n').map((s) => s.replace(/\r$/, '')).filter((s) => s.trim().length > 0).map((s) => ({ label: s, value: s })) })}
                             />
-                            <p className="text-xs text-muted-foreground mt-1">Tip: separate options with new lines or commas. Each entry becomes a selectable choice.</p>
+                            <p className="text-xs text-muted-foreground mt-1">Enter one option per line. Commas, spaces, and other symbols are allowed inside an option.</p>
                           </div>
                         )}
                         {f.field_type === 'lookup' && (
@@ -360,12 +390,14 @@ const CMSActivityFormBuilder = () => {
                           </div>
                         )}
                       </div>
+                      )}
                     </CardContent>
                   </CollapsibleContent>
                 </Collapsible>
               </Card>
             );
-          })}
+            });
+          })()}
           <Button variant="outline" className="w-full" onClick={addField}><Plus className="h-4 w-4 mr-2" /> Add Field</Button>
         </TabsContent>
 
@@ -440,22 +472,21 @@ const CMSActivityFormBuilder = () => {
           <DialogHeader><DialogTitle>Preview: {form.title}</DialogTitle></DialogHeader>
           {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
           {(() => {
-            const steps = Array.from(new Set(fields.map((f) => (f.validation as any)?.step ?? 1))).sort((a, b) => a - b);
-            const currentStep = steps[activeStep] ?? 1;
-            const stepFields = fields.filter((f) => ((f.validation as any)?.step ?? 1) === currentStep);
+            const steps = computeSteps(fields);
+            const current = steps[activeStep] || steps[0];
             return (
               <>
                 {steps.length > 1 && (
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {steps.map((s, i) => (
-                      <button key={s} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-                        Step {s}
+                      <button key={i} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                        {s.name || `Step ${i + 1}`}
                       </button>
                     ))}
                   </div>
                 )}
                 <div className="space-y-4 mt-4">
-                  {stepFields.map((f, i) => (
+                  {(current?.fields || []).map((f, i) => (
                     <FieldRenderer
                       key={i}
                       field={f}

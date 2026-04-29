@@ -29,7 +29,21 @@ interface Props {
   disabled?: boolean;
 }
 
+export const computeSteps = (fields: FieldDef[]): { name: string; fields: FieldDef[] }[] => {
+  const steps: { name: string; fields: FieldDef[] }[] = [{ name: '', fields: [] }];
+  fields.forEach((f) => {
+    if (f.field_type === 'page_break') {
+      const name = (f.validation as any)?.step_name || '';
+      steps.push({ name, fields: [] });
+    } else {
+      steps[steps.length - 1].fields.push(f);
+    }
+  });
+  return steps.filter((s, i) => s.fields.length > 0 || i === 0);
+};
+
 export const FieldRenderer: React.FC<Props> = ({ field, value, onChange, lookupOptions, disabled }) => {
+  if (field.field_type === 'page_break') return null;
   if (field.field_type === 'section') {
     return (
       <div className="border-t pt-4 mt-2">
@@ -109,10 +123,32 @@ export const FieldRenderer: React.FC<Props> = ({ field, value, onChange, lookupO
         </RadioGroup>
       )}
       {field.field_type === 'checkbox' && (
-        <div className="flex items-center gap-2">
-          <Checkbox checked={!!value} onCheckedChange={(c) => onChange(!!c)} disabled={disabled} />
-          <span className="text-sm">{field.placeholder || 'Yes'}</span>
-        </div>
+        opts.length > 0 ? (
+          <div className="space-y-2">
+            {opts.map((o: any) => {
+              const arr: any[] = Array.isArray(value) ? value : [];
+              const checked = arr.includes(o.value);
+              return (
+                <div key={String(o.value)} className="flex items-center gap-2">
+                  <Checkbox
+                    checked={checked}
+                    onCheckedChange={(c) => {
+                      const next = c ? [...arr, o.value] : arr.filter((x) => x !== o.value);
+                      onChange(next);
+                    }}
+                    disabled={disabled}
+                  />
+                  <span className="text-sm">{o.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Checkbox checked={!!value} onCheckedChange={(c) => onChange(!!c)} disabled={disabled} />
+            <span className="text-sm">{field.placeholder || 'Yes'}</span>
+          </div>
+        )
       )}
       {field.field_type === 'yesno' && (
         <div className="flex items-center gap-3">
