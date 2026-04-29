@@ -266,66 +266,89 @@ const CMSActivityFormBuilder = () => {
         </TabsContent>
 
         <TabsContent value="fields" className="mt-6 space-y-3">
-          {fields.map((f, idx) => (
-            <Card key={idx}>
-              <CardContent className="pt-6 space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">#{idx + 1}</Badge>
-                    <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)}><ChevronUp className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)}><ChevronDown className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => removeField(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label>Label</Label><Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} /></div>
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={f.field_type} onValueChange={(v) => updateField(idx, { field_type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
-                    <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} /></div>
-                  )}
-                  <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => updateField(idx, { help_text: e.target.value })} /></div>
-                  {['select', 'multiselect', 'radio'].includes(f.field_type) && (
-                    <div className="md:col-span-2">
-                      <Label>Options (one per line)</Label>
-                      <Textarea
-                        rows={4}
-                        value={(f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n')}
-                        onChange={(e) => updateField(idx, { options: e.target.value.split('\n').filter(Boolean).map((s) => ({ label: s.trim(), value: s.trim() })) })}
-                      />
+          {fields.length === 0 && (
+            <Card><CardContent className="pt-6 text-center text-muted-foreground text-sm">No fields yet — click "Add Field" below to start.</CardContent></Card>
+          )}
+          {fields.map((f, idx) => {
+            const isOpen = expandedField === idx;
+            const step = (f.validation as any)?.step ?? 1;
+            return (
+              <Card key={idx} className={isOpen ? 'ring-2 ring-primary/30' : ''}>
+                <Collapsible open={isOpen} onOpenChange={(o) => setExpandedField(o ? idx : null)}>
+                  <div className="flex items-center justify-between gap-2 px-4 py-3 flex-wrap">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-2 flex-1 text-left hover:opacity-80">
+                        <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                        <Badge variant="outline">#{idx + 1}</Badge>
+                        <Badge variant="secondary" className="text-xs">Step {step}</Badge>
+                        <span className="font-medium text-foreground truncate">{f.label || 'Untitled'}</span>
+                        <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>
+                        {f.is_required && <Badge variant="destructive" className="text-xs">Required</Badge>}
+                      </button>
+                    </CollapsibleTrigger>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)}><ChevronUp className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)}><ChevronDown className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => removeField(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
-                  )}
-                  {f.field_type === 'lookup' && (
-                    <div>
-                      <Label>Lookup source</Label>
-                      <Select value={f.lookup_source || ''} onValueChange={(v) => updateField(idx, { lookup_source: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                        <SelectContent>
-                          {LOOKUP_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {f.field_type !== 'section' && (
-                    <div className="flex items-center gap-2 pt-6">
-                      <Switch checked={!!f.is_required} onCheckedChange={(v) => updateField(idx, { is_required: v })} />
-                      <Label>Required</Label>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-4 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><Label>Label</Label><Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} /></div>
+                        <div>
+                          <Label>Type</Label>
+                          <Select value={f.field_type} onValueChange={(v) => updateField(idx, { field_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
+                          <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} /></div>
+                        )}
+                        <div>
+                          <Label>Step (for multi-step forms)</Label>
+                          <Input type="number" min={1} value={step} onChange={(e) => updateField(idx, { validation: { ...(f.validation || {}), step: Math.max(1, parseInt(e.target.value) || 1) } })} />
+                        </div>
+                        <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => updateField(idx, { help_text: e.target.value })} /></div>
+                        {['select', 'multiselect', 'radio'].includes(f.field_type) && (
+                          <div className="md:col-span-2">
+                            <Label>Options (one per line OR comma-separated)</Label>
+                            <Textarea
+                              rows={4}
+                              placeholder={'Option 1\nOption 2\nOption 3\n\n— or —\nOption 1, Option 2, Option 3'}
+                              value={(f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n')}
+                              onChange={(e) => updateField(idx, { options: e.target.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean).map((s) => ({ label: s, value: s })) })}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Tip: separate options with new lines or commas. Each entry becomes a selectable choice.</p>
+                          </div>
+                        )}
+                        {f.field_type === 'lookup' && (
+                          <div>
+                            <Label>Lookup source</Label>
+                            <Select value={f.lookup_source || ''} onValueChange={(v) => updateField(idx, { lookup_source: v })}>
+                              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                              <SelectContent>
+                                {LOOKUP_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {f.field_type !== 'section' && (
+                          <div className="flex items-center gap-2 pt-6">
+                            <Switch checked={!!f.is_required} onCheckedChange={(v) => updateField(idx, { is_required: v })} />
+                            <Label>Required</Label>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
           <Button variant="outline" className="w-full" onClick={addField}><Plus className="h-4 w-4 mr-2" /> Add Field</Button>
         </TabsContent>
 
