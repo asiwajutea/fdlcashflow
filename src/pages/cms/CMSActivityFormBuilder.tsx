@@ -34,6 +34,7 @@ const FIELD_TYPES = [
   { value: 'signature', label: 'Signature' },
   { value: 'section', label: 'Section Heading' },
   { value: 'lookup', label: 'Linked Data (Lookup)' },
+  { value: 'page_break', label: '— Page Break (new step) —' },
 ];
 
 const LOOKUP_SOURCES = ['departments', 'projects', 'teams', 'positions', 'employees'];
