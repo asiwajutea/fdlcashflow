@@ -76,6 +76,7 @@ const ActivityReport = () => {
     const pk = periodKey(form.frequency);
     const existing = (submissionsByForm[form.id] || []).find((s: any) => s.period_key === pk);
     setAnswers(existing?.answers || {});
+    setActiveStep(0);
     setActive({ ...form, period_key: pk, existing });
   };
 
