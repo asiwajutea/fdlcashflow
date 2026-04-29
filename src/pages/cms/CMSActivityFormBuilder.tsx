@@ -108,7 +108,7 @@ const CMSActivityFormBuilder = () => {
         is_required: false,
         options: [],
         display_order: fields.length,
-        validation: { step: 1 },
+        validation: {},
       },
     ];
     setFields(next);
