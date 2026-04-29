@@ -15,7 +15,7 @@ import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
 import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FieldRenderer, FieldDef } from '@/components/forms/FieldRenderer';
+import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 
 const FIELD_TYPES = [
