@@ -29,7 +29,21 @@ interface Props {
   disabled?: boolean;
 }
 
+export const computeSteps = (fields: FieldDef[]): { name: string; fields: FieldDef[] }[] => {
+  const steps: { name: string; fields: FieldDef[] }[] = [{ name: '', fields: [] }];
+  fields.forEach((f) => {
+    if (f.field_type === 'page_break') {
+      const name = (f.validation as any)?.step_name || '';
+      steps.push({ name, fields: [] });
+    } else {
+      steps[steps.length - 1].fields.push(f);
+    }
+  });
+  return steps.filter((s, i) => s.fields.length > 0 || i === 0);
+};
+
 export const FieldRenderer: React.FC<Props> = ({ field, value, onChange, lookupOptions, disabled }) => {
+  if (field.field_type === 'page_break') return null;
   if (field.field_type === 'section') {
     return (
       <div className="border-t pt-4 mt-2">
