@@ -98,7 +98,7 @@ const CMSActivityFormBuilder = () => {
   const updateForm = (patch: any) => setForm({ ...form, ...patch });
 
   const addField = () => {
-    setFields([
+    const next = [
       ...fields,
       {
         field_key: `field_${fields.length + 1}_${Date.now().toString(36)}`,
@@ -107,8 +107,11 @@ const CMSActivityFormBuilder = () => {
         is_required: false,
         options: [],
         display_order: fields.length,
+        validation: { step: 1 },
       },
-    ]);
+    ];
+    setFields(next);
+    setExpandedField(next.length - 1);
   };
 
   const updateField = (idx: number, patch: Partial<FieldDef>) => {
