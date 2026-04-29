@@ -9,7 +9,7 @@ import { db } from '@/lib/supabase-db';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { BarChart3, ClipboardList, CheckCircle2, Calendar, Clock, History } from 'lucide-react';
-import { FieldRenderer, FieldDef } from '@/components/forms/FieldRenderer';
+import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
