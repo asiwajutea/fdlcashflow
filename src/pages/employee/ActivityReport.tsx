@@ -34,6 +34,7 @@ const ActivityReport = () => {
   const [answers, setAnswers] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [lookups, setLookups] = useState<Record<string, any[]>>({});
+  const [activeStep, setActiveStep] = useState(0);
 
   const loadAll = async () => {
     if (!user) return;
