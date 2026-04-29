@@ -472,22 +472,21 @@ const CMSActivityFormBuilder = () => {
           <DialogHeader><DialogTitle>Preview: {form.title}</DialogTitle></DialogHeader>
           {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
           {(() => {
-            const steps = Array.from(new Set(fields.map((f) => (f.validation as any)?.step ?? 1))).sort((a, b) => a - b);
-            const currentStep = steps[activeStep] ?? 1;
-            const stepFields = fields.filter((f) => ((f.validation as any)?.step ?? 1) === currentStep);
+            const steps = computeSteps(fields);
+            const current = steps[activeStep] || steps[0];
             return (
               <>
                 {steps.length > 1 && (
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
                     {steps.map((s, i) => (
-                      <button key={s} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-                        Step {s}
+                      <button key={i} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                        {s.name || `Step ${i + 1}`}
                       </button>
                     ))}
                   </div>
                 )}
                 <div className="space-y-4 mt-4">
-                  {stepFields.map((f, i) => (
+                  {(current?.fields || []).map((f, i) => (
                     <FieldRenderer
                       key={i}
                       field={f}
