@@ -122,18 +122,18 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-card border-b border-card-border shadow-financial-sm">
+      <header className="bg-card border-b border-card-border shadow-financial-sm sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-card/95">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              {/* Navigation Menu */}
+          <div className="flex justify-between items-center h-16 gap-4">
+            {/* Left: nav + brand */}
+            <div className="flex items-center space-x-3 min-w-0">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="shrink-0">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-56">
+                <DropdownMenuContent align="start" className="w-56 max-h-[80vh] overflow-y-auto">
                   {visibleSections.map((section, sectionIndex) => (
                     <React.Fragment key={section.label}>
                       {sectionIndex > 0 && <DropdownMenuSeparator />}
@@ -147,8 +147,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                           <DropdownMenuItem
                             key={item.path}
                             onClick={() => navigate(item.path)}
-                            className={isActive ? 'bg-accent font-semibold' : ''}
-                          >
+                            className={isActive ? 'bg-accent font-semibold' : ''}>
                             <Icon className="mr-2 h-4 w-4" />
                             {item.label}
                           </DropdownMenuItem>
@@ -160,65 +159,90 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </DropdownMenu>
 
               <div
-                className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+                className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity min-w-0"
                 onClick={() => navigate('/dashboard')}>
-                <div className="bg-gradient-primary p-2 rounded-lg">
-                  <BarChart3 className="h-6 w-6 text-primary-foreground" />
+                <div className="bg-gradient-primary p-2 rounded-lg shrink-0">
+                  <BarChart3 className="h-5 w-5 text-primary-foreground" />
                 </div>
-                <div className="hidden sm:block">
-                  <h1 className="text-xl font-bold text-primary-dark">FDL Workforce</h1>
-                  <p className="text-sm text-muted-foreground">Footprints Dynasty Limited</p>
+                <div className="hidden md:block min-w-0">
+                  <h1 className="text-base font-bold text-primary-dark leading-tight truncate">FDL Workforce</h1>
+                  <p className="text-xs text-muted-foreground truncate">Footprints Dynasty Limited</p>
+                </div>
+              </div>
+
+              {/* Page title — center-left */}
+              <div className="hidden lg:flex items-center gap-3 pl-4 ml-2 border-l border-border min-w-0">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-foreground leading-tight truncate">{title}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
                 </div>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <ThemeToggle />
-              
-              {/* Inbox button */}
-              {user &&
-              <Button variant="ghost" size="sm" onClick={() => navigate('/inbox')} className="relative">
+
+              {user && (
+                <Button variant="ghost" size="icon" onClick={() => navigate('/inbox')} className="relative">
                   <Mail className="h-4 w-4" />
-                  {unreadCount > 0 &&
-                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground text-xs flex items-center justify-center">
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-semibold flex items-center justify-center">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
-                }
+                  )}
                 </Button>
-              }
+              )}
 
-              {user &&
-              <div className="flex items-center gap-3">
-                  <div className="text-right hidden sm:block">
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-9 px-2 gap-2">
+                      <Avatar className="h-7 w-7">
                         <AvatarImage src={avatarUrl || undefined} />
-                        <AvatarFallback className="text-xs">
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
                           {fullName ? fullName.charAt(0).toUpperCase() : <User className="h-3 w-3" />}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="text-sm font-medium">{fullName || user.email}</span>
-                    </div>
-                    <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs">
-                      {role}
-                    </Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </div>
-              }
-              <div className="text-right">
-                <p className="text-sm font-medium text-foreground">{title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date().toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
-                </p>
-              </div>
+                      <div className="hidden sm:flex flex-col items-start leading-tight">
+                        <span className="text-xs font-semibold text-foreground max-w-[140px] truncate">{fullName || user.email}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize">{role}</span>
+                      </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold truncate">{fullName || 'User'}</span>
+                        <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                        <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-[10px] w-fit mt-1 capitalize">{role}</Badge>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate('/profile')}>
+                      <User className="mr-2 h-4 w-4" /> My Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/inbox')}>
+                      <Mail className="mr-2 h-4 w-4" /> Inbox
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                      <LogOut className="mr-2 h-4 w-4" /> Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
+          </div>
+
+          {/* Mobile page title */}
+          <div className="lg:hidden pb-2 -mt-1">
+            <p className="text-sm font-semibold text-foreground leading-tight">{title}</p>
+            <p className="text-[11px] text-muted-foreground">
+              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
           </div>
         </div>
       </header>

@@ -13,7 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FieldRenderer, FieldDef } from '@/components/forms/FieldRenderer';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 
@@ -66,6 +67,8 @@ const CMSActivityFormBuilder = () => {
   const [previewData, setPreviewData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [newAssignment, setNewAssignment] = useState<any>({ assignment_type: 'everyone' });
+  const [expandedField, setExpandedField] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -95,7 +98,7 @@ const CMSActivityFormBuilder = () => {
   const updateForm = (patch: any) => setForm({ ...form, ...patch });
 
   const addField = () => {
-    setFields([
+    const next = [
       ...fields,
       {
         field_key: `field_${fields.length + 1}_${Date.now().toString(36)}`,
@@ -104,8 +107,11 @@ const CMSActivityFormBuilder = () => {
         is_required: false,
         options: [],
         display_order: fields.length,
+        validation: { step: 1 },
       },
-    ]);
+    ];
+    setFields(next);
+    setExpandedField(next.length - 1);
   };
 
   const updateField = (idx: number, patch: Partial<FieldDef>) => {
@@ -190,17 +196,34 @@ const CMSActivityFormBuilder = () => {
 
   return (
     <DashboardLayout title="Form Builder">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/cms/activity-forms"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">{form.title || 'Untitled Form'}</h2>
-            <p className="text-sm text-muted-foreground">Design fields, set frequency, and choose who must fill it.</p>
+      <div className="mb-6 rounded-xl border bg-gradient-to-r from-primary/5 via-card to-card shadow-sm overflow-hidden">
+        <div className="flex items-start justify-between flex-wrap gap-4 p-5">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Link to="/cms/activity-forms">
+              <Button variant="ghost" size="icon" className="shrink-0 hover:bg-background"><ArrowLeft className="h-4 w-4" /></Button>
+            </Link>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                <Link to="/cms" className="hover:text-foreground">CMS</Link>
+                <ChevronRight className="h-3 w-3" />
+                <Link to="/cms/activity-forms" className="hover:text-foreground">Activity Forms</Link>
+                <ChevronRight className="h-3 w-3" />
+                <span>Builder</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground truncate">{form.title || 'Untitled Form'}</h2>
+              <p className="text-sm text-muted-foreground">Design fields, set frequency, and choose who must fill it.</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <Badge variant={form.is_active ? 'default' : 'secondary'} className="capitalize">{form.is_active ? 'Active' : 'Draft'}</Badge>
+                <Badge variant="outline" className="capitalize">{(form.frequency || 'daily').replace('_', ' ')}</Badge>
+                <Badge variant="outline">{fields.length} field{fields.length === 1 ? '' : 's'}</Badge>
+                <Badge variant="outline">{assignments.length} assignment{assignments.length === 1 ? '' : 's'}</Badge>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { setPreviewData({}); setPreviewOpen(true); }}><Eye className="h-4 w-4 mr-2" /> Preview</Button>
-          <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? 'Saving…' : 'Save'}</Button>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" onClick={() => { setPreviewData({}); setActiveStep(0); setPreviewOpen(true); }}><Eye className="h-4 w-4 mr-2" /> Preview</Button>
+            <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? 'Saving…' : 'Save changes'}</Button>
+          </div>
         </div>
       </div>
 
@@ -260,66 +283,89 @@ const CMSActivityFormBuilder = () => {
         </TabsContent>
 
         <TabsContent value="fields" className="mt-6 space-y-3">
-          {fields.map((f, idx) => (
-            <Card key={idx}>
-              <CardContent className="pt-6 space-y-3">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">#{idx + 1}</Badge>
-                    <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)}><ChevronUp className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)}><ChevronDown className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => removeField(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div><Label>Label</Label><Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} /></div>
-                  <div>
-                    <Label>Type</Label>
-                    <Select value={f.field_type} onValueChange={(v) => updateField(idx, { field_type: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
-                    <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} /></div>
-                  )}
-                  <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => updateField(idx, { help_text: e.target.value })} /></div>
-                  {['select', 'multiselect', 'radio'].includes(f.field_type) && (
-                    <div className="md:col-span-2">
-                      <Label>Options (one per line)</Label>
-                      <Textarea
-                        rows={4}
-                        value={(f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n')}
-                        onChange={(e) => updateField(idx, { options: e.target.value.split('\n').filter(Boolean).map((s) => ({ label: s.trim(), value: s.trim() })) })}
-                      />
+          {fields.length === 0 && (
+            <Card><CardContent className="pt-6 text-center text-muted-foreground text-sm">No fields yet — click "Add Field" below to start.</CardContent></Card>
+          )}
+          {fields.map((f, idx) => {
+            const isOpen = expandedField === idx;
+            const step = (f.validation as any)?.step ?? 1;
+            return (
+              <Card key={idx} className={isOpen ? 'ring-2 ring-primary/30' : ''}>
+                <Collapsible open={isOpen} onOpenChange={(o) => setExpandedField(o ? idx : null)}>
+                  <div className="flex items-center justify-between gap-2 px-4 py-3 flex-wrap">
+                    <CollapsibleTrigger asChild>
+                      <button className="flex items-center gap-2 flex-1 text-left hover:opacity-80">
+                        <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
+                        <Badge variant="outline">#{idx + 1}</Badge>
+                        <Badge variant="secondary" className="text-xs">Step {step}</Badge>
+                        <span className="font-medium text-foreground truncate">{f.label || 'Untitled'}</span>
+                        <Badge>{FIELD_TYPES.find((t) => t.value === f.field_type)?.label}</Badge>
+                        {f.is_required && <Badge variant="destructive" className="text-xs">Required</Badge>}
+                      </button>
+                    </CollapsibleTrigger>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)}><ChevronUp className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)}><ChevronDown className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => removeField(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
-                  )}
-                  {f.field_type === 'lookup' && (
-                    <div>
-                      <Label>Lookup source</Label>
-                      <Select value={f.lookup_source || ''} onValueChange={(v) => updateField(idx, { lookup_source: v })}>
-                        <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
-                        <SelectContent>
-                          {LOOKUP_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                  {f.field_type !== 'section' && (
-                    <div className="flex items-center gap-2 pt-6">
-                      <Switch checked={!!f.is_required} onCheckedChange={(v) => updateField(idx, { is_required: v })} />
-                      <Label>Required</Label>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                  <CollapsibleContent>
+                    <CardContent className="pt-0 pb-4 space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div><Label>Label</Label><Input value={f.label} onChange={(e) => updateField(idx, { label: e.target.value })} /></div>
+                        <div>
+                          <Label>Type</Label>
+                          <Select value={f.field_type} onValueChange={(v) => updateField(idx, { field_type: v })}>
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
+                          <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => updateField(idx, { placeholder: e.target.value })} /></div>
+                        )}
+                        <div>
+                          <Label>Step (for multi-step forms)</Label>
+                          <Input type="number" min={1} value={step} onChange={(e) => updateField(idx, { validation: { ...(f.validation || {}), step: Math.max(1, parseInt(e.target.value) || 1) } })} />
+                        </div>
+                        <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => updateField(idx, { help_text: e.target.value })} /></div>
+                        {['select', 'multiselect', 'radio'].includes(f.field_type) && (
+                          <div className="md:col-span-2">
+                            <Label>Options (one per line OR comma-separated)</Label>
+                            <Textarea
+                              rows={4}
+                              placeholder={'Option 1\nOption 2\nOption 3\n\n— or —\nOption 1, Option 2, Option 3'}
+                              value={(f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n')}
+                              onChange={(e) => updateField(idx, { options: e.target.value.split(/[\n,]/).map((s) => s.trim()).filter(Boolean).map((s) => ({ label: s, value: s })) })}
+                            />
+                            <p className="text-xs text-muted-foreground mt-1">Tip: separate options with new lines or commas. Each entry becomes a selectable choice.</p>
+                          </div>
+                        )}
+                        {f.field_type === 'lookup' && (
+                          <div>
+                            <Label>Lookup source</Label>
+                            <Select value={f.lookup_source || ''} onValueChange={(v) => updateField(idx, { lookup_source: v })}>
+                              <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+                              <SelectContent>
+                                {LOOKUP_SOURCES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        {f.field_type !== 'section' && (
+                          <div className="flex items-center gap-2 pt-6">
+                            <Switch checked={!!f.is_required} onCheckedChange={(v) => updateField(idx, { is_required: v })} />
+                            <Label>Required</Label>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+            );
+          })}
           <Button variant="outline" className="w-full" onClick={addField}><Plus className="h-4 w-4 mr-2" /> Add Field</Button>
         </TabsContent>
 
@@ -390,21 +436,45 @@ const CMSActivityFormBuilder = () => {
       </Tabs>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Preview: {form.title}</DialogTitle></DialogHeader>
           {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
-          <div className="space-y-4 mt-4">
-            {fields.map((f, i) => (
-              <FieldRenderer
-                key={i}
-                field={f}
-                value={previewData[f.field_key]}
-                onChange={(v) => setPreviewData({ ...previewData, [f.field_key]: v })}
-                lookupOptions={lookupOptions}
-              />
-            ))}
-            {fields.length === 0 && <p className="text-sm text-muted-foreground">No fields yet.</p>}
-          </div>
+          {(() => {
+            const steps = Array.from(new Set(fields.map((f) => (f.validation as any)?.step ?? 1))).sort((a, b) => a - b);
+            const currentStep = steps[activeStep] ?? 1;
+            const stepFields = fields.filter((f) => ((f.validation as any)?.step ?? 1) === currentStep);
+            return (
+              <>
+                {steps.length > 1 && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {steps.map((s, i) => (
+                      <button key={s} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                        Step {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-4 mt-4">
+                  {stepFields.map((f, i) => (
+                    <FieldRenderer
+                      key={i}
+                      field={f}
+                      value={previewData[f.field_key]}
+                      onChange={(v) => setPreviewData({ ...previewData, [f.field_key]: v })}
+                      lookupOptions={lookupOptions}
+                    />
+                  ))}
+                  {fields.length === 0 && <p className="text-sm text-muted-foreground">No fields yet.</p>}
+                </div>
+                {steps.length > 1 && (
+                  <div className="flex justify-between mt-6 pt-4 border-t">
+                    <Button variant="outline" disabled={activeStep === 0} onClick={() => setActiveStep(activeStep - 1)}>Previous</Button>
+                    <Button disabled={activeStep >= steps.length - 1} onClick={() => setActiveStep(activeStep + 1)}>Next</Button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </DashboardLayout>

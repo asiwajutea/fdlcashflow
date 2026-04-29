@@ -34,6 +34,7 @@ const ActivityReport = () => {
   const [answers, setAnswers] = useState<any>({});
   const [submitting, setSubmitting] = useState(false);
   const [lookups, setLookups] = useState<Record<string, any[]>>({});
+  const [activeStep, setActiveStep] = useState(0);
 
   const loadAll = async () => {
     if (!user) return;
@@ -75,6 +76,7 @@ const ActivityReport = () => {
     const pk = periodKey(form.frequency);
     const existing = (submissionsByForm[form.id] || []).find((s: any) => s.period_key === pk);
     setAnswers(existing?.answers || {});
+    setActiveStep(0);
     setActive({ ...form, period_key: pk, existing });
   };
 
@@ -185,21 +187,52 @@ const ActivityReport = () => {
           </DialogHeader>
           {active?.description && <p className="text-sm text-muted-foreground">{active.description}</p>}
           <div className="text-xs text-muted-foreground flex items-center gap-2"><Calendar className="h-3 w-3" /> Period: {active?.period_key} {active?.existing && <Badge variant="secondary" className="ml-2">Already submitted — editing</Badge>}</div>
-          <div className="space-y-4 mt-4">
-            {(fieldsByForm[active?.id] || []).map((f, i) => (
-              <FieldRenderer
-                key={i}
-                field={f}
-                value={answers[f.field_key]}
-                onChange={(v) => setAnswers({ ...answers, [f.field_key]: v })}
-                lookupOptions={lookups}
-              />
-            ))}
-          </div>
-          <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setActive(null)}>Cancel</Button>
-            <Button onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submitting…' : (active?.existing ? 'Update' : 'Submit')}</Button>
-          </div>
+          {(() => {
+            const allFields = fieldsByForm[active?.id] || [];
+            const steps = Array.from(new Set(allFields.map((f: any) => (f.validation as any)?.step ?? 1))).sort((a: number, b: number) => a - b);
+            const currentStep = steps[activeStep] ?? 1;
+            const stepFields = allFields.filter((f: any) => ((f.validation as any)?.step ?? 1) === currentStep);
+            const isLast = activeStep >= steps.length - 1;
+            return (
+              <>
+                {steps.length > 1 && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {steps.map((s: number, i: number) => (
+                      <div key={s} className={`px-3 py-1 rounded-full text-xs font-medium ${i === activeStep ? 'bg-primary text-primary-foreground' : i < activeStep ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+                        Step {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-4 mt-4">
+                  {stepFields.map((f: any, i: number) => (
+                    <FieldRenderer
+                      key={i}
+                      field={f}
+                      value={answers[f.field_key]}
+                      onChange={(v) => setAnswers({ ...answers, [f.field_key]: v })}
+                      lookupOptions={lookups}
+                    />
+                  ))}
+                </div>
+                <div className="flex justify-between gap-2 mt-6 pt-4 border-t">
+                  <div>
+                    {steps.length > 1 && activeStep > 0 && (
+                      <Button variant="outline" onClick={() => setActiveStep(activeStep - 1)}>Previous</Button>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={() => setActive(null)}>Cancel</Button>
+                    {steps.length > 1 && !isLast ? (
+                      <Button onClick={() => setActiveStep(activeStep + 1)}>Next</Button>
+                    ) : (
+                      <Button onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submitting…' : (active?.existing ? 'Update' : 'Submit')}</Button>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
