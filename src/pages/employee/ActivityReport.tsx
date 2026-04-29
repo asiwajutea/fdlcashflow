@@ -189,17 +189,17 @@ const ActivityReport = () => {
           <div className="text-xs text-muted-foreground flex items-center gap-2"><Calendar className="h-3 w-3" /> Period: {active?.period_key} {active?.existing && <Badge variant="secondary" className="ml-2">Already submitted — editing</Badge>}</div>
           {(() => {
             const allFields = fieldsByForm[active?.id] || [];
-            const steps = Array.from(new Set(allFields.map((f: any) => (f.validation as any)?.step ?? 1))).sort((a: number, b: number) => a - b);
-            const currentStep = steps[activeStep] ?? 1;
-            const stepFields = allFields.filter((f: any) => ((f.validation as any)?.step ?? 1) === currentStep);
+            const steps = computeSteps(allFields);
+            const current = steps[activeStep] || steps[0];
+            const stepFields = current?.fields || [];
             const isLast = activeStep >= steps.length - 1;
             return (
               <>
                 {steps.length > 1 && (
                   <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {steps.map((s: number, i: number) => (
-                      <div key={s} className={`px-3 py-1 rounded-full text-xs font-medium ${i === activeStep ? 'bg-primary text-primary-foreground' : i < activeStep ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
-                        Step {s}
+                    {steps.map((s, i) => (
+                      <div key={i} className={`px-3 py-1 rounded-full text-xs font-medium ${i === activeStep ? 'bg-primary text-primary-foreground' : i < activeStep ? 'bg-green-600 text-white' : 'bg-muted text-muted-foreground'}`}>
+                        {s.name || `Step ${i + 1}`}
                       </div>
                     ))}
                   </div>
