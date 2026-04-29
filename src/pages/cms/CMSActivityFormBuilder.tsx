@@ -196,17 +196,34 @@ const CMSActivityFormBuilder = () => {
 
   return (
     <DashboardLayout title="Form Builder">
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link to="/cms/activity-forms"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
-          <div>
-            <h2 className="text-xl font-bold text-foreground">{form.title || 'Untitled Form'}</h2>
-            <p className="text-sm text-muted-foreground">Design fields, set frequency, and choose who must fill it.</p>
+      <div className="mb-6 rounded-xl border bg-gradient-to-r from-primary/5 via-card to-card shadow-sm overflow-hidden">
+        <div className="flex items-start justify-between flex-wrap gap-4 p-5">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            <Link to="/cms/activity-forms">
+              <Button variant="ghost" size="icon" className="shrink-0 hover:bg-background"><ArrowLeft className="h-4 w-4" /></Button>
+            </Link>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                <Link to="/cms" className="hover:text-foreground">CMS</Link>
+                <ChevronRight className="h-3 w-3" />
+                <Link to="/cms/activity-forms" className="hover:text-foreground">Activity Forms</Link>
+                <ChevronRight className="h-3 w-3" />
+                <span>Builder</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground truncate">{form.title || 'Untitled Form'}</h2>
+              <p className="text-sm text-muted-foreground">Design fields, set frequency, and choose who must fill it.</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <Badge variant={form.is_active ? 'default' : 'secondary'} className="capitalize">{form.is_active ? 'Active' : 'Draft'}</Badge>
+                <Badge variant="outline" className="capitalize">{(form.frequency || 'daily').replace('_', ' ')}</Badge>
+                <Badge variant="outline">{fields.length} field{fields.length === 1 ? '' : 's'}</Badge>
+                <Badge variant="outline">{assignments.length} assignment{assignments.length === 1 ? '' : 's'}</Badge>
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => { setPreviewData({}); setPreviewOpen(true); }}><Eye className="h-4 w-4 mr-2" /> Preview</Button>
-          <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? 'Saving…' : 'Save'}</Button>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="outline" onClick={() => { setPreviewData({}); setActiveStep(0); setPreviewOpen(true); }}><Eye className="h-4 w-4 mr-2" /> Preview</Button>
+            <Button onClick={handleSave} disabled={saving}><Save className="h-4 w-4 mr-2" /> {saving ? 'Saving…' : 'Save changes'}</Button>
+          </div>
         </div>
       </div>
 
