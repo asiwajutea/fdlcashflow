@@ -84,7 +84,7 @@ const ActivityReport = () => {
     if (!active || !user) return;
     const fields = fieldsByForm[active.id] || [];
     for (const f of fields) {
-      if (f.is_required && f.field_type !== 'section') {
+      if (f.is_required && !['section', 'page_break'].includes(f.field_type)) {
         const v = answers[f.field_key];
         if (v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0)) {
           toast.error(`"${f.label}" is required`);
