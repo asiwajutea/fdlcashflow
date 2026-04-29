@@ -67,6 +67,8 @@ const CMSActivityFormBuilder = () => {
   const [previewData, setPreviewData] = useState<any>({});
   const [saving, setSaving] = useState(false);
   const [newAssignment, setNewAssignment] = useState<any>({ assignment_type: 'everyone' });
+  const [expandedField, setExpandedField] = useState<number | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
     (async () => {
