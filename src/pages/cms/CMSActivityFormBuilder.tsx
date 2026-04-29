@@ -436,21 +436,45 @@ const CMSActivityFormBuilder = () => {
       </Tabs>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Preview: {form.title}</DialogTitle></DialogHeader>
           {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
-          <div className="space-y-4 mt-4">
-            {fields.map((f, i) => (
-              <FieldRenderer
-                key={i}
-                field={f}
-                value={previewData[f.field_key]}
-                onChange={(v) => setPreviewData({ ...previewData, [f.field_key]: v })}
-                lookupOptions={lookupOptions}
-              />
-            ))}
-            {fields.length === 0 && <p className="text-sm text-muted-foreground">No fields yet.</p>}
-          </div>
+          {(() => {
+            const steps = Array.from(new Set(fields.map((f) => (f.validation as any)?.step ?? 1))).sort((a, b) => a - b);
+            const currentStep = steps[activeStep] ?? 1;
+            const stepFields = fields.filter((f) => ((f.validation as any)?.step ?? 1) === currentStep);
+            return (
+              <>
+                {steps.length > 1 && (
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {steps.map((s, i) => (
+                      <button key={s} onClick={() => setActiveStep(i)} className={`px-3 py-1 rounded-full text-xs font-medium transition ${i === activeStep ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
+                        Step {s}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="space-y-4 mt-4">
+                  {stepFields.map((f, i) => (
+                    <FieldRenderer
+                      key={i}
+                      field={f}
+                      value={previewData[f.field_key]}
+                      onChange={(v) => setPreviewData({ ...previewData, [f.field_key]: v })}
+                      lookupOptions={lookupOptions}
+                    />
+                  ))}
+                  {fields.length === 0 && <p className="text-sm text-muted-foreground">No fields yet.</p>}
+                </div>
+                {steps.length > 1 && (
+                  <div className="flex justify-between mt-6 pt-4 border-t">
+                    <Button variant="outline" disabled={activeStep === 0} onClick={() => setActiveStep(activeStep - 1)}>Previous</Button>
+                    <Button disabled={activeStep >= steps.length - 1} onClick={() => setActiveStep(activeStep + 1)}>Next</Button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </DashboardLayout>
