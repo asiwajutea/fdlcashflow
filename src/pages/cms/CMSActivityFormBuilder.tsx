@@ -513,7 +513,7 @@ const CMSActivityFormBuilder = () => {
           <DialogHeader><DialogTitle>Preview: {form.title}</DialogTitle></DialogHeader>
           {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
           {(() => {
-            const steps = computeSteps(fields);
+            const steps = computeSteps(fields, form.first_step_name || '');
             const current = steps[activeStep] || steps[0];
             return (
               <>
