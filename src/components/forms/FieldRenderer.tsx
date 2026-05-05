@@ -29,8 +29,8 @@ interface Props {
   disabled?: boolean;
 }
 
-export const computeSteps = (fields: FieldDef[]): { name: string; fields: FieldDef[] }[] => {
-  const steps: { name: string; fields: FieldDef[] }[] = [{ name: '', fields: [] }];
+export const computeSteps = (fields: FieldDef[], firstStepName: string = ''): { name: string; fields: FieldDef[] }[] => {
+  const steps: { name: string; fields: FieldDef[] }[] = [{ name: firstStepName, fields: [] }];
   fields.forEach((f) => {
     if (f.field_type === 'page_break') {
       const name = (f.validation as any)?.step_name || '';
