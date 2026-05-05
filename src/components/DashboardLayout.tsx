@@ -54,6 +54,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/user-management', label: 'User Management', icon: Users, capability: 'manage_users' },
       { path: '/applications', label: 'HR Recruitment', icon: Briefcase, capability: 'manage_recruitment' },
+      { path: '/jobs', label: 'Manage Job Positions', icon: Briefcase, capability: 'add_job_position' },
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
     ],
   },
