@@ -353,6 +353,17 @@ const CMSActivityFormBuilder = () => {
                 <div className="flex items-center gap-2"><Switch checked={!!form.reminders_enabled} onCheckedChange={(v) => updateForm({ reminders_enabled: v })} /><Label>Send reminders when overdue</Label></div>
                 <div className="flex items-center gap-2"><Switch checked={!!form.manager_visible} onCheckedChange={(v) => updateForm({ manager_visible: v })} /><Label>Visible to managers</Label></div>
               </div>
+              {fields.some((f) => f.field_type === 'page_break') && (
+                <div>
+                  <Label>Step 1 name (optional)</Label>
+                  <Input
+                    value={form.first_step_name || ''}
+                    onChange={(e) => updateForm({ first_step_name: e.target.value })}
+                    placeholder="e.g. Basic Information"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Shown above the first page when this form has multiple steps.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
