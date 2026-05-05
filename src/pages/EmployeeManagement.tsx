@@ -19,7 +19,10 @@ interface Employee {
   bank_name: string | null;
   account_number: string | null;
   email: string | null;
+  user_id: string | null;
 }
+
+interface ProfileLite { id: string; full_name: string | null; email?: string | null }
 
 const EmployeeManagement = () => {
   const { user, loading } = useAuth();
