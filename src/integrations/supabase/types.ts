@@ -147,6 +147,7 @@ export type Database = {
           description: string | null
           due_day: number | null
           due_time: string | null
+          first_step_name: string | null
           frequency: string
           id: string
           is_active: boolean
@@ -161,6 +162,7 @@ export type Database = {
           description?: string | null
           due_day?: number | null
           due_time?: string | null
+          first_step_name?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -175,6 +177,7 @@ export type Database = {
           description?: string | null
           due_day?: number | null
           due_time?: string | null
+          first_step_name?: string | null
           frequency?: string
           id?: string
           is_active?: boolean
@@ -604,6 +607,8 @@ export type Database = {
           employee_id: string
           full_name: string
           id: string
+          profile_id: string | null
+          user_id: string | null
         }
         Insert: {
           account_number?: string | null
@@ -614,6 +619,8 @@ export type Database = {
           employee_id?: string
           full_name?: string
           id?: string
+          profile_id?: string | null
+          user_id?: string | null
         }
         Update: {
           account_number?: string | null
@@ -624,6 +631,8 @@ export type Database = {
           employee_id?: string
           full_name?: string
           id?: string
+          profile_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1218,8 +1227,11 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_name: string | null
+          account_number: string | null
           approval_status: string
           avatar_url: string | null
+          bank_name: string | null
           birthday: string | null
           created_at: string
           cv_url: string | null
@@ -1239,8 +1251,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_name?: string | null
+          account_number?: string | null
           approval_status?: string
           avatar_url?: string | null
+          bank_name?: string | null
           birthday?: string | null
           created_at?: string
           cv_url?: string | null
@@ -1260,8 +1275,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_name?: string | null
+          account_number?: string | null
           approval_status?: string
           avatar_url?: string | null
+          bank_name?: string | null
           birthday?: string | null
           created_at?: string
           cv_url?: string | null

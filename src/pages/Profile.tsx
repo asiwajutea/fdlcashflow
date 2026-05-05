@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Camera, Save, User, FileText, Upload, Check, ExternalLink } from 'lucide-react';
+import { Camera, Save, User, FileText, Check, ExternalLink, Briefcase, CreditCard, Phone } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ImageCropper } from '@/components/ImageCropper';
 
@@ -24,7 +24,6 @@ const Profile = () => {
   const [cropperOpen, setCropperOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Profile fields
   const [form, setForm] = useState({
     full_name: '',
     phone: '',
@@ -36,6 +35,9 @@ const Profile = () => {
     department_id: '',
     project_id: '',
     team_id: '',
+    bank_name: '',
+    account_number: '',
+    account_name: '',
   });
 
   const [cvUrl, setCvUrl] = useState<string>('');
@@ -44,7 +46,6 @@ const Profile = () => {
   const [idFile, setIdFile] = useState<File | null>(null);
   const [idSignedUrl, setIdSignedUrl] = useState<string>('');
 
-  // Lookup data
   const [positions, setPositions] = useState<Lookup[]>([]);
   const [departments, setDepartments] = useState<Lookup[]>([]);
   const [projects, setProjects] = useState<Lookup[]>([]);
@@ -72,6 +73,9 @@ const Profile = () => {
         department_id: p.department_id || '',
         project_id: p.project_id || '',
         team_id: p.team_id || '',
+        bank_name: p.bank_name || '',
+        account_number: p.account_number || '',
+        account_name: p.account_name || '',
       });
       setCvUrl(p.cv_url || '');
       setIdCardPath(p.id_card_url || '');
@@ -119,6 +123,9 @@ const Profile = () => {
         department_id: form.department_id || null,
         project_id: form.project_id || null,
         team_id: form.team_id || null,
+        bank_name: form.bank_name || null,
+        account_number: form.account_number || null,
+        account_name: form.account_name || null,
       };
 
       if (croppedBlob) {
@@ -148,6 +155,17 @@ const Profile = () => {
       const { error } = await (supabase as any).from('profiles').update(updates).eq('id', user.id);
       if (error) throw error;
 
+      // Sync bank details + name to linked employee record (if exists)
+      try {
+        await (supabase as any).from('employees').update({
+          full_name: form.full_name.trim(),
+          bank_name: form.bank_name || null,
+          account_number: form.account_number || null,
+        }).eq('user_id', user.id);
+      } catch (e) {
+        console.warn('Employee sync skipped:', e);
+      }
+
       toast({ title: 'Profile updated!' });
       setTimeout(() => { window.location.reload(); }, 500);
     } catch (error: any) {
@@ -158,13 +176,16 @@ const Profile = () => {
   };
 
   const displayAvatar = previewUrl || avatarUrl || undefined;
+  const setF = (patch: Partial<typeof form>) => setForm({ ...form, ...patch });
 
   return (
     <DashboardLayout title="My Profile">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Identity */}
         <Card>
           <CardHeader>
-            <CardTitle>Edit Profile</CardTitle>
+            <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" /> Identity</CardTitle>
+            <CardDescription>Your name, photo, and basic identification.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center">
@@ -184,38 +205,24 @@ const Profile = () => {
                 </button>
               </div>
             </div>
-
             <input ref={inputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2 sm:col-span-2">
-                <Label htmlFor="fullName">Full Name</Label>
-                <Input id="fullName" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Your full name" />
+                <Label>Full Name</Label>
+                <Input value={form.full_name} onChange={(e) => setF({ full_name: e.target.value })} />
               </div>
-
               <div className="space-y-2 sm:col-span-2">
                 <Label>Email</Label>
                 <Input value={user?.email || ''} disabled className="bg-muted" />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+234..." />
+                <Label>Birthday</Label>
+                <Input type="date" value={form.birthday} onChange={(e) => setF({ birthday: e.target.value })} />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="employee_id">Employee ID</Label>
-                <Input id="employee_id" value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} placeholder="EMP-001" />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="birthday">Birthday</Label>
-                <Input id="birthday" type="date" value={form.birthday} onChange={(e) => setForm({ ...form, birthday: e.target.value })} />
-              </div>
-
               <div className="space-y-2">
                 <Label>Gender</Label>
-                <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                <Select value={form.gender} onValueChange={(v) => setF({ gender: v })}>
                   <SelectTrigger><SelectValue placeholder="Select gender" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="male">Male</SelectItem>
@@ -225,86 +232,133 @@ const Profile = () => {
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="employment_start_date">Employment Start Date</Label>
-                <Input id="employment_start_date" type="date" value={form.employment_start_date} onChange={(e) => setForm({ ...form, employment_start_date: e.target.value })} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Position</Label>
-                <Select value={form.position_id} onValueChange={(v) => setForm({ ...form, position_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
-                  <SelectContent>
-                    {positions.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Department</Label>
-                <Select value={form.department_id} onValueChange={(v) => setForm({ ...form, department_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                  <SelectContent>
-                    {departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Project</Label>
-                <Select value={form.project_id} onValueChange={(v) => setForm({ ...form, project_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                  <SelectContent>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Team</Label>
-                <Select value={form.team_id} onValueChange={(v) => setForm({ ...form, team_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
-                  <SelectContent>
-                    {teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
-
-            <div className="border-t pt-6">
-              <h3 className="font-semibold text-foreground mb-1 flex items-center gap-2"><FileText className="h-4 w-4" /> Documents</h3>
-              <p className="text-xs text-muted-foreground mb-4">Optional. Upload or replace your CV and ID card.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
-                  <Label className="text-sm">CV / Resume</Label>
-                  {cvUrl && !cvFile && (
-                    <a href={cvUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                      <ExternalLink className="h-3 w-3" /> View current CV
-                    </a>
-                  )}
-                  <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
-                  {cvFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {cvFile.name}</p>}
-                </div>
-                <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
-                  <Label className="text-sm">ID Card</Label>
-                  {idSignedUrl && !idFile && (
-                    <a href={idSignedUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
-                      <ExternalLink className="h-3 w-3" /> View current ID
-                    </a>
-                  )}
-                  <Input type="file" accept=".pdf,image/*" onChange={(e) => setIdFile(e.target.files?.[0] || null)} />
-                  {idFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
-                </div>
-              </div>
-            </div>
-
-            <Button className="w-full gap-2" onClick={handleSave} disabled={saving}>
-              <Save className="h-4 w-4" />
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
           </CardContent>
         </Card>
+
+        {/* Contact */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Phone className="h-5 w-5" /> Contact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-w-md">
+              <Label>Phone</Label>
+              <Input value={form.phone} onChange={(e) => setF({ phone: e.target.value })} placeholder="+234..." />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Employment */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Employment</CardTitle>
+            <CardDescription>Your role within the company.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Employee ID</Label>
+                <Input value={form.employee_id} onChange={(e) => setF({ employee_id: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Employment Start Date</Label>
+                <Input type="date" value={form.employment_start_date} onChange={(e) => setF({ employment_start_date: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Position</Label>
+                <Select value={form.position_id} onValueChange={(v) => setF({ position_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
+                  <SelectContent>{positions.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Department</Label>
+                <Select value={form.department_id} onValueChange={(v) => setF({ department_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
+                  <SelectContent>{departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Project</Label>
+                <Select value={form.project_id} onValueChange={(v) => setF({ project_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
+                  <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Team</Label>
+                <Select value={form.team_id} onValueChange={(v) => setF({ team_id: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+                  <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Bank */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Bank Details</CardTitle>
+            <CardDescription>Used for payslip payments. Kept in sync with your employee record.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Bank Name</Label>
+                <Input value={form.bank_name} onChange={(e) => setF({ bank_name: e.target.value })} placeholder="e.g. First Bank" />
+              </div>
+              <div className="space-y-2">
+                <Label>Account Number</Label>
+                <Input value={form.account_number} onChange={(e) => setF({ account_number: e.target.value })} placeholder="0123456789" />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>Account Name</Label>
+                <Input value={form.account_name} onChange={(e) => setF({ account_name: e.target.value })} placeholder="As it appears on your bank account" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Documents */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Documents</CardTitle>
+            <CardDescription>Optional. Upload or replace your CV and ID card.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                <Label className="text-sm">CV / Resume</Label>
+                {cvUrl && !cvFile && (
+                  <a href={cvUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                    <ExternalLink className="h-3 w-3" /> View current CV
+                  </a>
+                )}
+                <Input type="file" accept=".pdf,.doc,.docx" onChange={(e) => setCvFile(e.target.files?.[0] || null)} />
+                {cvFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {cvFile.name}</p>}
+              </div>
+              <div className="border-2 border-dashed border-muted rounded-lg p-4 space-y-2">
+                <Label className="text-sm">ID Card</Label>
+                {idSignedUrl && !idFile && (
+                  <a href={idSignedUrl} target="_blank" rel="noopener" className="text-xs text-primary flex items-center gap-1 hover:underline">
+                    <ExternalLink className="h-3 w-3" /> View current ID
+                  </a>
+                )}
+                <Input type="file" accept=".pdf,image/*" onChange={(e) => setIdFile(e.target.files?.[0] || null)} />
+                {idFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="sticky bottom-4 z-10">
+          <Button className="w-full gap-2 shadow-lg" size="lg" onClick={handleSave} disabled={saving}>
+            <Save className="h-4 w-4" />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </div>
 
       {rawImageSrc && (

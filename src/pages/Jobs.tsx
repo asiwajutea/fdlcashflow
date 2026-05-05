@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useCapabilities } from '@/hooks/useCapabilities';
 import { Briefcase, Plus, MapPin, Edit, Trash2, Building2 } from 'lucide-react';
 
 interface JobPosition {
@@ -47,7 +48,8 @@ const Jobs = () => {
     status: 'open'
   });
 
-  const isAdmin = role === 'admin';
+  const { hasCapability } = useCapabilities(user?.id ?? null);
+  const isAdmin = role === 'admin' || hasCapability('add_job_position');
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');

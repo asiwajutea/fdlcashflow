@@ -189,7 +189,7 @@ const ActivityReport = () => {
           <div className="text-xs text-muted-foreground flex items-center gap-2"><Calendar className="h-3 w-3" /> Period: {active?.period_key} {active?.existing && <Badge variant="secondary" className="ml-2">Already submitted — editing</Badge>}</div>
           {(() => {
             const allFields = fieldsByForm[active?.id] || [];
-            const steps = computeSteps(allFields);
+            const steps = computeSteps(allFields, (active as any)?.first_step_name || '');
             const current = steps[activeStep] || steps[0];
             const stepFields = current?.fields || [];
             const isLast = activeStep >= steps.length - 1;
