@@ -48,7 +48,8 @@ const Jobs = () => {
     status: 'open'
   });
 
-  const isAdmin = role === 'admin';
+  const { hasCapability } = useCapabilities(user?.id ?? null);
+  const isAdmin = role === 'admin' || hasCapability('add_job_position');
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
