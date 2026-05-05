@@ -236,6 +236,7 @@ const CMSActivityFormBuilder = () => {
       reminders_enabled: form.reminders_enabled,
       is_active: form.is_active,
       manager_visible: form.manager_visible,
+      first_step_name: form.first_step_name || null,
     }).eq('id', id);
     if (fErr) { toast.error(fErr.message); setSaving(false); return; }
 
