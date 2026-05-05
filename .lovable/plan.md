@@ -1,77 +1,94 @@
-## Goal
+## Plan
 
-Populate the Knowledge Base with comprehensive, well-structured articles extracted from the two uploaded documents:
-1. **Footprints Dynasty Master Business Profile** — company overview, divisions, products, vision/mission.
-2. **Oral Genealogy Full Documentation (PET User Instructions)** — operational SOP for the genealogy field workforce.
+### 1. Activity Form Builder — UX fixes (`CMSActivityFormBuilder.tsx`, `FieldRenderer.tsx`)
 
-All articles will be inserted via a data migration (Supabase insert) as `published`, scoped globally (no department restriction) so every employee sees them. Pinned where it helps onboarding.
+**Options textarea bug**: Currently it's a controlled `Textarea` whose `onChange` immediately filters out empty/whitespace lines and rewrites the value. Pressing Enter creates an empty line which gets stripped on every keystroke — so newlines never persist and commas/spaces feel "blocked". Fix:
+- Hold the raw textarea string in local component state per field; only parse to options on blur (or via a `useEffect` debounced sync). Splitting stays newline-only — commas, spaces, and symbols pass through untouched.
+- Extract each field card into a small `<FieldEditor>` subcomponent so each field owns its own raw-text state. This also avoids re-render churn.
 
-## New Categories to Add
+**Editable Step 1 label**: Today only `page_break` rows carry a `step_name`. The implicit first step has no editable name. Fix:
+- Add a "Step 1 name" input on the Form Settings tab (stored on `activity_forms` as a new `first_step_name TEXT` column via migration), and pipe it into `computeSteps` as the name of the initial step.
+- Show this input only once at least one `page_break` exists (i.e. when there are 2+ steps).
 
-The 6 existing categories cover most topics, but the Oral Genealogy content is large enough to deserve its own home. I'll add:
+### 2. Signup page — lookups not loading (`Auth.tsx` + RLS migration)
 
-| Slug | Name | Icon | Order | Purpose |
-|---|---|---|---|---|
-| `company` | Company & Vision | `Building2` | 0 | Master profile, mission, brand positioning |
-| `oral-genealogy` | Oral Genealogy Project | `BookOpen` | 7 | Project philosophy, workflow, FamilySearch partnership |
-| `pet-tool` | Pedigree Entry Tool (PET) | `Laptop` | 8 | Step-by-step PET usage by role |
-| `products` | Products & Platforms | `Sparkles` | 9 | BAT, AVTool, EduFlash |
-| `events` | Events & Talent Programs | `Briefcase` | 10 | Bee Contest, SpeakUp, MAQ7 |
+Root cause: `positions`, `departments`, `projects`, `teams` SELECT policies only grant the `authenticated` role. The `/auth` page runs as anon, so the queries return zero rows silently. Migration:
+- Add `SELECT` policies for `anon` on these four tables (active rows only): `USING (is_active = true)`. Safe — these are public reference values already exposed by the careers/jobs flow context.
 
-(Existing `Getting Started`, `HR & Policies`, `IT & Tools`, `Field Operations`, `Finance`, `Departments` are kept.)
+### 3. Employee Dashboard restructure (`EmployeeDashboard.tsx`)
 
-## Articles to Create (≈18 articles)
+- Add an **Action List / Checklist** card at the top showing:
+  - Overdue activity-form submissions (query `activity_forms` user can access vs `activity_form_submissions` for current period_key per frequency).
+  - Missing profile fields (phone, birthday, gender, employee_id, position, department, bank info, ID card, CV).
+  - Unread inbox messages.
+  - Unsigned contracts / pending offers (if applicable).
+  Each row links to the right page; show a count + "X items need attention" badge.
+- **Group the workspace** by category instead of one flat 10-tile grid:
+  - *My Work* — Daily Tracker, Activity Report, My Invoices, Finance.
+  - *Communication* — Inbox, Suggestions/Complaints.
+  - *Career* — Job Openings, Profile.
+  - *Resources* — Knowledge Base, Employee Support.
+  Each group rendered as its own subcard with a section heading and icon.
 
-Each article is markdown, with `summary`, `tags`, `status='published'`, `department_id=NULL`. Pinned ones marked ⭐.
+### 4. CMS Dashboard restructure (`CMSDashboard.tsx`)
 
-### Company & Vision
-1. ⭐ **Welcome to Footprints Dynasty Limited** — overview, what we do (heritage, youth, technology), brand positioning. Tags: overview, onboarding.
-2. **Our Vision, Mission & Brand Statement** — verbatim vision, mission, positioning. Tags: vision, mission, culture.
-3. **Our Core Business Divisions** — summary of all 5 divisions with internal links to the per-product articles. Tags: divisions, structure.
-4. **Integrated Growth Strategy & Cross-Selling** — how field network feeds events + EduFlash. Tags: strategy, sales.
+Group the 19 cards into collapsible/labelled sections:
+- **Public Website** — Hero Slides, Services, Events, Innovations, Blog, Gallery, Partners, Testimonials, Website Sections.
+- **Workforce / Org Data** — Positions, Departments, Projects, Teams, Team Members.
+- **Knowledge Base** — KB Articles, KB Categories.
+- **Operations** — Activity Forms, Contact Submissions, Media Library.
 
-### Oral Genealogy Project
-5. ⭐ **About the African Oral Genealogy Project** — philosophy ("when an elder dies, a library burns"), FamilySearch + Zamoph partnership, Footprints' role. Tags: heritage, partners.
-6. **Genealogy Operations Workflow (End-to-End)** — the 8-step pipeline: Field Agents → Field Managers → PM → BAC → QA → Data Entry → PM review → VAC Ghana. Tags: workflow, sop.
-7. **Roles & Responsibilities in Genealogy Operations** — what each role does (Field Agent, Field Manager, BAC auditor, QA Manager, Data Entry Clerk, Production Manager, Owner). Tags: roles, operations.
+Each section gets a heading + short description; cards stay as is.
 
-### Pedigree Entry Tool (PET)
-8. ⭐ **PET Overview & System Requirements** — what PET is, browser/internet requirements, security rules (never share password). Tags: pet, security.
-9. **Creating & Recovering a FamilySearch Account** — sign-up steps + password/username recovery. Tags: familysearch, account.
-10. **PET Setup & First-Time Access** — what the Owner sends to Operations Manager, how to log in at familysearch.org/en/oral-gen/dashboard. Tags: setup, onboarding.
-11. **Data Entry Clerk Guide** — step-by-step transcription: Add Interview, attach ZIP/PDF, Interviewee RIN, relation codes (P/S/C), birth/death rules, Living dropdown, Begin Next Page, Submit for Review, handling Review Failed status. Tags: data-entry, sop.
-12. **Data Entry Manager Guide** — reviewing transcriptions, Awaiting Review queue (yellow/red labels), View PDF/Artifacts side-by-side, Approve vs Failed Review, sending back for rework, the Ready for Submission queue, printing Generation/Descendancy booklets (delivery within 30 days), clock-icon rework on Approved. Tags: review, qa.
-13. **Owner & Production Manager Guide** — Manage Users (add Production Managers, Data Managers, Data Clerks), do NOT create profiles for staff, bulk Add Interviews (Upload Folder vs Upload Files), Reports (Staff Payment, Booklet Delivery, Failed by Cloud Audit, Failed by VAC). Tags: management, reports.
-14. **Interview Status Reference** — table of all 10 statuses (Incomplete, Awaiting Review, Review Failed, Ready for Submission, Processing Submission, Submission Failed, Awaiting VAC Audit, VAC Audit Failed, VAC Audit Passed, Cancelled). Tags: status, reference.
-15. **PET Filters & Search** — Interview ID, Data Clerk, Interviewer ID, Start/End Date filters. Tags: search, filters.
-16. **Reporting Technical Problems & Helper Number** — what info to collect, support hours (Mon–Fri 5 AM – 1 PM Utah), WhatsApp +1 385 786 9177, Helper Number location. Tags: support, troubleshooting.
+### 5. Invoice ↔ Employee linking
 
-### Products & Platforms
-17. **BAT — Back-End Audit Tool** — features, multi-tenant SaaS, licensing model. Tags: bat, saas, product.
-18. **AVTool — Audit Verification Tool** — problem solved, audio/photo proof, offline/online, geo evidence. Tags: avtool, verification.
-19. **EduFlash — Gamified Learning SaaS** — flashcards, payment tracking, school licensing, optional physical printing. Tags: eduflash, education.
+**Goal**: an authenticated user can see invoices tied to their employee record, and employee records auto-create on signup.
 
-### Events & Talent Programs
-20. **Events Division Overview** — Bee Contest (since 2019), SpeakUp, MAQ7 (Music/Art/Questionnaire), virtual/physical/hybrid capabilities. Tags: events, youth.
+DB migration:
+- Add `employees.user_id UUID NULL` (no FK to `auth.users`; nullable to preserve existing rows).
+- Add unique partial index on `(user_id) WHERE user_id IS NOT NULL`.
+- Add `employees.profile_id UUID NULL` mirroring profile id (for join convenience).
+- Backfill: for every existing `employees.email` matching an `auth.users.email`, set `user_id`.
+- Update `handle_new_user()` trigger: when role is `employee`, also `INSERT INTO employees (user_id, employee_id, full_name, email, designation)` using metadata (skip if employee_id already exists; on conflict do nothing).
+- Add RLS policy on `invoices`: allow SELECT when `employee_id IN (SELECT id FROM employees WHERE user_id = auth.uid())` (in addition to existing admin policy).
 
-### Getting Started (existing category)
-21. ⭐ **Knowledge Base — How to Use** — explain search, categories, pinned articles, and that more content is added regularly. Tags: kb, help.
+UI:
+- `EmployeeManagement.tsx`: add a "Linked User" column; in the edit dialog, add a Select listing unlinked profiles to attach to this employee.
+- `MyInvoices.tsx`: replace skeleton with real list — fetches invoices joined to the employee row whose `user_id = auth.uid()`. Reuse the existing invoice list card design.
 
-## Technical Implementation
+### 6. Profile page redesign + bank details (`Profile.tsx`)
 
-1. **Migration #1 (schema-safe insert)**: a single `INSERT … ON CONFLICT DO NOTHING` on `kb_categories` for the 5 new categories (using `slug` as the conflict target — needs a unique constraint check; if absent we fall back to filtering by slug-not-exists).
-2. **Migration #2**: bulk `INSERT` into `kb_articles` for all ~21 articles. Each row sets:
-   - `title`, `slug` (kebab-case from title), `summary`, `body` (markdown), `tags` (jsonb array), `category_id` (subquery: `SELECT id FROM kb_categories WHERE slug = '…'`), `department_id = NULL`, `status = 'published'`, `published_at = now()`, `is_pinned` for the 4 starred items, `created_by = NULL` (system seed).
-3. Use `ON CONFLICT (slug) DO NOTHING` if `kb_articles.slug` is unique; otherwise insert plain (re-runs would duplicate, so we'll guard with `WHERE NOT EXISTS`).
-4. No code/UI changes required — the existing `KnowledgeBase.tsx`, `KnowledgeBaseArticle.tsx`, search (GIN), and category browse pages already render this content.
+- Group fields into clear sections, each its own `<Card>`:
+  1. **Identity** — avatar, full name, email, gender, birthday.
+  2. **Contact** — phone.
+  3. **Employment** — employee ID, employment start date, position, department, project, team.
+  4. **Bank Details (NEW)** — bank name, account number, account name. On save, also upsert into the linked `employees` row (`bank_name`, `account_number`) so payslip generation stays accurate.
+  5. **Documents** — CV, ID card.
+- Migration: add `profiles.bank_name TEXT`, `profiles.account_number TEXT`, `profiles.account_name TEXT`.
 
-## Files Touched
+### 7. "Add Job Position" capability gating
 
-- `supabase/migrations/<timestamp>_seed_kb_content.sql` — new migration with categories + articles.
-- No frontend files need editing.
+Currently `/jobs` only renders the create button when `role === 'admin'`. Adeolabunmi has the `add_job_position` capability but role `employee`, so the option is hidden.
+- `Jobs.tsx`: replace `isAdmin` check for create/edit/delete with `role === 'admin' || hasCapability('add_job_position')`.
+- `DashboardLayout.tsx` nav: add a "Job Positions" item under Administration with capability `add_job_position` so it appears in her menu.
+- RLS on `job_positions`: extend admin-manage policy to `OR user_has_capability(auth.uid(), 'add_job_position')` for INSERT/UPDATE/DELETE.
 
-## Out of Scope
+### Migrations summary
+1. RLS: anon SELECT on `positions/departments/projects/teams` (active only).
+2. Schema: `activity_forms.first_step_name`, `employees.user_id`, `employees.profile_id`, `profiles.bank_name`, `profiles.account_number`, `profiles.account_name`.
+3. Trigger update: `handle_new_user()` to insert into `employees`.
+4. RLS: invoices SELECT for owning employee; job_positions manage via capability.
+5. Backfill `employees.user_id` from email match.
 
-- No avatars/images attached to articles (cover_image left blank). Admins can add them later via CMS.
-- Duplicate later pages (33–50) of the Oral Genealogy PDF are reprints of pages 1–17, so no extra content is lost.
-- Pages 33–50 onward of the second PDF were truncated at the 50-page parse limit, but inspection shows they repeat the same PET instructions verbatim — nothing new to extract.
+### Files to edit
+- `src/pages/cms/CMSActivityFormBuilder.tsx` (extract FieldEditor, raw-text state, step-1 name input)
+- `src/components/forms/FieldRenderer.tsx` (`computeSteps` accepts initial name)
+- `src/pages/Auth.tsx` (no code change needed — RLS fix handles it; add a friendly empty-state message if lists are empty)
+- `src/pages/EmployeeDashboard.tsx` (action list + grouped workspace)
+- `src/pages/cms/CMSDashboard.tsx` (sectioned layout)
+- `src/pages/EmployeeManagement.tsx` (linked-user column + selector)
+- `src/pages/employee/MyInvoices.tsx` (real listing)
+- `src/pages/Profile.tsx` (sectioned redesign + bank fields, sync to employees)
+- `src/pages/Jobs.tsx` (capability gating)
+- `src/components/DashboardLayout.tsx` (nav entry for Job Positions)
+- New SQL migrations as above
