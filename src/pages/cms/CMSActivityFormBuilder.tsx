@@ -57,6 +57,79 @@ const ASSIGNMENT_TYPES = [
 
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 40) || `field_${Date.now()}`;
 
+interface FieldEditorProps {
+  field: FieldDef;
+  idx: number;
+  onChange: (patch: Partial<FieldDef>) => void;
+  lookupSources: string[];
+}
+
+const FieldEditor: React.FC<FieldEditorProps> = ({ field: f, idx, onChange, lookupSources }) => {
+  const initial = (f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n');
+  const [optionsText, setOptionsText] = useState(initial);
+
+  // Re-sync if field options change externally (e.g. type switched)
+  useEffect(() => {
+    const next = (f.options || []).map((o: any) => typeof o === 'string' ? o : o.label).join('\n');
+    if (next !== optionsText.replace(/\n+$/, '')) setOptionsText(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [f.field_type]);
+
+  const commitOptions = (raw: string) => {
+    const parsed = raw.split('\n').map((s) => s.replace(/\r$/, '').trim()).filter((s) => s.length > 0).map((s) => ({ label: s, value: s }));
+    onChange({ options: parsed });
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <div><Label>Label</Label><Input value={f.label} onChange={(e) => onChange({ label: e.target.value })} /></div>
+      <div>
+        <Label>Type</Label>
+        <Select value={f.field_type} onValueChange={(v) => onChange({ field_type: v })}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {FIELD_TYPES.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      {!['section', 'yesno', 'checkbox', 'rating', 'signature'].includes(f.field_type) && (
+        <div><Label>Placeholder</Label><Input value={f.placeholder || ''} onChange={(e) => onChange({ placeholder: e.target.value })} /></div>
+      )}
+      <div className="md:col-span-2"><Label>Help text</Label><Input value={f.help_text || ''} onChange={(e) => onChange({ help_text: e.target.value })} /></div>
+      {['select', 'multiselect', 'radio', 'checkbox'].includes(f.field_type) && (
+        <div className="md:col-span-2">
+          <Label>Options (one per line)</Label>
+          <Textarea
+            rows={5}
+            placeholder={'Option 1\nOption 2\nOption 3'}
+            value={optionsText}
+            onChange={(e) => setOptionsText(e.target.value)}
+            onBlur={(e) => commitOptions(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground mt-1">Press Enter for a new option. Commas, spaces, and other symbols are kept as-is. Options save when you click outside the box.</p>
+        </div>
+      )}
+      {f.field_type === 'lookup' && (
+        <div>
+          <Label>Lookup source</Label>
+          <Select value={f.lookup_source || ''} onValueChange={(v) => onChange({ lookup_source: v })}>
+            <SelectTrigger><SelectValue placeholder="Select source" /></SelectTrigger>
+            <SelectContent>
+              {lookupSources.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+      {f.field_type !== 'section' && (
+        <div className="flex items-center gap-2 pt-6">
+          <Switch checked={!!f.is_required} onCheckedChange={(v) => onChange({ is_required: v })} />
+          <Label>Required</Label>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const CMSActivityFormBuilder = () => {
   const { id } = useParams();
   const navigate = useNavigate();
