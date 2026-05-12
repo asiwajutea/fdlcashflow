@@ -8,8 +8,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { db } from '@/lib/supabase-db';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { BarChart3, ClipboardList, CheckCircle2, Calendar, Clock, History } from 'lucide-react';
+import { BarChart3, ClipboardList, CheckCircle2, Calendar, Clock, History, TrendingUp } from 'lucide-react';
 import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
+import { Link } from 'react-router-dom';
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
@@ -239,21 +240,31 @@ const ActivityReport = () => {
   );
 };
 
-const FormCard = ({ form, done, onClick }: { form: any; done?: boolean; onClick: () => void }) => (
-  <Card className="cursor-pointer hover:shadow-md transition-all" onClick={onClick}>
-    <CardHeader className="pb-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1">
-          <CardTitle className="text-lg flex items-center gap-2">
-            {form.title}
-            {done && <Badge className="bg-green-600 hover:bg-green-600">Completed</Badge>}
-          </CardTitle>
-          {form.description && <CardDescription>{form.description}</CardDescription>}
+const FormCard = ({ form, done, onClick }: { form: any; done?: boolean; onClick: () => void }) => {
+  const showAnalytics = form.analytics_visible_to_submitter !== false || form.analytics_employee_visible;
+  return (
+    <Card className="hover:shadow-md transition-all">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 cursor-pointer" onClick={onClick}>
+            <CardTitle className="text-lg flex items-center gap-2">
+              {form.title}
+              {done && <Badge className="bg-green-600 hover:bg-green-600">Completed</Badge>}
+            </CardTitle>
+            {form.description && <CardDescription>{form.description}</CardDescription>}
+          </div>
+          <div className="flex items-center gap-2">
+            {showAnalytics && (
+              <Link to={`/activity-report/${form.id}/analytics`} onClick={(e) => e.stopPropagation()}>
+                <Button variant="outline" size="sm"><TrendingUp className="h-3 w-3 mr-1" /> Analytics</Button>
+              </Link>
+            )}
+            <Badge variant="outline" className="capitalize">{form.frequency.replace('_', ' ')}</Badge>
+          </div>
         </div>
-        <Badge variant="outline" className="capitalize">{form.frequency.replace('_', ' ')}</Badge>
-      </div>
-    </CardHeader>
-  </Card>
-);
+      </CardHeader>
+    </Card>
+  );
+};
 
 export default ActivityReport;

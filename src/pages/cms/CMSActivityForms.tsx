@@ -7,7 +7,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { db } from '@/lib/supabase-db';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Plus, Pencil, Trash2, ArrowLeft, Eye, ClipboardList } from 'lucide-react';
+import { Plus, Pencil, Trash2, ArrowLeft, Eye, ClipboardList, BarChart3 } from 'lucide-react';
 
 const CMSActivityForms = () => {
   const { user } = useAuth();
@@ -83,6 +83,9 @@ const CMSActivityForms = () => {
                   <div className="flex gap-1 justify-end">
                     <Button variant="ghost" size="icon" title="Submissions" onClick={() => navigate(`/cms/activity-forms/${f.id}/submissions`)}>
                       <ClipboardList className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" title="Analytics" onClick={() => navigate(`/cms/activity-forms/${f.id}/analytics`)}>
+                      <BarChart3 className="h-4 w-4" />
                     </Button>
                     <Button variant="ghost" size="icon" title="Edit" onClick={() => navigate(`/cms/activity-forms/${f.id}`)}>
                       <Pencil className="h-4 w-4" />

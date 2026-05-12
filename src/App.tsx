@@ -81,6 +81,8 @@ const CMSKBCategories = lazy(() => import("./pages/cms/CMSKBCategories"));
 const CMSActivityForms = lazy(() => import("./pages/cms/CMSActivityForms"));
 const CMSActivityFormBuilder = lazy(() => import("./pages/cms/CMSActivityFormBuilder"));
 const CMSFormSubmissions = lazy(() => import("./pages/cms/CMSFormSubmissions"));
+const CMSFormAnalytics = lazy(() => import("./pages/cms/CMSFormAnalytics"));
+const EmployeeFormAnalytics = lazy(() => import("./pages/employee/FormAnalytics"));
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
@@ -202,6 +204,8 @@ const AppRoutes = () =>
       <Route path="/cms/activity-forms" element={<AvatarGuard><CMSActivityForms /></AvatarGuard>} />
       <Route path="/cms/activity-forms/:id" element={<AvatarGuard><CMSActivityFormBuilder /></AvatarGuard>} />
       <Route path="/cms/activity-forms/:id/submissions" element={<AvatarGuard><CMSFormSubmissions /></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id/analytics" element={<AvatarGuard><CMSFormAnalytics /></AvatarGuard>} />
+      <Route path="/activity-report/:id/analytics" element={<AvatarGuard><EmployeeFormAnalytics /></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>

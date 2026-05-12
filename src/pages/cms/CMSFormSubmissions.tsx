@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/lib/supabase-db';
-import { ArrowLeft, Download, Eye } from 'lucide-react';
+import { ArrowLeft, Download, Eye, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const CMSFormSubmissions = () => {
@@ -76,7 +76,10 @@ const CMSFormSubmissions = () => {
             <p className="text-sm text-muted-foreground">{submissions.length} response(s)</p>
           </div>
         </div>
-        <Button variant="outline" onClick={exportCsv} disabled={!submissions.length}><Download className="h-4 w-4 mr-2" /> Export CSV</Button>
+        <div className="flex gap-2">
+          <Link to={`/cms/activity-forms/${id}/analytics`}><Button variant="outline"><BarChart3 className="h-4 w-4 mr-2" /> Analytics</Button></Link>
+          <Button variant="outline" onClick={exportCsv} disabled={!submissions.length}><Download className="h-4 w-4 mr-2" /> Export CSV</Button>
+        </div>
       </div>
 
       <div className="bg-card rounded-lg border">

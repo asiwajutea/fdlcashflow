@@ -7,9 +7,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Plus, Trash2, ArrowLeft, Edit } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Edit, Link2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 
 interface Employee {
   id: string;
@@ -30,6 +32,7 @@ const EmployeeManagement = () => {
   const { toast } = useToast();
   
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [linkableUsers, setLinkableUsers] = useState<ProfileLite[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [formData, setFormData] = useState({
@@ -38,7 +41,8 @@ const EmployeeManagement = () => {
     designation: '',
     bank_name: '',
     account_number: '',
-    email: ''
+    email: '',
+    user_id: '' as string
   });
 
   useEffect(() => {
@@ -48,8 +52,24 @@ const EmployeeManagement = () => {
     }
     if (user) {
       fetchEmployees();
+      fetchLinkableUsers();
     }
   }, [user, loading, navigate]);
+
+  const fetchLinkableUsers = async () => {
+    // Profiles with employee/admin role
+    const { data: roles } = await (supabase as any)
+      .from('user_roles')
+      .select('user_id')
+      .in('role', ['employee', 'admin']);
+    const ids = (roles || []).map((r: any) => r.user_id);
+    if (!ids.length) { setLinkableUsers([]); return; }
+    const { data: profs } = await (supabase as any)
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', ids);
+    setLinkableUsers(profs || []);
+  };
 
   const fetchEmployees = async () => {
     const { data, error } = await supabase
@@ -78,18 +98,20 @@ const EmployeeManagement = () => {
         designation: employee.designation,
         bank_name: employee.bank_name || '',
         account_number: employee.account_number || '',
-        email: employee.email || ''
+        email: employee.email || '',
+        user_id: employee.user_id || ''
       });
     } else {
       setEditingEmployee(null);
-    setFormData({
-      employee_id: '',
-      full_name: '',
-      designation: '',
-      bank_name: '',
-      account_number: '',
-      email: ''
-    });
+      setFormData({
+        employee_id: '',
+        full_name: '',
+        designation: '',
+        bank_name: '',
+        account_number: '',
+        email: '',
+        user_id: ''
+      });
     }
     setIsDialogOpen(true);
   };
@@ -105,6 +127,7 @@ const EmployeeManagement = () => {
     }
 
     try {
+      const userIdValue = formData.user_id || null;
       if (editingEmployee) {
         const { error } = await supabase
           .from('employees')
@@ -114,16 +137,15 @@ const EmployeeManagement = () => {
             designation: formData.designation,
             bank_name: formData.bank_name || null,
             account_number: formData.account_number || null,
-            email: formData.email || null
-          })
+            email: formData.email || null,
+            user_id: userIdValue,
+            profile_id: userIdValue
+          } as any)
           .eq('id', editingEmployee.id);
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Employee updated successfully"
-        });
+        toast({ title: "Success", description: "Employee updated successfully" });
       } else {
         const { error } = await supabase
           .from('employees')
@@ -133,15 +155,14 @@ const EmployeeManagement = () => {
             designation: formData.designation,
             bank_name: formData.bank_name || null,
             account_number: formData.account_number || null,
-            email: formData.email || null
-          });
+            email: formData.email || null,
+            user_id: userIdValue,
+            profile_id: userIdValue
+          } as any);
 
         if (error) throw error;
 
-        toast({
-          title: "Success",
-          description: "Employee added successfully"
-        });
+        toast({ title: "Success", description: "Employee added successfully" });
       }
 
       setIsDialogOpen(false);
@@ -222,43 +243,46 @@ const EmployeeManagement = () => {
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Full Name</TableHead>
                   <TableHead>Designation</TableHead>
+                  <TableHead>Linked User</TableHead>
                   <TableHead>Bank Name</TableHead>
                   <TableHead>Account Number</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map((employee, index) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{employee.employee_id}</TableCell>
-                    <TableCell>{employee.full_name}</TableCell>
-                    <TableCell>{employee.designation}</TableCell>
-                    <TableCell>{employee.bank_name || '-'}</TableCell>
-                    <TableCell>{employee.account_number || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleOpenDialog(employee)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(employee.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {employees.map((employee, index) => {
+                  const linked = linkableUsers.find((p) => p.id === employee.user_id);
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{employee.employee_id}</TableCell>
+                      <TableCell>{employee.full_name}</TableCell>
+                      <TableCell>{employee.designation}</TableCell>
+                      <TableCell>
+                        {employee.user_id ? (
+                          <Badge variant="secondary" className="gap-1"><Link2 className="h-3 w-3" /> {linked?.full_name || 'Linked'}</Badge>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => handleOpenDialog(employee)}>Link…</Button>
+                        )}
+                      </TableCell>
+                      <TableCell>{employee.bank_name || '-'}</TableCell>
+                      <TableCell>{employee.account_number || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => handleOpenDialog(employee)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(employee.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground">
                       No employees found. Add your first employee to get started.
                     </TableCell>
                   </TableRow>
@@ -324,6 +348,19 @@ const EmployeeManagement = () => {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="e.g., employee@example.com"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Linked User Account</Label>
+                <Select value={formData.user_id || 'none'} onValueChange={(v) => setFormData({ ...formData, user_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="Select user…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Not linked —</SelectItem>
+                    {linkableUsers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Linking lets the user view their own payslips and activity.</p>
               </div>
             </div>
             <DialogFooter>
