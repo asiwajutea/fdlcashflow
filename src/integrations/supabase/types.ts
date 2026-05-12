@@ -142,6 +142,9 @@ export type Database = {
       }
       activity_forms: {
         Row: {
+          analytics_employee_visible: boolean
+          analytics_visible_fields: Json
+          analytics_visible_to_submitter: boolean
           created_at: string
           created_by: string
           description: string | null
@@ -157,6 +160,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          analytics_employee_visible?: boolean
+          analytics_visible_fields?: Json
+          analytics_visible_to_submitter?: boolean
           created_at?: string
           created_by: string
           description?: string | null
@@ -172,6 +178,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          analytics_employee_visible?: boolean
+          analytics_visible_fields?: Json
+          analytics_visible_to_submitter?: boolean
           created_at?: string
           created_by?: string
           description?: string | null
