@@ -243,43 +243,46 @@ const EmployeeManagement = () => {
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Full Name</TableHead>
                   <TableHead>Designation</TableHead>
+                  <TableHead>Linked User</TableHead>
                   <TableHead>Bank Name</TableHead>
                   <TableHead>Account Number</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {employees.map((employee, index) => (
-                  <TableRow key={employee.id}>
-                    <TableCell>{index + 1}</TableCell>
-                    <TableCell>{employee.employee_id}</TableCell>
-                    <TableCell>{employee.full_name}</TableCell>
-                    <TableCell>{employee.designation}</TableCell>
-                    <TableCell>{employee.bank_name || '-'}</TableCell>
-                    <TableCell>{employee.account_number || '-'}</TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleOpenDialog(employee)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDelete(employee.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {employees.map((employee, index) => {
+                  const linked = linkableUsers.find((p) => p.id === employee.user_id);
+                  return (
+                    <TableRow key={employee.id}>
+                      <TableCell>{index + 1}</TableCell>
+                      <TableCell>{employee.employee_id}</TableCell>
+                      <TableCell>{employee.full_name}</TableCell>
+                      <TableCell>{employee.designation}</TableCell>
+                      <TableCell>
+                        {employee.user_id ? (
+                          <Badge variant="secondary" className="gap-1"><Link2 className="h-3 w-3" /> {linked?.full_name || 'Linked'}</Badge>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => handleOpenDialog(employee)}>Link…</Button>
+                        )}
+                      </TableCell>
+                      <TableCell>{employee.bank_name || '-'}</TableCell>
+                      <TableCell>{employee.account_number || '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex gap-2">
+                          <Button size="icon" variant="ghost" onClick={() => handleOpenDialog(employee)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDelete(employee.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {employees.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center text-muted-foreground">
                       No employees found. Add your first employee to get started.
                     </TableCell>
                   </TableRow>
@@ -345,6 +348,19 @@ const EmployeeManagement = () => {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   placeholder="e.g., employee@example.com"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Linked User Account</Label>
+                <Select value={formData.user_id || 'none'} onValueChange={(v) => setFormData({ ...formData, user_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="Select user…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— Not linked —</SelectItem>
+                    {linkableUsers.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">Linking lets the user view their own payslips and activity.</p>
               </div>
             </div>
             <DialogFooter>
