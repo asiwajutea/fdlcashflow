@@ -1019,7 +1019,7 @@ export type Database = {
           attachments: Json
           body: string
           category_id: string | null
-          cover_image: string
+          cover_image: string | null
           created_at: string
           created_by: string | null
           department_id: string | null
@@ -1038,7 +1038,7 @@ export type Database = {
           attachments?: Json
           body?: string
           category_id?: string | null
-          cover_image?: string
+          cover_image?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
@@ -1057,7 +1057,7 @@ export type Database = {
           attachments?: Json
           body?: string
           category_id?: string | null
-          cover_image?: string
+          cover_image?: string | null
           created_at?: string
           created_by?: string | null
           department_id?: string | null
