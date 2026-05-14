@@ -1,0 +1,1 @@
+ALTER TABLE public.kb_articles ALTER COLUMN cover_image DROP NOT NULL;
