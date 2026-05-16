@@ -221,6 +221,100 @@ export type Database = {
         }
         Relationships: []
       }
+      advance_repayments: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string | null
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_repayments_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "advance_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      advance_requests: {
+        Row: {
+          amount: number
+          approver_id: string | null
+          approver_note: string | null
+          category_id: string | null
+          created_at: string
+          decided_at: string | null
+          id: string
+          kind: string
+          reason: string
+          receipt_url: string | null
+          repaid_count: number
+          repayment_plan: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          approver_id?: string | null
+          approver_note?: string | null
+          category_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          kind: string
+          reason?: string
+          receipt_url?: string | null
+          repaid_count?: number
+          repayment_plan?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          approver_id?: string | null
+          approver_note?: string | null
+          category_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          id?: string
+          kind?: string
+          reason?: string
+          receipt_url?: string | null
+          repaid_count?: number
+          repayment_plan?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_requests_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           applied_at: string
@@ -717,6 +811,74 @@ export type Database = {
           slug?: string
           title?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      finance_budgets: {
+        Row: {
+          category_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          monthly_limit: number
+          scope_id: string
+          scope_type: string
+          updated_at: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          monthly_limit?: number
+          scope_id: string
+          scope_type: string
+          updated_at?: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          monthly_limit?: number
+          scope_id?: string
+          scope_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "finance_budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "finance_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      finance_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          kind: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kind: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          kind?: string
+          name?: string
         }
         Relationships: []
       }
