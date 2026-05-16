@@ -459,8 +459,10 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [noteFor, setNoteFor] = useState<{ id: string; status: 'approved' | 'rejected' } | null>(null);
   const [note, setNote] = useState('');
+  const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const filtered = requests.filter((r: any) => filter === 'all' || r.status === 'pending');
+  const timelineReq = requests.find((r: any) => r.id === timelineId);
 
   return (
     <>
@@ -482,7 +484,12 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
                     <p className="font-semibold">{kindLabel[r.kind as AdvanceKind]}{cat ? ` · ${cat.name}` : ''}</p>
                     <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
                   </div>
-                  <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
+                    <Button size="icon" variant="ghost" onClick={() => setTimelineId(r.id)} title="View timeline">
+                      <Clock className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xl font-bold">{fmt(Number(r.amount))}</p>
                 {over && <Badge variant="outline" className="text-orange-600 border-orange-300"><AlertCircle className="h-3 w-3 mr-1" /> Over budget ({fmt(budget.monthly_limit)})</Badge>}
@@ -504,6 +511,13 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
           );
         })}
       </div>
+
+      <RequestTimeline
+        open={!!timelineId}
+        onOpenChange={(v) => !v && setTimelineId(null)}
+        requestId={timelineId}
+        request={timelineReq}
+      />
 
       <Dialog open={!!noteFor} onOpenChange={() => setNoteFor(null)}>
         <DialogContent className="max-w-md">
