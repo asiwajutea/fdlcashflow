@@ -105,6 +105,17 @@ export default function Finance() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Finance</h1>
             <p className="text-sm text-muted-foreground">Track your payments, advances and reimbursements</p>
           </div>
+          <ExportMenu
+            build={() => ({
+              title: 'Finance Report',
+              userName: user.email || user.id,
+              payslips: ledger?.payslips || [],
+              requests: myRequests,
+              budgets: myBudgets,
+              summary,
+              categories,
+            })}
+          />
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
