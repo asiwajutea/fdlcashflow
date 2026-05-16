@@ -181,6 +181,7 @@ const AppRoutes = () =>
       <Route path="/knowledge-base" element={<AvatarGuard><KnowledgeBase /></AvatarGuard>} />
       <Route path="/knowledge-base/:slug" element={<AvatarGuard><KBArticle /></AvatarGuard>} />
       <Route path="/employee-support" element={<AvatarGuard><EmployeeSupport /></AvatarGuard>} />
+      <Route path="/team-reports" element={<AvatarGuard><TeamReports /></AvatarGuard>} />
 
       {/* CMS routes */}
       <Route path="/cms" element={<AvatarGuard><CMSDashboard /></AvatarGuard>} />
