@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ const NAV_SECTIONS = [
       { path: '/generate-invoice', label: 'Generate Invoice', icon: FileText, capability: 'generate_invoice' },
       { path: '/bulk-invoice', label: 'Bulk Invoice', icon: FileStack, capability: 'bulk_invoice' },
       { path: '/invoices', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
+      { path: '/my-invoices', label: 'My Payslips', icon: Receipt, capability: null },
       { path: '/invoice-statistics', label: 'Statistics', icon: BarChart3, capability: 'view_statistics' },
     ],
   },

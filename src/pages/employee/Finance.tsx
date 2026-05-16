@@ -12,9 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdvanceRequests, useFinanceCategories, useFinanceBudgets, AdvanceKind } from '@/hooks/useAdvanceRequests';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useMyFinanceLedger } from '@/hooks/useMyFinanceLedger';
+import { useMyBudgets } from '@/hooks/useMyBudgets';
 import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
+import { Progress } from '@/components/ui/progress';
 import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -36,7 +38,8 @@ export default function Finance() {
   const canApprove = isAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isAdmin || capabilities.includes('manage_finance_budgets');
 
-  const { transactions } = useTransactions({});
+  const { data: ledger } = useMyFinanceLedger(user?.id ?? null, user?.email ?? null);
+  const { data: myBudgets = [] } = useMyBudgets(user?.id ?? null);
   const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
   const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
   const { categories } = useFinanceCategories();
@@ -54,30 +57,20 @@ export default function Finance() {
   });
   const isLeader = subordinateIds.length > 0;
 
-  // Personal summary derived from transactions + my advances
+  // Personal summary derived from linked payslips + my advances
   const summary = useMemo(() => {
-    const salaryPaid = transactions.filter(t => t.type === 'income' && /salary|payroll|payslip/i.test(t.category)).reduce((s, t) => s + Number(t.amount), 0);
-    const incomeTotal = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-    const expensesTotal = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const salaryPaid = ledger?.salaryPaid || 0;
+    const totalDeductions = (ledger?.payslips || []).reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
     const outstandingAdvances = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'salary_advance')
       .reduce((s, r) => s + Number(r.amount), 0);
     const reimbursedYtd = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'reimbursement')
       .reduce((s, r) => s + Number(r.amount), 0);
-    return { salaryPaid: salaryPaid || incomeTotal, expensesTotal, outstandingAdvances, reimbursedYtd, net: (salaryPaid || incomeTotal) - expensesTotal };
-  }, [transactions, myRequests]);
+    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, net: salaryPaid - totalDeductions };
+  }, [ledger, myRequests]);
 
-  // monthly chart
-  const monthly = useMemo(() => {
-    const map: Record<string, { month: string; income: number; expense: number }> = {};
-    transactions.forEach(t => {
-      const m = format(new Date(t.date), 'MMM yy');
-      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
-      if (t.type === 'income') map[m].income += Number(t.amount); else map[m].expense += Number(t.amount);
-    });
-    return Object.values(map).slice(-12);
-  }, [transactions]);
+  const monthly = ledger?.monthly || [];
 
   const categoryBreakdown = useMemo(() => {
     const byKind: Record<string, number> = { 'Salary Payment': 0, 'Salary Advance': 0, 'Reimbursement': 0, 'Cash Advance': 0 };
@@ -171,6 +164,40 @@ export default function Finance() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">My budget limits (this month)</CardTitle></CardHeader>
+              <CardContent>
+                {myBudgets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No budgets have been assigned to you.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {myBudgets.map(({ budget: b, used, remaining, pct }) => {
+                      const catName = categories.find((c: any) => c.id === b.category_id)?.name;
+                      const tone = pct >= 100 ? 'text-destructive' : pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
+                      return (
+                        <div key={b.id} className="space-y-1.5">
+                          <div className="flex justify-between items-start gap-2 flex-wrap">
+                            <div>
+                              <p className="text-sm font-medium capitalize">
+                                {b.kind.replace('_', ' ')}{catName ? ` · ${catName}` : ''}
+                              </p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {b.scope_type} budget · Limit {fmt(Number(b.monthly_limit))}
+                              </p>
+                            </div>
+                            <p className={`text-sm font-semibold ${tone}`}>
+                              {fmt(used)} used · {fmt(remaining)} left
+                            </p>
+                          </div>
+                          <Progress value={pct} className="h-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* MY REQUESTS */}
@@ -178,7 +205,7 @@ export default function Finance() {
             <RequestsList
               requests={myRequests}
               categories={categories}
-              budgets={budgets}
+              budgets={myBudgets.map((b) => b.budget)}
               userId={user.id}
               onCreate={(p) => create.mutate(p)}
               onDelete={(id) => remove.mutate(id)}
@@ -247,8 +274,8 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
   const [form, setForm] = useState<any>({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
 
   const applicableBudget = useMemo(() => {
-    return budgets.find((b: any) => b.kind === form.kind && (!b.category_id || b.category_id === form.category_id) && (b.scope_type === 'user' && b.scope_id === userId));
-  }, [budgets, form, userId]);
+    return budgets.find((b: any) => b.kind === form.kind && (!b.category_id || b.category_id === form.category_id));
+  }, [budgets, form]);
   const overBudget = applicableBudget && Number(form.amount || 0) > Number(applicableBudget.monthly_limit);
 
   const submit = () => {
