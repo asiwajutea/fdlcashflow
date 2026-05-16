@@ -47,6 +47,8 @@ const UserManagement = () => {
   const [createdPasscode, setCreatedPasscode] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee' | 'guest'>('all');
+  const [search, setSearch] = useState('');
 
   // Create user form
   const [newUser, setNewUser] = useState({
