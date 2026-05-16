@@ -1,116 +1,69 @@
-## Scope
+## Goal
 
-Three deliverables:
-1. Employee Dashboard — action checklist + grouped workspace
-2. Employee Management — linked-user picker UI
-3. Form Submissions — analytics dashboard + admin-controlled visibility
+Introduce a leadership hierarchy (department head, project lead, team lead, direct manager) and let those leaders see their downlines' activity-form submissions and analytics — with admin overrides for which forms each leader can or cannot see.
 
----
+## Schema changes
 
-## 1. Employee Dashboard redesign (`src/pages/EmployeeDashboard.tsx`)
+1. Add leader columns:
+   - `departments.head_user_id uuid` (references `profiles.id`, nullable)
+   - `projects.lead_user_id uuid` (nullable)
+   - `teams.lead_user_id uuid` (nullable)
+   - `profiles.manager_id uuid` (direct manager — nullable, references `profiles.id`)
 
-**Action Checklist card** (top, after welcome banner) showing:
-- Overdue activity form submissions (query `activity_forms` user can access vs. latest `activity_form_submissions` for current period)
-- Profile completion gaps (missing avatar, bank details, phone, birthday)
-- Unread inbox messages (existing query)
-- Pending offers / contracts to sign (if `contracts.signed_at IS NULL` for the user's applications)
+2. New table `activity_form_leader_overrides`:
+   - `form_id uuid`, `user_id uuid`, `can_view boolean` (default true), unique `(form_id, user_id)`
+   - Lets the admin explicitly grant or revoke a leader's access to a specific form's submissions/analytics, overriding the implicit hierarchy access.
 
-Each item: icon + label + "Take action" button → navigates to relevant page. Empty state: "You're all caught up 🎉".
+3. New SQL helper `public.get_subordinate_user_ids(_user_id uuid) returns setof uuid`:
+   - Recursive CTE collecting:
+     - all `profiles` where `manager_id = _user_id` (transitive),
+     - members of any `team` where `lead_user_id = _user_id`,
+     - members of any `project` where `lead_user_id = _user_id`,
+     - members of any `department` where `head_user_id = _user_id`.
+   - Marked `security definer`, `stable`.
 
-**Grouped workspace** — replace flat 10-tile grid with 4 labeled sections:
-- **My Work** — Daily Tracker, Activity Report, My Payslips, Finance
-- **Communication** — Inbox, Suggestions
-- **Career** — My Profile, Job Openings
-- **Resources** — Knowledge Base, Employee Support
+4. New SQL helper `public.user_can_view_form_submissions(_user_id uuid, _form_id uuid) returns boolean`:
+   - Returns true if admin OR has `manage_activity_forms` capability OR is a leader (per `get_subordinate_user_ids` having ≥1 user assigned/submitting to the form) — unless an override row says `can_view = false`. An override row with `can_view = true` also explicitly grants access.
 
-Same tile component, just grouped under `<h3>` headings.
+5. Update RLS on `activity_form_submissions`:
+   - Replace the "Managers view all submissions" SELECT policy with one that also allows leaders via `user_can_view_form_submissions(auth.uid(), form_id) AND submission.user_id IN (select get_subordinate_user_ids(auth.uid()))`.
+   - Keep self-view and admin/manager policies intact.
 
----
+6. RLS on `activity_form_leader_overrides`: admin-only manage; authenticated read of own rows.
 
-## 2. EmployeeManagement linked-user picker (`src/pages/EmployeeManagement.tsx`)
+## CMS / UI changes
 
-In the Add/Edit Employee dialog, add a **"Linked user account"** select:
-- Lists profiles where `user_roles.role IN ('employee','admin')`, showing `full_name (email)`
-- "— Not linked —" option
-- Pre-selected from `employee.user_id`
-- On save, write `user_id` and `profile_id` to the row
+1. **Departments CMS** (`CMSDepartments` via `LookupCMSPage`): add a "Head of Department" user picker. Generalize `LookupCMSPage` to accept an optional `leaderField: { column, label }` and load eligible users (admin/employee profiles) for the Select.
 
-In the Employees table, add a **"Linked User"** column showing the linked profile's name with a small badge ("Linked" / "Not linked"), plus a quick "Link…" button on unlinked rows that opens the same picker.
+2. **Projects CMS** (`CMSProjects`): add "Project Lead" user picker (same mechanism, `lead_user_id`).
 
----
+3. **Teams CMS** (`CMSTeams`): add "Team Lead" user picker.
 
-## 3. Form Submission Analytics + Visibility controls
+4. **EmployeeManagement page**: add "Direct Manager" Select in the Add/Edit Employee dialog, persisted to `profiles.manager_id` of the linked user. Show current manager in the table.
 
-### Database (single migration)
+5. **UserManagement page**: in the user edit dialog, add a "Direct Manager" Select listing other admin/employee profiles; saves `profiles.manager_id`.
 
-```sql
--- Per-form analytics visibility config
-ALTER TABLE public.activity_forms
-  ADD COLUMN analytics_employee_visible boolean NOT NULL DEFAULT false,
-  ADD COLUMN analytics_visible_fields jsonb NOT NULL DEFAULT '[]'::jsonb,
-  ADD COLUMN analytics_visible_to_submitter boolean NOT NULL DEFAULT true;
-```
+6. **CMSActivityFormBuilder**: add a "Leader access overrides" section. After the existing assignment editor, show a list of computed leaders for the form's audience (department heads, project leads, team leads, direct managers above any assignee). For each leader, a switch "Can view submissions & analytics" — saved as rows in `activity_form_leader_overrides`. Default state is ON (implicit access); toggling OFF writes `can_view=false`; toggling back ON deletes the override row (or upserts `can_view=true`).
 
-- `analytics_employee_visible` — if true, assigned employees can see the analytics page (aggregated, anonymized)
-- `analytics_visible_fields` — array of `field_key`s admins allow employees to see in charts
-- `analytics_visible_to_submitter` — submitter always sees their own history charts (default on)
+7. **CMSFormAnalytics / CMSFormSubmissions**: no UI change — they just respect RLS so leaders see only their downlines' rows. Add a small banner indicating "Showing submissions from your team" when current user is a leader (not admin).
 
-No new RLS needed — existing `user_can_access_form` already gates form/field reads. Submissions read policy already lets submitters see their own; admins/managers see all. For employee aggregate access, we'll filter client-side based on `analytics_employee_visible`.
+8. **EmployeeDashboard / new "My Team" entry**: add a card linking to `/team-reports` for users who lead anyone. Page lists forms with available submissions from their downlines and links to the existing analytics view (read-only mode).
 
-### New page: `src/pages/cms/CMSFormAnalytics.tsx`
+## Frontend access logic
 
-Route: `/cms/activity-forms/:id/analytics` (admin/manager).
+- Add a hook `useIsLeader()` that returns `{ isLeader: boolean, subordinateIds: string[] }` by calling a new RPC `get_my_subordinates`.
+- Use it to conditionally show the "Team Reports" navigation entry.
 
-Sections:
-- **Summary KPIs**: total submissions, unique submitters, submission rate vs. assigned users, on-time vs. late, last 7/30 days
-- **Submissions over time** — line chart (recharts) by day/week
-- **Per-field breakdowns** — automatic chart per field:
-  - `select` / `radio` / `multiselect` / `checkbox` (with options) → bar/pie of counts
-  - `number` → histogram + avg/min/max KPI cards
-  - `rating` → average + distribution bar
-  - `date` → timeline
-  - `text` / `textarea` → top word cloud or just count + sample list
-  - `file` / `signature` / skip `page_break` / `section`
-- **Top submitters** — table with submission counts
-- **Filters**: date range, period, submitter
+## Technical section
 
-**Visibility controls panel** (admin only, top of analytics page):
-- Toggle: "Allow assigned employees to view this analytics page"
-- Toggle: "Allow submitters to view their personal analytics"
-- Multi-select: "Fields visible to employees" (for shared aggregate charts)
-- Save button → updates `activity_forms`
+- Migrations are additive; existing data is unaffected (`manager_id`, `head_user_id`, `lead_user_id` default null).
+- `analytics_visible_fields` / `analytics_employee_visible` on `activity_forms` continue to govern *what fields* are visible; the new override governs *whether the leader sees anything* per form.
+- `LookupCMSPage` change is backward-compatible — `leaderField` is optional.
+- No edge-function changes required.
+- Types file regenerates automatically after migration.
 
-### Employee-side analytics
+## Out of scope
 
-- New tile in Activity Report (`src/pages/employee/ActivityReport.tsx`): each assigned form gets a **"View analytics"** link if `analytics_visible_to_submitter` (personal) or `analytics_employee_visible` (team aggregate).
-- Route: `/activity-report/:formId/analytics` — same component as CMSFormAnalytics in **read-only mode**, filtered to `analytics_visible_fields` and (for non-admin) excluding "Top submitters" PII unless admin allows.
-
-### Wiring
-
-- Add "Analytics" button next to "Submissions" in `CMSActivityForms.tsx` form list.
-- Add "Analytics" button in `CMSFormSubmissions.tsx` header.
-- Add Analytics link in employee `ActivityReport.tsx` per form.
-- Register both routes in `src/App.tsx`.
-
-### Tech notes
-
-- Use `recharts` (already in `package.json` via shadcn chart).
-- All aggregation client-side from already-fetched `activity_form_submissions.answers` JSONB — no RPC needed for v1.
-- Reuse `db` from `@/lib/supabase-db` for new columns until types regenerate.
-
----
-
-## Files
-
-**Create:**
-- `supabase/migrations/<ts>_form_analytics_visibility.sql`
-- `src/pages/cms/CMSFormAnalytics.tsx`
-- `src/components/forms/FormAnalyticsView.tsx` (shared admin/employee view)
-
-**Edit:**
-- `src/pages/EmployeeDashboard.tsx`
-- `src/pages/EmployeeManagement.tsx`
-- `src/pages/cms/CMSActivityForms.tsx`
-- `src/pages/cms/CMSFormSubmissions.tsx`
-- `src/pages/employee/ActivityReport.tsx`
-- `src/App.tsx`
+- No changes to candidate/HR flows.
+- No changes to the public site.
+- Existing payslip/finance access rules remain unchanged.
