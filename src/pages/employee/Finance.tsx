@@ -90,6 +90,16 @@ export default function Finance() {
 
   const pendingCount = allRequests.filter(r => r.status === 'pending').length;
 
+  if (authLoading || !user) {
+    return (
+      <DashboardLayout title="Finance">
+        <div className="min-h-[300px] flex items-center justify-center text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout title="Finance">
       <div className="space-y-6 max-w-7xl mx-auto">
