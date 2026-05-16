@@ -274,13 +274,20 @@ const UserManagement = () => {
     }
   };
 
-  const openEditDialog = (user: User) => {
+  const openEditDialog = async (user: User) => {
     setSelectedUser(user);
+    // Load current manager_id from profile and the list of potential managers
+    const [{ data: prof }, { data: profs }] = await Promise.all([
+      (supabase as any).from('profiles').select('manager_id').eq('id', user.id).maybeSingle(),
+      (supabase as any).from('profiles').select('id, full_name').neq('id', user.id).order('full_name'),
+    ]);
+    setManagerOptions(profs || []);
     setEditForm({
       full_name: user.full_name || '',
       role: user.role,
       is_active: user.is_active,
-      new_password: ''
+      new_password: '',
+      manager_id: prof?.manager_id || ''
     });
     setEditDialogOpen(true);
   };
