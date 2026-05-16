@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Upload, Trash2, Copy, ArrowLeft, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { optimizeImage } from '@/lib/imageOptimize';
 
 const CMSMediaLibrary = () => {
   const [files, setFiles] = useState<any[]>([]);
