@@ -32,10 +32,11 @@ const CMSMediaLibrary = () => {
     const fileList = e.target.files;
     if (!fileList?.length) return;
     setUploading(true);
-    for (const file of Array.from(fileList)) {
+    for (const original of Array.from(fileList)) {
+      const file = await optimizeImage(original);
       const ext = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from('cms-media').upload(fileName, file);
+      const { error } = await supabase.storage.from('cms-media').upload(fileName, file, { contentType: file.type });
       if (error) toast.error(`Failed: ${file.name}`);
     }
     toast.success('Upload complete');
