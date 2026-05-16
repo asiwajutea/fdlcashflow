@@ -143,6 +143,8 @@ const CMSActivityFormBuilder = () => {
   const [newAssignment, setNewAssignment] = useState<any>({ assignment_type: 'everyone' });
   const [expandedField, setExpandedField] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [leaders, setLeaders] = useState<{ id: string; full_name: string | null; roles: string[] }[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
