@@ -163,6 +163,9 @@ const UserManagement = () => {
 
       if (response.error) throw response.error;
 
+      // Persist direct manager (separate from edge function)
+      await (supabase as any).from('profiles').update({ manager_id: editForm.manager_id || null }).eq('id', selectedUser.id);
+
       toast({ title: 'User Updated', description: 'User details updated successfully' });
       setEditDialogOpen(false);
       fetchUsers();
