@@ -253,6 +253,41 @@ export type Database = {
           },
         ]
       }
+      advance_request_events: {
+        Row: {
+          actor_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          note: string
+          request_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string
+          request_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advance_request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "advance_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       advance_requests: {
         Row: {
           amount: number
