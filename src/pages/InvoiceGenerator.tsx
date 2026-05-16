@@ -595,11 +595,11 @@ const InvoiceGenerator = () => {
       // Auto-deduct approved salary advances for this employee
       try {
         const sdb = supabase as any;
-        if (selectedEmployee.user_id) {
+        if ((selectedEmployee as any).user_id) {
           const { data: advances } = await sdb
             .from('advance_requests')
             .select('*')
-            .eq('user_id', selectedEmployee.user_id)
+            .eq('user_id', (selectedEmployee as any).user_id)
             .eq('kind', 'salary_advance')
             .eq('status', 'approved');
           let addedDeductions = 0;
