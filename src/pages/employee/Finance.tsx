@@ -164,6 +164,40 @@ export default function Finance() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader><CardTitle className="text-base">My budget limits (this month)</CardTitle></CardHeader>
+              <CardContent>
+                {myBudgets.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No budgets have been assigned to you.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {myBudgets.map(({ budget: b, used, remaining, pct }) => {
+                      const catName = categories.find((c: any) => c.id === b.category_id)?.name;
+                      const tone = pct >= 100 ? 'text-destructive' : pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
+                      return (
+                        <div key={b.id} className="space-y-1.5">
+                          <div className="flex justify-between items-start gap-2 flex-wrap">
+                            <div>
+                              <p className="text-sm font-medium capitalize">
+                                {b.kind.replace('_', ' ')}{catName ? ` · ${catName}` : ''}
+                              </p>
+                              <p className="text-xs text-muted-foreground capitalize">
+                                {b.scope_type} budget · Limit {fmt(Number(b.monthly_limit))}
+                              </p>
+                            </div>
+                            <p className={`text-sm font-semibold ${tone}`}>
+                              {fmt(used)} used · {fmt(remaining)} left
+                            </p>
+                          </div>
+                          <Progress value={pct} className="h-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* MY REQUESTS */}
