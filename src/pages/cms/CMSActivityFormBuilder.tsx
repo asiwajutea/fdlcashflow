@@ -546,6 +546,42 @@ const CMSActivityFormBuilder = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="leader-access" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Who can view this form's submissions & analytics?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Admins always have access. Department heads, project leads, team leads, and direct managers can view their downlines' submissions by default. Toggle a leader off to revoke access for this specific form.
+              </p>
+              {leaders.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">
+                  No leaders set yet. Assign heads, leads, or direct managers in the CMS lookups or User Management.
+                </p>
+              )}
+              <div className="space-y-2">
+                {leaders.map((l) => {
+                  const allowed = overrides[l.id] !== false; // default ON
+                  return (
+                    <div key={l.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{l.full_name || l.id}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {l.roles.map((r) => <Badge key={r} variant="outline" className="text-xs">{r}</Badge>)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Switch checked={allowed} onCheckedChange={(v) => toggleLeaderAccess(l.id, v)} />
+                        <span className="text-xs text-muted-foreground w-16">{allowed ? 'Can view' : 'Blocked'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
