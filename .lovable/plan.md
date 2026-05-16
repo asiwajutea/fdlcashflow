@@ -1,37 +1,78 @@
-## Goals
+## Findings: [dakintuyi@gmail.com](mailto:dakintuyi@gmail.com) linkage
 
-1. Show each user their applicable budget limit and how much they've used this month.
-2. Display all historical payslips on `/my-invoices` for a linked employee (regardless of when the link was made).
-3. Show the user's previous payslip-based payment history on `/finance` once their account is linked.
-4. Add a "My Payslips" item to the nav menu so users can find the page.
+I queried the database directly. The employee record for **Temidayo Ehny Akintuyi** (`FDLC-201901-001`) is correctly linked to that user (`user_id` and `profile_id` both set). However, there are **0 invoices and 0 advance requests** in the database for this employee/user. So the "blank" state is correct — there simply isn't any historical data tied to this employee record.
 
-## Files to change
+Two likely causes:
 
-- `src/components/DashboardLayout.tsx` — add "My Payslips" nav entry under Invoicing for all signed-in users (no capability gate).
-- `src/pages/employee/MyInvoices.tsx` — broaden the employee lookup so historical payslips appear even if `employee_id` was linked after the payslip was created. Match employee by `user_id`, `profile_id`, or `email`, **then also pull invoices whose `employee.email` matches the user's email** (covers payslips issued before the link). Merge + de-duplicate by `invoice.id`.
-- `src/pages/employee/Finance.tsx` —
-  - Replace the `useTransactions({})` data source for personal totals/charts with a unified `useMyFinanceLedger(user)` query that pulls:
-    - **Salary income**: rows from `invoices` linked to any employee record matching the user (`user_id`/`profile_id`/`email`).
-    - **Advances/reimbursements**: from `advance_requests` (already correct).
-    - Builds the monthly cashflow series and the "By category" breakdown from this combined dataset, so a linked user immediately sees prior payslip totals.
-  - Add a **Budgets card** on the Overview tab that lists every `finance_budgets` row applicable to the current user (scope_type `user` for `user.id`, plus role / department scopes via `profiles`), with:
-    - Limit, used this month (sum of approved advance_requests in the budget's `kind` + `category_id`, filtered to current calendar month), remaining, and a `Progress` bar (green <70%, amber 70–99%, red ≥100%).
-  - Reuse this same lookup in the New Request dialog so the soft-warning checks the right budget.
-- `src/hooks/useMyFinanceLedger.ts` (new) — encapsulates the linked-employee → invoices + advances fetch with `useQuery`, returning `{ payslips, monthly, byCategory, salaryPaid }`.
-- `src/hooks/useMyBudgets.ts` (new) — returns budgets applicable to the current user with `{ budget, used, remaining }` for the current month.
+1. Past payslips for this person were generated under a **different** employee row (the only other "Akintuyi" row is `Halimat Kikelomo Akintuyi` / `FDLC-2023-002`, which has no email/user link — unlikely the same person).
+2. No payslips were ever issued for this person yet.
 
-## Technical notes
+I'll add a small affordance for admins to **merge/transfer** historical payslips from a stale employee row into the linked one — but only if you confirm there is actually an older employee row whose payslips belong to Temidayo. Otherwise nothing's broken.
 
-- All lookups stay client-side using existing RLS:
-  - `employees` is readable by authenticated users → safe to `.or('user_id.eq.<uid>,profile_id.eq.<uid>,email.ilike.<email>')`.
-  - `invoices` has policies for admins, authenticated read, and self via linked `employees.user_id`. Pulling by `employee_id IN (...)` works for all matched employee rows.
-  - `advance_requests` policy already lets owners read their own.
-- For the role/department budget scopes, fetch the user's `profiles` row once (id, role from `user_roles`, department_id) and filter `finance_budgets` where `(scope_type='user' AND scope_id=uid)` OR `(scope_type='role' AND scope_id=role)` OR `(scope_type='department' AND scope_id=department_id)`.
-- "Used this month" = sum of `advance_requests.amount` where `user_id=uid`, `status IN ('approved','repaid')`, `kind=budget.kind`, `(budget.category_id IS NULL OR category_id=budget.category_id)`, and `created_at >= start of current month`.
-- No DB migrations, no RLS changes, no new capabilities.
-- Keep all colors via existing semantic tokens; only progress bar uses Tailwind classes already in the design system.
+## New features
 
-## Out of scope
+### 1. Finance page — PDF & Excel exports
 
-- No edits to `InvoiceGenerator.tsx`, approval workflow, or category/budget admin UI behavior.
-- No schema or capability changes.
+Add an **Export** dropdown (top-right of Finance page) with four actions:
+
+- Weekly report (PDF)
+- Weekly report (Excel)
+- Monthly report (PDF)
+- Monthly report (Excel)
+
+Reports include: period header, salary income, advances/reimbursements (grouped by status), category breakdown, net position, and budget usage. Excel uses `xlsx` (already used elsewhere); PDF uses `jspdf` + `jspdf-autotable`.
+
+Scope:
+
+- Personal report for every user (their own ledger + own requests + own budgets).
+- Approvers/admins additionally get a "Team/All" toggle in the dialog to export team-wide totals.
+
+### 2. Pre-submit budget validation in the New Request dialog
+
+Currently the form silently allows over-budget submissions. Enhancements:
+
+- Show a live **"Used X of Y this month • Z remaining"** line under the Amount field, pulled from `useMyBudgets` for the matching budget (kind + category).
+- When `amount + used > limit`, show an inline **amber soft-warning alert**: "This exceeds your monthly limit by ₦N. You can still submit — your approver will see the overage."
+- Add a **confirmation checkbox** ("I understand this exceeds my limit") that must be ticked before Submit is enabled when over-budget.
+- Approval rule unchanged (soft warning per existing memory).
+
+### 3. Approval workflow UI — timeline & history
+
+Today each request only stores latest `status`, `approver_id`, `approver_note`, `decided_at`. To support a real timeline:
+
+**DB migration** — new table `advance_request_events`:
+
+- `id`, `request_id` (fk), `actor_id`, `event_type` (`submitted` / `approved` / `rejected` / `note_added` / `repaid`), `note`, `created_at`
+- RLS: request owner, approvers, admins, and request owner's leaders can read; approvers/admins/owner can insert.
+
+**Backfill**: insert a `submitted` event for every existing request and `approved`/`rejected` events for rows that have `decided_at`.
+
+**UI changes**:
+
+- New **"View timeline"** button (clock icon) on each request row in *My Requests* and *Approvals* tabs.
+- Opens a side sheet showing a vertical timeline: Submitted → Pending → Approved/Rejected → Repaid, with actor name, timestamp, and any note at each step.
+- Approver actions in the Approvals tab automatically insert a new event row.
+- Status badge in tables gets a clearer color set: pending=amber, approved=green, rejected=red, repaid=blue.
+
+## Files
+
+**New**
+
+- `src/lib/financeExports.ts` — PDF (jspdf) + Excel (xlsx) generators.
+- `src/components/finance/ExportMenu.tsx` — dropdown trigger + period/scope dialog.
+- `src/components/finance/RequestTimeline.tsx` — sheet with vertical timeline.
+- `src/hooks/useRequestEvents.ts` — fetch + insert events.
+- `supabase/migrations/<ts>_advance_request_events.sql` — new table, RLS, backfill.
+
+**Edited**
+
+- `src/pages/employee/Finance.tsx` — mount `ExportMenu`, integrate timeline button in Requests & Approvals lists, add live budget meter + soft-warning + confirm checkbox in `RequestsList` dialog, log event on approver decide.
+- `src/hooks/useAdvanceRequests.ts` — `decide` mutation also inserts an event; `create` mutation inserts a `submitted` event.
+
+**Dependencies**: add `jspdf`, `jspdf-autotable` (xlsx already present via other exports — will verify and add if missing).
+
+## Clarifying question
+
+Should I also add the **admin "merge payslips into linked employee"** tool for the Temidayo case, or do you want to confirm first whether older payslips for that person actually exist under a different employee row? If you can give me an employee ID/name where his old payslips live, I can include a one-click reassign in this same change.  
+  
+Skip Temidayo's case and let me decide that later
