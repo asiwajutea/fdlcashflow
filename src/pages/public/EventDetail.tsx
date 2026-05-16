@@ -53,6 +53,22 @@ const EventDetail = () => {
 
   return (
     <PublicLayout>
+      <SEO
+        title={event.title}
+        description={event.short_description || event.description}
+        image={event.image_url}
+        type="article"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Event',
+          name: event.title,
+          description: event.short_description || event.description,
+          startDate: event.event_date,
+          image: event.image_url || undefined,
+          eventStatus: 'https://schema.org/EventScheduled',
+          organizer: { '@type': 'Organization', name: 'Footprints Dynasty' },
+        }}
+      />
       {/* HERO */}
       <section className="relative h-[55vh] min-h-[380px] max-h-[550px] overflow-hidden">
         {event.image_url ? (
