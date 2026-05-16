@@ -17,14 +17,18 @@ interface LookupPageProps {
   title: string;
   singular: string;
   withDepartment?: boolean;
+  /** Optional leader/head picker — e.g. { column: 'head_user_id', label: 'Head of Department' } */
+  leaderField?: { column: string; label: string };
 }
 
-export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singular, withDepartment }) => {
+export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singular, withDepartment, leaderField }) => {
   const empty: any = { name: '', description: '', display_order: 0, is_active: true };
   if (withDepartment) empty.department_id = null;
+  if (leaderField) empty[leaderField.column] = null;
 
   const [items, setItems] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
+  const [leaders, setLeaders] = useState<{ id: string; full_name: string | null }[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [open, setOpen] = useState(false);
 
@@ -34,6 +38,17 @@ export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singula
     if (withDepartment) {
       const { data: deps } = await (db as any).from('departments').select('id,name').order('display_order');
       setDepartments(deps || []);
+    }
+    if (leaderField) {
+      // Eligible leaders = profiles with admin or employee role
+      const { data: roles } = await (db as any).from('user_roles').select('user_id').in('role', ['admin', 'employee']);
+      const ids = (roles || []).map((r: any) => r.user_id);
+      if (ids.length) {
+        const { data: profs } = await (db as any).from('profiles').select('id, full_name').in('id', ids).order('full_name');
+        setLeaders(profs || []);
+      } else {
+        setLeaders([]);
+      }
     }
   };
   useEffect(() => { fetchData(); }, []);
@@ -89,6 +104,22 @@ export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singula
                     </Select>
                   </div>
                 )}
+                {leaderField && (
+                  <div>
+                    <Label>{leaderField.label}</Label>
+                    <Select
+                      value={editing[leaderField.column] || 'none'}
+                      onValueChange={(v) => setEditing({ ...editing, [leaderField.column]: v === 'none' ? null : v })}
+                    >
+                      <SelectTrigger><SelectValue placeholder={`Select ${leaderField.label.toLowerCase()}`} /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">— None —</SelectItem>
+                        {leaders.map((p) => <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">This user will be able to view their team's form submissions and analytics.</p>
+                  </div>
+                )}
                 <div><Label>Display Order</Label><Input type="number" value={editing.display_order} onChange={(e) => setEditing({ ...editing, display_order: parseInt(e.target.value) || 0 })} /></div>
                 <div className="flex items-center gap-2">
                   <Switch checked={editing.is_active} onCheckedChange={(v) => setEditing({ ...editing, is_active: v })} />
@@ -107,6 +138,7 @@ export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singula
               <TableHead>Order</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Description</TableHead>
+              {leaderField && <TableHead>{leaderField.label}</TableHead>}
               <TableHead>Active</TableHead>
               <TableHead className="w-20"></TableHead>
             </TableRow>
@@ -117,6 +149,16 @@ export const LookupCMSPage: React.FC<LookupPageProps> = ({ table, title, singula
                 <TableCell>{s.display_order}</TableCell>
                 <TableCell className="font-medium">{s.name}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{s.description}</TableCell>
+                {leaderField && (
+                  <TableCell className="text-sm">
+                    {(() => {
+                      const id = s[leaderField.column];
+                      if (!id) return <span className="text-muted-foreground">—</span>;
+                      const l = leaders.find((p) => p.id === id);
+                      return l?.full_name || id;
+                    })()}
+                  </TableCell>
+                )}
                 <TableCell>{s.is_active ? '✓' : '—'}</TableCell>
                 <TableCell>
                   <div className="flex gap-1">
