@@ -84,6 +84,7 @@ const CMSFormSubmissions = lazy(() => import("./pages/cms/CMSFormSubmissions"));
 const CMSFormAnalytics = lazy(() => import("./pages/cms/CMSFormAnalytics"));
 const EmployeeFormAnalytics = lazy(() => import("./pages/employee/FormAnalytics"));
 const TeamReports = lazy(() => import("./pages/TeamReports"));
+import { CapabilityGuard } from "@/components/CapabilityGuard";
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
@@ -157,19 +158,19 @@ const AppRoutes = () =>
 
       {/* Backend routes */}
       <Route path="/dashboard" element={<AvatarGuard><Index /></AvatarGuard>} />
-      <Route path="/generate-invoice" element={<AvatarGuard><InvoiceGenerator /></AvatarGuard>} />
-      <Route path="/bulk-invoice" element={<AvatarGuard><BulkInvoiceGenerator /></AvatarGuard>} />
-      <Route path="/invoices" element={<AvatarGuard><InvoiceList /></AvatarGuard>} />
-      <Route path="/invoice-statistics" element={<AvatarGuard><InvoiceStatistics /></AvatarGuard>} />
-      <Route path="/statistics" element={<AvatarGuard><InvoiceStatistics /></AvatarGuard>} />
-      <Route path="/employees" element={<AvatarGuard><EmployeeManagement /></AvatarGuard>} />
-      <Route path="/company-settings" element={<AvatarGuard><CompanySettings /></AvatarGuard>} />
-      <Route path="/daily-tracker" element={<AvatarGuard><DailyTracker /></AvatarGuard>} />
-      <Route path="/user-management" element={<AvatarGuard><UserManagement /></AvatarGuard>} />
+      <Route path="/generate-invoice" element={<AvatarGuard><CapabilityGuard requires="generate_invoice"><InvoiceGenerator /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/bulk-invoice" element={<AvatarGuard><CapabilityGuard requires="bulk_invoice"><BulkInvoiceGenerator /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/invoices" element={<AvatarGuard><CapabilityGuard requires="view_invoices"><InvoiceList /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/invoice-statistics" element={<AvatarGuard><CapabilityGuard requires="view_statistics"><InvoiceStatistics /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/statistics" element={<AvatarGuard><CapabilityGuard requires="view_statistics"><InvoiceStatistics /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/employees" element={<AvatarGuard><CapabilityGuard requires="manage_employees"><EmployeeManagement /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/company-settings" element={<AvatarGuard><CapabilityGuard requires="manage_company_settings"><CompanySettings /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/daily-tracker" element={<AvatarGuard><CapabilityGuard requires="view_daily_tracker"><DailyTracker /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/user-management" element={<AvatarGuard><CapabilityGuard adminOnly><UserManagement /></CapabilityGuard></AvatarGuard>} />
       <Route path="/jobs" element={<AvatarGuard><Jobs /></AvatarGuard>} />
-      <Route path="/applications" element={<AvatarGuard><Applications /></AvatarGuard>} />
+      <Route path="/applications" element={<AvatarGuard><CapabilityGuard requires="manage_recruitment"><Applications /></CapabilityGuard></AvatarGuard>} />
       <Route path="/screening" element={<AvatarGuard><Screening /></AvatarGuard>} />
-      <Route path="/interviews" element={<AvatarGuard><Interviews /></AvatarGuard>} />
+      <Route path="/interviews" element={<AvatarGuard><CapabilityGuard requires="schedule_interviews"><Interviews /></CapabilityGuard></AvatarGuard>} />
       <Route path="/offers" element={<AvatarGuard><Offers /></AvatarGuard>} />
       <Route path="/inbox" element={<AvatarGuard><Inbox /></AvatarGuard>} />
 
@@ -177,6 +178,7 @@ const AppRoutes = () =>
       <Route path="/my-invoices" element={<AvatarGuard><MyInvoices /></AvatarGuard>} />
       <Route path="/activity-report" element={<AvatarGuard><ActivityReport /></AvatarGuard>} />
       <Route path="/my-finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
+      <Route path="/finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
       <Route path="/suggestions" element={<AvatarGuard><Suggestions /></AvatarGuard>} />
       <Route path="/knowledge-base" element={<AvatarGuard><KnowledgeBase /></AvatarGuard>} />
       <Route path="/knowledge-base/:slug" element={<AvatarGuard><KBArticle /></AvatarGuard>} />
@@ -184,29 +186,29 @@ const AppRoutes = () =>
       <Route path="/team-reports" element={<AvatarGuard><TeamReports /></AvatarGuard>} />
 
       {/* CMS routes */}
-      <Route path="/cms" element={<AvatarGuard><CMSDashboard /></AvatarGuard>} />
-      <Route path="/cms/services" element={<AvatarGuard><CMSServices /></AvatarGuard>} />
-      <Route path="/cms/events" element={<AvatarGuard><CMSEvents /></AvatarGuard>} />
-      <Route path="/cms/innovations" element={<AvatarGuard><CMSInnovations /></AvatarGuard>} />
-      <Route path="/cms/blog" element={<AvatarGuard><CMSBlog /></AvatarGuard>} />
-      <Route path="/cms/gallery" element={<AvatarGuard><CMSGallery /></AvatarGuard>} />
-      <Route path="/cms/partners" element={<AvatarGuard><CMSPartners /></AvatarGuard>} />
-      <Route path="/cms/testimonials" element={<AvatarGuard><CMSTestimonials /></AvatarGuard>} />
-      <Route path="/cms/sections" element={<AvatarGuard><CMSSections /></AvatarGuard>} />
-      <Route path="/cms/contacts" element={<AvatarGuard><CMSContacts /></AvatarGuard>} />
-      <Route path="/cms/hero-slides" element={<AvatarGuard><CMSHeroSlides /></AvatarGuard>} />
-      <Route path="/cms/team" element={<AvatarGuard><CMSTeamMembers /></AvatarGuard>} />
-      <Route path="/cms/media" element={<AvatarGuard><CMSMediaLibrary /></AvatarGuard>} />
-      <Route path="/cms/positions" element={<AvatarGuard><CMSPositions /></AvatarGuard>} />
-      <Route path="/cms/departments" element={<AvatarGuard><CMSDepartments /></AvatarGuard>} />
-      <Route path="/cms/projects" element={<AvatarGuard><CMSProjects /></AvatarGuard>} />
-      <Route path="/cms/teams" element={<AvatarGuard><CMSTeams /></AvatarGuard>} />
-      <Route path="/cms/knowledge-base" element={<AvatarGuard><CMSKnowledgeBase /></AvatarGuard>} />
-      <Route path="/cms/kb-categories" element={<AvatarGuard><CMSKBCategories /></AvatarGuard>} />
-      <Route path="/cms/activity-forms" element={<AvatarGuard><CMSActivityForms /></AvatarGuard>} />
-      <Route path="/cms/activity-forms/:id" element={<AvatarGuard><CMSActivityFormBuilder /></AvatarGuard>} />
-      <Route path="/cms/activity-forms/:id/submissions" element={<AvatarGuard><CMSFormSubmissions /></AvatarGuard>} />
-      <Route path="/cms/activity-forms/:id/analytics" element={<AvatarGuard><CMSFormAnalytics /></AvatarGuard>} />
+      <Route path="/cms" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSDashboard /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/services" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSServices /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/events" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSEvents /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/innovations" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSInnovations /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/blog" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSBlog /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/gallery" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSGallery /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/partners" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSPartners /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/testimonials" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSTestimonials /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/sections" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSSections /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/contacts" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSContacts /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/hero-slides" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSHeroSlides /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/team" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSTeamMembers /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/media" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSMediaLibrary /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/positions" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSPositions /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/departments" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSDepartments /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/projects" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSProjects /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/teams" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSTeams /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/knowledge-base" element={<AvatarGuard><CapabilityGuard requires="manage_knowledge_base"><CMSKnowledgeBase /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/kb-categories" element={<AvatarGuard><CapabilityGuard requires="manage_knowledge_base"><CMSKBCategories /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/activity-forms" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSActivityForms /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSActivityFormBuilder /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id/submissions" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSFormSubmissions /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/cms/activity-forms/:id/analytics" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSFormAnalytics /></CapabilityGuard></AvatarGuard>} />
       <Route path="/activity-report/:id/analytics" element={<AvatarGuard><EmployeeFormAnalytics /></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
