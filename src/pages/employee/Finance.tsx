@@ -38,7 +38,8 @@ export default function Finance() {
   const canApprove = isAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isAdmin || capabilities.includes('manage_finance_budgets');
 
-  const { transactions } = useTransactions({});
+  const { data: ledger } = useMyFinanceLedger(user?.id ?? null, user?.email ?? null);
+  const { data: myBudgets = [] } = useMyBudgets(user?.id ?? null);
   const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
   const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
   const { categories } = useFinanceCategories();
@@ -56,30 +57,20 @@ export default function Finance() {
   });
   const isLeader = subordinateIds.length > 0;
 
-  // Personal summary derived from transactions + my advances
+  // Personal summary derived from linked payslips + my advances
   const summary = useMemo(() => {
-    const salaryPaid = transactions.filter(t => t.type === 'income' && /salary|payroll|payslip/i.test(t.category)).reduce((s, t) => s + Number(t.amount), 0);
-    const incomeTotal = transactions.filter(t => t.type === 'income').reduce((s, t) => s + Number(t.amount), 0);
-    const expensesTotal = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + Number(t.amount), 0);
+    const salaryPaid = ledger?.salaryPaid || 0;
+    const totalDeductions = (ledger?.payslips || []).reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
     const outstandingAdvances = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'salary_advance')
       .reduce((s, r) => s + Number(r.amount), 0);
     const reimbursedYtd = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'reimbursement')
       .reduce((s, r) => s + Number(r.amount), 0);
-    return { salaryPaid: salaryPaid || incomeTotal, expensesTotal, outstandingAdvances, reimbursedYtd, net: (salaryPaid || incomeTotal) - expensesTotal };
-  }, [transactions, myRequests]);
+    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, net: salaryPaid - totalDeductions };
+  }, [ledger, myRequests]);
 
-  // monthly chart
-  const monthly = useMemo(() => {
-    const map: Record<string, { month: string; income: number; expense: number }> = {};
-    transactions.forEach(t => {
-      const m = format(new Date(t.date), 'MMM yy');
-      if (!map[m]) map[m] = { month: m, income: 0, expense: 0 };
-      if (t.type === 'income') map[m].income += Number(t.amount); else map[m].expense += Number(t.amount);
-    });
-    return Object.values(map).slice(-12);
-  }, [transactions]);
+  const monthly = ledger?.monthly || [];
 
   const categoryBreakdown = useMemo(() => {
     const byKind: Record<string, number> = { 'Salary Payment': 0, 'Salary Advance': 0, 'Reimbursement': 0, 'Cash Advance': 0 };
