@@ -17,9 +17,13 @@ import { useMyBudgets } from '@/hooks/useMyBudgets';
 import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
-import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ExportMenu } from '@/components/finance/ExportMenu';
+import { RequestTimeline } from '@/components/finance/RequestTimeline';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const COLORS = ['#0B1F3B', '#FF7A00', '#10b981', '#8b5cf6', '#ef4444'];
 const fmt = (n: number) => new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(n || 0);
@@ -101,6 +105,17 @@ export default function Finance() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Finance</h1>
             <p className="text-sm text-muted-foreground">Track your payments, advances and reimbursements</p>
           </div>
+          <ExportMenu
+            build={() => ({
+              title: 'Finance Report',
+              userName: user.email || user.id,
+              payslips: ledger?.payslips || [],
+              requests: myRequests,
+              budgets: myBudgets,
+              summary,
+              categories,
+            })}
+          />
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4">
@@ -205,7 +220,7 @@ export default function Finance() {
             <RequestsList
               requests={myRequests}
               categories={categories}
-              budgets={myBudgets.map((b) => b.budget)}
+              myBudgets={myBudgets}
               userId={user.id}
               onCreate={(p) => create.mutate(p)}
               onDelete={(id) => remove.mutate(id)}
@@ -269,28 +284,40 @@ function MetricCard({ label, value, icon: Icon, tone }: any) {
   );
 }
 
-function RequestsList({ requests, categories, budgets, userId, onCreate, onDelete, isCreating }: any) {
+function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDelete, isCreating }: any) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
+  const [ack, setAck] = useState(false);
+  const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const applicableBudget = useMemo(() => {
-    return budgets.find((b: any) => b.kind === form.kind && (!b.category_id || b.category_id === form.category_id));
-  }, [budgets, form]);
-  const overBudget = applicableBudget && Number(form.amount || 0) > Number(applicableBudget.monthly_limit);
+    return myBudgets.find((b: any) => b.budget.kind === form.kind && (!b.budget.category_id || b.budget.category_id === form.category_id));
+  }, [myBudgets, form]);
+
+  const amount = Number(form.amount || 0);
+  const limit = applicableBudget ? Number(applicableBudget.budget.monthly_limit) : 0;
+  const used = applicableBudget?.used || 0;
+  const projected = used + amount;
+  const overBudget = !!applicableBudget && projected > limit;
+  const overBy = overBudget ? projected - limit : 0;
 
   const submit = () => {
-    if (!form.amount || Number(form.amount) <= 0) return;
+    if (!form.amount || amount <= 0) return;
+    if (overBudget && !ack) return;
     onCreate({
       user_id: userId,
       kind: form.kind,
       category_id: form.kind === 'salary_advance' ? null : form.category_id,
-      amount: Number(form.amount),
+      amount,
       reason: form.reason,
       repayment_plan: form.kind === 'salary_advance' ? form.repayment_plan : null,
     });
     setOpen(false);
     setForm({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
+    setAck(false);
   };
+
+  const timelineReq = requests.find((r: any) => r.id === timelineId);
 
   return (
     <>
@@ -324,9 +351,14 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
                   <TableCell><Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge></TableCell>
                   <TableCell className="text-xs max-w-[200px] truncate">{r.approver_note || r.reason}</TableCell>
                   <TableCell>
-                    {r.status === 'pending' && (
-                      <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                    )}
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => setTimelineId(r.id)} title="View timeline">
+                        <Clock className="h-3.5 w-3.5" />
+                      </Button>
+                      {r.status === 'pending' && (
+                        <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -335,7 +367,14 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <RequestTimeline
+        open={!!timelineId}
+        onOpenChange={(v) => !v && setTimelineId(null)}
+        requestId={timelineId}
+        request={timelineReq}
+      />
+
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAck(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>New finance request</DialogTitle>
@@ -344,7 +383,7 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
           <div className="space-y-3">
             <div>
               <Label>Type</Label>
-              <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v, category_id: null })}>
+              <Select value={form.kind} onValueChange={(v) => { setForm({ ...form, kind: v, category_id: null }); setAck(false); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="salary_advance">Salary Advance</SelectItem>
@@ -356,7 +395,7 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
             {form.kind !== 'salary_advance' && (
               <div>
                 <Label>Category</Label>
-                <Select value={form.category_id ?? ''} onValueChange={(v) => setForm({ ...form, category_id: v })}>
+                <Select value={form.category_id ?? ''} onValueChange={(v) => { setForm({ ...form, category_id: v }); setAck(false); }}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
                     {categories.filter((c: any) => c.kind === form.kind && c.is_active).map((c: any) => (
@@ -368,9 +407,25 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
             )}
             <div>
               <Label>Amount (NGN)</Label>
-              <Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
+              <Input type="number" value={form.amount} onChange={(e) => { setForm({ ...form, amount: e.target.value }); setAck(false); }} />
+              {applicableBudget && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Budget: {fmt(used)} used of {fmt(limit)} • {fmt(Math.max(0, limit - used))} remaining
+                </p>
+              )}
               {overBudget && (
-                <p className="text-xs text-orange-600 mt-1 flex items-center gap-1"><AlertCircle className="h-3 w-3" /> Exceeds your monthly limit of {fmt(applicableBudget.monthly_limit)} — approver will be notified.</p>
+                <Alert className="mt-2 border-orange-400 bg-orange-50 dark:bg-orange-950/30">
+                  <AlertCircle className="h-4 w-4 text-orange-600" />
+                  <AlertDescription className="text-orange-800 dark:text-orange-300">
+                    This request exceeds your monthly limit by <strong>{fmt(overBy)}</strong>. You can still submit — your approver will be notified.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {overBudget && (
+                <label className="flex items-start gap-2 mt-2 text-xs cursor-pointer">
+                  <Checkbox checked={ack} onCheckedChange={(v) => setAck(!!v)} className="mt-0.5" />
+                  <span>I understand this request exceeds my monthly limit.</span>
+                </label>
               )}
             </div>
             {form.kind === 'salary_advance' && (
@@ -392,7 +447,7 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={isCreating || !form.amount}>Submit</Button>
+            <Button onClick={submit} disabled={isCreating || !form.amount || (overBudget && !ack)}>Submit</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -404,8 +459,10 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [noteFor, setNoteFor] = useState<{ id: string; status: 'approved' | 'rejected' } | null>(null);
   const [note, setNote] = useState('');
+  const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const filtered = requests.filter((r: any) => filter === 'all' || r.status === 'pending');
+  const timelineReq = requests.find((r: any) => r.id === timelineId);
 
   return (
     <>
@@ -427,7 +484,12 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
                     <p className="font-semibold">{kindLabel[r.kind as AdvanceKind]}{cat ? ` · ${cat.name}` : ''}</p>
                     <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
                   </div>
-                  <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
+                    <Button size="icon" variant="ghost" onClick={() => setTimelineId(r.id)} title="View timeline">
+                      <Clock className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-xl font-bold">{fmt(Number(r.amount))}</p>
                 {over && <Badge variant="outline" className="text-orange-600 border-orange-300"><AlertCircle className="h-3 w-3 mr-1" /> Over budget ({fmt(budget.monthly_limit)})</Badge>}
@@ -449,6 +511,13 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
           );
         })}
       </div>
+
+      <RequestTimeline
+        open={!!timelineId}
+        onOpenChange={(v) => !v && setTimelineId(null)}
+        requestId={timelineId}
+        request={timelineReq}
+      />
 
       <Dialog open={!!noteFor} onOpenChange={() => setNoteFor(null)}>
         <DialogContent className="max-w-md">
