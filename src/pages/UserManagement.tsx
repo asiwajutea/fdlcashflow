@@ -542,6 +542,24 @@ const UserManagement = () => {
                 </Select>
               </div>
               <div>
+                <Label>Direct Manager</Label>
+                <Select
+                  value={editForm.manager_id || 'none'}
+                  onValueChange={(v) => setEditForm({ ...editForm, manager_id: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select direct manager…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No manager —</SelectItem>
+                    {managerOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Direct managers can view this user's form submissions and analytics.
+                </p>
+              </div>
+              <div>
                 <Label>New Password (leave blank to keep current)</Label>
                 <Input type="password" value={editForm.new_password} onChange={(e) => setEditForm({ ...editForm, new_password: e.target.value })} placeholder="••••••••" />
               </div>
