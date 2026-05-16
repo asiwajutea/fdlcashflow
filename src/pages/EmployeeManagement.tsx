@@ -93,6 +93,7 @@ const EmployeeManagement = () => {
   const handleOpenDialog = (employee?: Employee) => {
     if (employee) {
       setEditingEmployee(employee);
+      const linked = linkableUsers.find((p) => p.id === employee.user_id);
       setFormData({
         employee_id: employee.employee_id,
         full_name: employee.full_name,
@@ -100,7 +101,8 @@ const EmployeeManagement = () => {
         bank_name: employee.bank_name || '',
         account_number: employee.account_number || '',
         email: employee.email || '',
-        user_id: employee.user_id || ''
+        user_id: employee.user_id || '',
+        manager_id: linked?.manager_id || ''
       });
     } else {
       setEditingEmployee(null);
@@ -111,7 +113,8 @@ const EmployeeManagement = () => {
         bank_name: '',
         account_number: '',
         email: '',
-        user_id: ''
+        user_id: '',
+        manager_id: ''
       });
     }
     setIsDialogOpen(true);
