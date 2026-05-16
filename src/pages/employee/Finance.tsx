@@ -12,9 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAdvanceRequests, useFinanceCategories, useFinanceBudgets, AdvanceKind } from '@/hooks/useAdvanceRequests';
-import { useTransactions } from '@/hooks/useTransactions';
+import { useMyFinanceLedger } from '@/hooks/useMyFinanceLedger';
+import { useMyBudgets } from '@/hooks/useMyBudgets';
 import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
+import { Progress } from '@/components/ui/progress';
 import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
