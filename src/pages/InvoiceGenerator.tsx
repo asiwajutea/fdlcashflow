@@ -592,6 +592,53 @@ const InvoiceGenerator = () => {
         if (itemsError) throw itemsError;
       }
 
+      // Auto-deduct approved salary advances for this employee
+      try {
+        const sdb = supabase as any;
+        if (selectedEmployee.user_id) {
+          const { data: advances } = await sdb
+            .from('advance_requests')
+            .select('*')
+            .eq('user_id', selectedEmployee.user_id)
+            .eq('kind', 'salary_advance')
+            .eq('status', 'approved');
+          let addedDeductions = 0;
+          for (const adv of (advances ?? [])) {
+            const installments = adv.repayment_plan === 'two' ? 2 : 1;
+            const perInstallment = Number(adv.amount) / installments;
+            const remaining = installments - (adv.repaid_count || 0);
+            if (remaining <= 0) continue;
+            const deductAmount = perInstallment;
+            await sdb.from('invoice_line_items').insert({
+              invoice_id: invoiceData.id,
+              item_type: 'deduction',
+              description: `Salary advance repayment ${(adv.repaid_count || 0) + 1}/${installments}`,
+              amount: deductAmount,
+              is_taxable: null,
+              created_by: user?.id,
+            });
+            await sdb.from('advance_repayments').insert({
+              advance_id: adv.id,
+              invoice_id: invoiceData.id,
+              amount: deductAmount,
+            });
+            const newCount = (adv.repaid_count || 0) + 1;
+            await sdb.from('advance_requests').update({
+              repaid_count: newCount,
+              status: newCount >= installments ? 'repaid' : 'approved',
+            }).eq('id', adv.id);
+            addedDeductions += deductAmount;
+          }
+          if (addedDeductions > 0) {
+            await sdb.from('invoices').update({
+              total_deductions: totals.totalDeductions + addedDeductions,
+              net_payment: totals.netPayment - addedDeductions,
+            }).eq('id', invoiceData.id);
+          }
+        }
+      } catch (e) {
+        console.error('Advance auto-deduction failed:', e);
+
       // Auto-create daily expense entry for payslip (net payment including savings)
       await supabase.from('daily_transactions').insert({
         date: dateIssued,
