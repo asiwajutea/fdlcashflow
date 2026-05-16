@@ -29,6 +29,9 @@ export const ALL_CAPABILITIES = [
   { id: 'add_job_position', label: 'Add Job Position', description: 'Create and manage job postings' },
   { id: 'manage_knowledge_base', label: 'Manage Knowledge Base', description: 'Create and edit knowledge base articles and categories' },
   { id: 'manage_activity_forms', label: 'Manage Activity Forms', description: 'Design forms, assign frequency and audience, and review submissions' },
+  { id: 'view_finance', label: 'View Finance', description: 'Access personal Finance page' },
+  { id: 'approve_finance_requests', label: 'Approve Finance Requests', description: 'Approve/reject salary advance, reimbursement and cash advance requests' },
+  { id: 'manage_finance_budgets', label: 'Manage Finance Budgets', description: 'Edit finance categories and budget limits' },
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];
