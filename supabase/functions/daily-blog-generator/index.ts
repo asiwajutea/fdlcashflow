@@ -84,7 +84,8 @@ serve(async (req) => {
 Requirements:
 - Pick 1 ranking/trending angle worth talking about today.
 - 600-900 words. Conversational but informative tone.
-- Use markdown: an intro paragraph, then 3-5 H2 sections (##), a short conclusion, and a final "## Sources" section listing 3-5 plausible reputable source URLs you would cite (real publications such as BBC Africa, Quartz Africa, EdSurge, UNESCO, Brookings, The Conversation Africa, etc.). It is okay to cite homepage or section URLs if exact article URLs are uncertain — never invent fake-looking URLs.
+- Output the post body as semantic HTML (no <html>, <body>, or <head> tags) using <p>, <h2>, <h3>, <ul>, <li>, <strong>, <em>, <blockquote>, and <a href> for citations.
+- Structure: opening paragraph, then 3-5 H2 sections, optional bullet lists, short closing paragraph, then a final <h2>Sources</h2> followed by <ul> of 3-5 plausible reputable source links (BBC Africa, Quartz Africa, EdSurge, UNESCO, Brookings, The Conversation Africa, etc.). Use <a href="URL" target="_blank" rel="noopener">Source Title</a>. Cite homepage URLs if exact article URLs are uncertain — never invent fake-looking URLs.
 - Return ONLY valid JSON, no commentary, in this shape:
 
 {
@@ -94,7 +95,7 @@ Requirements:
   "meta_title": "string (max 60 chars, SEO optimized)",
   "meta_description": "string (max 160 chars)",
   "tags": ["tag1","tag2","tag3"],
-  "body": "string (full markdown blog post)",
+  "body": "string (full HTML body as described)",
   "sources": [{"title":"...","url":"https://..."}]
 }`;
 
