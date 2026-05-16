@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -45,6 +45,7 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { path: '/daily-tracker', label: 'Daily Tracker', icon: CalendarClock, capability: 'view_daily_tracker' },
+      { path: '/finance', label: 'Finance', icon: Wallet, capability: null },
       { path: '/employees', label: 'Employees', icon: Users, capability: 'manage_employees' },
       { path: '/company-settings', label: 'Company Settings', icon: Settings, capability: 'manage_company_settings' },
     ],

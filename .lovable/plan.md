@@ -1,81 +1,110 @@
-## 1. Leader Dashboard (`/team-reports`)
+## 1. Fix capability access bug
 
-A new page accessible to anyone who leads at least one user (via `get_my_subordinates` RPC), summarizing their downline's financial and activity-report data.
+**Problem:** Routes like `/daily-tracker`, `/transactions`, etc. are only hidden in the sidebar — the page components don't check capabilities, so removed users can still navigate directly via URL.
 
-**Route**: `/team-reports` (added in `src/App.tsx`, gated by `useIsLeader()` hook).
+**Fix:** Add a `<CapabilityGuard requires="...">` wrapper component (mirrors `AvatarGuard`). It reads `useCapabilities(user.id)`, and if the capability is missing (and user isn't admin), redirects to `/dashboard` with a toast. Wrap every capability-gated route in `App.tsx`:
 
-**Navigation entry**: Add "Team Reports" link in `EmployeeDashboard` + sidebar for users whose `get_my_subordinates()` returns ≥1 row. Admins also see it.
+- `/daily-tracker` → `view_daily_tracker`
+- `/weekly-data`, `/weekly-history` → respective caps
+- `/invoice-generator`, `/bulk-invoice`, `/invoices`, `/statistics`
+- `/rates`, `/employees`, `/company-settings`
+- `/user-management` → admin only
+- `/cms/*` → `manage_website_content`
+- `/recruitment`, `/interviews`, etc.
+- `/finance` → `view_dashboard` (everyone) but advance-approval tabs gated by new `approve_finance_requests`
 
-**Page layout** (`src/pages/TeamReports.tsx`):
-- Header: "My Team Reports" + small subordinate count badge.
-- Filter bar: date range (last 7/30/90 days, custom), optional subordinate dropdown ("All team members" / individual).
-- **Top metric cards** (4): Total Income, Total Expenses, Net Balance, Submissions Count — aggregated across downline only.
-- **Charts row**:
-  - Income vs Expense line/area chart (reusing `useTransactionStats` logic).
-  - Submissions per form bar chart (count of `activity_form_submissions` per `form_id`).
-- **Tables**:
-  - "Team members" table: name, role, department/team, # submissions, last submission date.
-  - "Recent submissions" table: submitter, form title, submitted_at, link to view.
-- Empty state if no subordinates / no data in range.
+Also audit `EmployeeDashboard` and `Index` quick-access cards to consistently use `hasCapability`.
 
-**Data source rules**: All queries are filtered server-side by RLS. We additionally pass `user_id IN (select user_id from get_my_subordinates())` in queries for:
-- `daily_transactions` (income/expense aggregates)
-- `weekly_data` (if income source)
-- `activity_form_submissions` (counts + recent list)
+## 2. Finance page (`/finance`)
 
-No new RLS needed — existing policies (after the leader-hierarchy migration) already permit leaders to read their downline. We just constrain the query to subordinate ids client-side to scope the view.
+### Database (new migration)
 
-**Reuse**:
-- Pull from existing `useTransactions` hook with a filter param `userIds?: string[]`, or write a small `useTeamTransactions(subordinateIds, range)` hook.
-- Reuse `FormAnalyticsView` in a compact mode for each top-form preview (optional, can defer).
+```text
+finance_categories
+  id, kind ('reimbursement' | 'cash_advance'), name, is_active, display_order
+  (seeded: Reimbursement → Travel, Meals, Supplies, Medical, Other;
+            Cash Advance → Project, Field Ops, Other;
+            Salary Advance is a fixed kind, no category)
 
-## 2. User Management UI redesign (`src/pages/UserManagement.tsx`)
+advance_requests
+  id, user_id, kind ('salary_advance'|'reimbursement'|'cash_advance'),
+  category_id (null for salary_advance), amount, reason, receipt_url,
+  repayment_plan ('one'|'two'|null), status ('pending'|'approved'|'rejected'|'repaid'),
+  approver_id, approver_note, created_at, decided_at,
+  repaid_count int default 0   -- tracks how many invoices have deducted
 
-Goal: clean, scannable layout; tame the noisy "Approval" + "Passcode" columns shown in the screenshot.
+advance_repayments
+  id, advance_id, invoice_id, amount, created_at
+  (written when a payslip is generated)
 
-**Changes (presentation only — no logic changes)**:
+finance_budgets
+  id, scope_type ('user'|'role'|'department'), scope_id (uuid/text),
+  kind ('reimbursement'|'cash_advance'|'salary_advance'),
+  category_id (nullable), monthly_limit numeric
+```
 
-1. **Header strip**: Replace the back button row with a real page header — title "User Management" + subtitle "Approve, manage roles, and reset access codes" on the left; "Create User" button on the right.
+RLS: users CRUD their own pending requests; admin/`approve_finance_requests` see all + update status; leaders see subordinates (using existing `get_subordinate_user_ids`). Budgets admin-only.
 
-2. **Stat tiles row** (4 small cards): Total Users, Pending Approval, Active, Inactive. Clicking a tile sets the status filter.
+New capability: `approve_finance_requests` added to `ALL_CAPABILITIES`.
 
-3. **Filter bar** below tiles:
-   - Search input (name/email) — new, client-side filter.
-   - Role filter dropdown — new.
-   - Status filter (existing).
-   - Remove the standalone red "1 pending" badge (now represented in the Pending tile).
+### Payslip integration
+Modify `InvoiceGenerator` to:
+- Query approved, not-fully-repaid advances for the employee
+- Auto-add deduction line(s) per repayment plan (full on next slip, or half×2)
+- Insert `advance_repayments` rows and bump `repaid_count`; mark `status='repaid'` when complete
 
-4. **Pending approvals section** (only renders if any pending): a separate compact card titled "Pending Approvals" listing each pending user as a row with name/email/role + Approve / Reject buttons. This removes the cramped Approve/Reject buttons from the main table.
+### Page layout (`src/pages/employee/Finance.tsx`, mobile-first)
 
-5. **Main users table** redesigned:
-   - Columns: **User** (avatar + name + email stacked), **Role**, **Status** (single column merging account active + approval — color-coded chip), **Passcode** (compact: dots + single "actions" dropdown with View / Copy / Regenerate), **Manager**, **Actions** (Edit, Capabilities icons in a small ghost button group).
-   - Removes redundant Approval column (pending users live in the section above; approved/rejected reflected in Status chip).
-   - Row hover highlight, zebra striping via existing tokens, sticky header.
-   - Empty state when filtered list is empty.
+Header + responsive tabs:
 
-6. **Passcode UX**: collapse Eye / Copy / Regenerate into a `DropdownMenu` triggered by a single `MoreHorizontal` icon next to the masked code. Reduces visual clutter.
+1. **Overview**
+   - 4 metric cards: Total Salary Paid, Outstanding Advances, Reimbursed YTD, Net Position
+   - Area chart: monthly salary vs deductions (recharts, `ResponsiveContainer`)
+   - Pie/Donut: spend categorized by Salary Payment / Cash Advance / Reimbursement / Salary Advance
+   - Recent payslips table (links to payslip PDF)
 
-7. **Tabs styling**: keep Users / Role Templates tabs, but move them under the header so they look like proper page tabs (slightly larger, with border-bottom active state). No functional change.
+2. **My Requests**
+   - "New Request" button → dialog: pick kind, category (if applicable), amount, reason, receipt upload (uses `documents` bucket), repayment plan (salary advance only)
+   - List of own requests with status badges + approver note
+   - Budget hint shown live; if amount > limit show soft warning "Exceeds your monthly limit of ₦X — approver will be notified"
 
-All colors via semantic tokens (`bg-card`, `text-muted-foreground`, `bg-primary`, etc.). No raw hex.
+3. **Approvals** (only if admin or has `approve_finance_requests`)
+   - Tabbed: Pending / Decided
+   - Card list with requester avatar, kind, amount, category, reason, attached receipt
+   - Approve/Reject with required note
+   - Highlight chip when request exceeded budget limit
 
-## Technical Details
+4. **Team Finance** (only leaders)
+   - Reuse `get_my_subordinates` to scope queries
+   - Subordinate metric tiles + table of their requests
 
-**Files created**
-- `src/pages/TeamReports.tsx` — leader dashboard page.
-- `src/hooks/useIsLeader.ts` — wraps `get_my_subordinates` RPC, returns `{ isLeader, subordinateIds, loading }`.
-- `src/hooks/useTeamTransactions.ts` (optional) — fetches `daily_transactions` + `weekly_data` for given user ids and date range, returns aggregated stats matching `TransactionStats` shape so we can reuse `MetricCards`/`FinancialCharts` if desired.
+5. **Settings** (admin only)
+   - Categories CRUD (reimbursement + cash advance) — uses `LookupCMSPage` pattern
+   - Budgets table: pick scope (user/role/department), kind, category, monthly limit; inline edit/delete
 
-**Files edited**
-- `src/App.tsx` — register `/team-reports` route.
-- `src/components/DashboardLayout.tsx` (or wherever sidebar lives) — conditional nav item using `useIsLeader`.
-- `src/pages/EmployeeDashboard.tsx` — "My Team" card linking to `/team-reports` when `isLeader`.
-- `src/pages/UserManagement.tsx` — UI restructure per section 2; no edge-function or RLS changes.
+### Hooks/components
+- `useAdvanceRequests(filters)` — CRUD + realtime
+- `useFinanceBudgets()`
+- `useFinanceCategories()`
+- `useFinanceSummary(userId)` — aggregates transactions + invoices + advances
+- `<RequestAdvanceDialog />`, `<ApprovalCard />`, `<BudgetEditor />`, `<CategoryManager />`
 
-**No DB migration required.** All hierarchy functions, override tables, and RLS policies already exist from the previous migration.
+All UI uses semantic tokens (`bg-card`, `text-foreground`, brand Navy/Orange already in tokens), fully responsive with `grid-cols-1 md:grid-cols-2 lg:grid-cols-4` patterns and stacked tabs on mobile.
 
-**Out of scope**
-- No changes to approve/reject, create-user, or update-user edge functions.
-- No changes to RLS policies.
-- No changes to public site or candidate flows.
-- Per-form drill-down inside team reports beyond a link to existing `FormAnalyticsView` (kept light; can expand later).
+### Sidebar
+Surface "Finance" in `DashboardLayout` for all employees; show "Finance Approvals" badge with pending count for approvers.
+
+## Files
+
+**Created**
+- `src/components/CapabilityGuard.tsx`
+- `src/hooks/useAdvanceRequests.ts`, `useFinanceBudgets.ts`, `useFinanceCategories.ts`, `useFinanceSummary.ts`
+- `src/components/finance/RequestAdvanceDialog.tsx`, `ApprovalCard.tsx`, `BudgetEditor.tsx`, `CategoryManager.tsx`
+- migration: `*_finance_module.sql`
+
+**Edited**
+- `src/App.tsx` (route guards, finance route)
+- `src/pages/employee/Finance.tsx` (full rewrite)
+- `src/pages/InvoiceGenerator.tsx` (auto-deduct repayments)
+- `src/components/DashboardLayout.tsx` (Finance nav)
+- `src/hooks/useCapabilities.tsx` (+ `approve_finance_requests`)
