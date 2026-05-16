@@ -49,8 +49,31 @@ const BlogPost = () => {
     );
   }
 
+  const authorName = post.author_name || 'Footprints Dynasty Team';
+  const articleLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt || post.meta_description || '',
+    image: post.featured_image || undefined,
+    datePublished: post.published_at,
+    dateModified: post.updated_at || post.published_at,
+    author: { '@type': 'Person', name: authorName },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Footprints Dynasty',
+    },
+  };
+
   return (
     <PublicLayout>
+      <SEO
+        title={post.meta_title || post.title}
+        description={post.meta_description || post.excerpt}
+        image={post.featured_image}
+        type="article"
+        jsonLd={articleLd}
+      />
       {/* HERO */}
       <section className="relative h-[55vh] min-h-[380px] max-h-[550px] overflow-hidden">
         <img
