@@ -346,6 +346,7 @@ const CMSActivityFormBuilder = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="fields">Fields ({fields.length})</TabsTrigger>
           <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
+          <TabsTrigger value="leader-access">Leader Access ({leaders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="mt-6">
