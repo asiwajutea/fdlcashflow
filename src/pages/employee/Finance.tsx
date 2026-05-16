@@ -15,7 +15,7 @@ import { useAdvanceRequests, useFinanceCategories, useFinanceBudgets, AdvanceKin
 import { useTransactions } from '@/hooks/useTransactions';
 import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
-import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
