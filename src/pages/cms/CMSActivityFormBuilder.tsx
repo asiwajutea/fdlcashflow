@@ -143,18 +143,21 @@ const CMSActivityFormBuilder = () => {
   const [newAssignment, setNewAssignment] = useState<any>({ assignment_type: 'everyone' });
   const [expandedField, setExpandedField] = useState<number | null>(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [leaders, setLeaders] = useState<{ id: string; full_name: string | null; roles: string[] }[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     (async () => {
-      const [{ data: f }, { data: ff }, { data: aa }, deps, projs, teams, pos, emps] = await Promise.all([
+      const [{ data: f }, { data: ff }, { data: aa }, deps, projs, teams, pos, emps, ovs] = await Promise.all([
         db.from('activity_forms').select('*').eq('id', id).single(),
         db.from('activity_form_fields').select('*').eq('form_id', id).order('display_order'),
         db.from('activity_form_assignments').select('*').eq('form_id', id),
-        db.from('departments').select('id,name').order('name'),
-        db.from('projects').select('id,name').order('name'),
-        db.from('teams').select('id,name').order('name'),
+        db.from('departments').select('id,name,head_user_id').order('name'),
+        db.from('projects').select('id,name,lead_user_id').order('name'),
+        db.from('teams').select('id,name,lead_user_id').order('name'),
         db.from('positions').select('id,name').order('name'),
-        db.from('profiles').select('id,full_name,email').order('full_name'),
+        db.from('profiles').select('id,full_name,manager_id').order('full_name'),
+        (db as any).from('activity_form_leader_overrides').select('user_id,can_view').eq('form_id', id),
       ]);
       setForm(f);
       setFields(ff || []);
@@ -164,10 +167,46 @@ const CMSActivityFormBuilder = () => {
         projects: projs.data || [],
         teams: teams.data || [],
         positions: pos.data || [],
-        employees: (emps.data || []).map((e: any) => ({ id: e.id, name: e.full_name || e.email })),
+        employees: (emps.data || []).map((e: any) => ({ id: e.id, name: e.full_name || e.id })),
       });
+
+      // Compute leaders: anyone who is a head/lead/manager of someone
+      const leaderMap = new Map<string, { id: string; full_name: string | null; roles: string[] }>();
+      const profById = new Map<string, any>((emps.data || []).map((p: any) => [p.id, p]));
+      const add = (uid: string, role: string) => {
+        if (!uid) return;
+        const p = profById.get(uid);
+        const entry = leaderMap.get(uid) || { id: uid, full_name: p?.full_name || null, roles: [] };
+        if (!entry.roles.includes(role)) entry.roles.push(role);
+        leaderMap.set(uid, entry);
+      };
+      (deps.data || []).forEach((d: any) => add(d.head_user_id, `Head of ${d.name}`));
+      (projs.data || []).forEach((pr: any) => add(pr.lead_user_id, `Lead of ${pr.name}`));
+      (teams.data || []).forEach((t: any) => add(t.lead_user_id, `Lead of ${t.name}`));
+      (emps.data || []).forEach((p: any) => { if (p.manager_id) add(p.manager_id, 'Direct Manager'); });
+      setLeaders(Array.from(leaderMap.values()).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')));
+
+      const oMap: Record<string, boolean> = {};
+      (ovs as any)?.data?.forEach((o: any) => { oMap[o.user_id] = o.can_view; });
+      setOverrides(oMap);
     })();
   }, [id]);
+
+  const toggleLeaderAccess = async (userId: string, allow: boolean) => {
+    // Default behaviour (no row) = allow. So:
+    //  - allow=true  → delete the override row
+    //  - allow=false → upsert row with can_view=false
+    if (allow) {
+      const { error } = await (db as any).from('activity_form_leader_overrides').delete().eq('form_id', id).eq('user_id', userId);
+      if (error) { toast.error(error.message); return; }
+      const next = { ...overrides }; delete next[userId]; setOverrides(next);
+    } else {
+      const { error } = await (db as any).from('activity_form_leader_overrides')
+        .upsert({ form_id: id, user_id: userId, can_view: false }, { onConflict: 'form_id,user_id' });
+      if (error) { toast.error(error.message); return; }
+      setOverrides({ ...overrides, [userId]: false });
+    }
+  };
 
   const updateForm = (patch: any) => setForm({ ...form, ...patch });
 
@@ -307,6 +346,7 @@ const CMSActivityFormBuilder = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="fields">Fields ({fields.length})</TabsTrigger>
           <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
+          <TabsTrigger value="leader-access">Leader Access ({leaders.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="settings" className="mt-6">
@@ -502,6 +542,42 @@ const CMSActivityFormBuilder = () => {
                   </div>
                 ) : <div className="md:col-span-2 text-sm text-muted-foreground">All employees will see this form.</div>}
                 <Button onClick={handleAddAssignment} className="md:col-start-3"><Plus className="h-4 w-4 mr-2" /> Add</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="leader-access" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Who can view this form's submissions & analytics?</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Admins always have access. Department heads, project leads, team leads, and direct managers can view their downlines' submissions by default. Toggle a leader off to revoke access for this specific form.
+              </p>
+              {leaders.length === 0 && (
+                <p className="text-sm text-muted-foreground italic">
+                  No leaders set yet. Assign heads, leads, or direct managers in the CMS lookups or User Management.
+                </p>
+              )}
+              <div className="space-y-2">
+                {leaders.map((l) => {
+                  const allowed = overrides[l.id] !== false; // default ON
+                  return (
+                    <div key={l.id} className="flex items-center justify-between gap-3 p-3 border rounded-lg">
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm truncate">{l.full_name || l.id}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {l.roles.map((r) => <Badge key={r} variant="outline" className="text-xs">{r}</Badge>)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Switch checked={allowed} onCheckedChange={(v) => toggleLeaderAccess(l.id, v)} />
+                        <span className="text-xs text-muted-foreground w-16">{allowed ? 'Can view' : 'Blocked'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

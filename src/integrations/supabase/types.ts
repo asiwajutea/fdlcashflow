@@ -105,6 +105,30 @@ export type Database = {
           },
         ]
       }
+      activity_form_leader_overrides: {
+        Row: {
+          can_view: boolean
+          created_at: string
+          form_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          can_view?: boolean
+          created_at?: string
+          form_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          can_view?: boolean
+          created_at?: string
+          form_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       activity_form_submissions: {
         Row: {
           answers: Json
@@ -584,6 +608,7 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number
+          head_user_id: string | null
           id: string
           is_active: boolean
           name: string
@@ -592,6 +617,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number
+          head_user_id?: string | null
           id?: string
           is_active?: boolean
           name: string
@@ -600,6 +626,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number
+          head_user_id?: string | null
           id?: string
           is_active?: boolean
           name?: string
@@ -1251,6 +1278,7 @@ export type Database = {
           gender: string | null
           id: string
           id_card_url: string | null
+          manager_id: string | null
           passcode: string | null
           passcode_acknowledged: boolean
           phone: string | null
@@ -1275,6 +1303,7 @@ export type Database = {
           gender?: string | null
           id: string
           id_card_url?: string | null
+          manager_id?: string | null
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
@@ -1299,6 +1328,7 @@ export type Database = {
           gender?: string | null
           id?: string
           id_card_url?: string | null
+          manager_id?: string | null
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
@@ -1345,6 +1375,7 @@ export type Database = {
           display_order: number
           id: string
           is_active: boolean
+          lead_user_id: string | null
           name: string
         }
         Insert: {
@@ -1353,6 +1384,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          lead_user_id?: string | null
           name: string
         }
         Update: {
@@ -1361,6 +1393,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          lead_user_id?: string | null
           name?: string
         }
         Relationships: []
@@ -1623,6 +1656,7 @@ export type Database = {
           display_order: number
           id: string
           is_active: boolean
+          lead_user_id: string | null
           name: string
         }
         Insert: {
@@ -1632,6 +1666,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          lead_user_id?: string | null
           name: string
         }
         Update: {
@@ -1641,6 +1676,7 @@ export type Database = {
           display_order?: number
           id?: string
           is_active?: boolean
+          lead_user_id?: string | null
           name?: string
         }
         Relationships: [
@@ -1828,6 +1864,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_subordinates: {
+        Args: never
+        Returns: {
+          user_id: string
+        }[]
+      }
+      get_subordinate_user_ids: {
+        Args: { _user_id: string }
+        Returns: {
+          user_id: string
+        }[]
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -1840,6 +1888,10 @@ export type Database = {
         Returns: boolean
       }
       user_can_access_form: {
+        Args: { _form_id: string; _user_id: string }
+        Returns: boolean
+      }
+      user_can_view_form_submissions: {
         Args: { _form_id: string; _user_id: string }
         Returns: boolean
       }

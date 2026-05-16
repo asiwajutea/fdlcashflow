@@ -24,7 +24,7 @@ interface Employee {
   user_id: string | null;
 }
 
-interface ProfileLite { id: string; full_name: string | null; email?: string | null }
+interface ProfileLite { id: string; full_name: string | null; email?: string | null; manager_id?: string | null }
 
 const EmployeeManagement = () => {
   const { user, loading } = useAuth();
@@ -42,7 +42,8 @@ const EmployeeManagement = () => {
     bank_name: '',
     account_number: '',
     email: '',
-    user_id: '' as string
+    user_id: '' as string,
+    manager_id: '' as string
   });
 
   useEffect(() => {
@@ -66,7 +67,7 @@ const EmployeeManagement = () => {
     if (!ids.length) { setLinkableUsers([]); return; }
     const { data: profs } = await (supabase as any)
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, manager_id')
       .in('id', ids);
     setLinkableUsers(profs || []);
   };
@@ -92,6 +93,7 @@ const EmployeeManagement = () => {
   const handleOpenDialog = (employee?: Employee) => {
     if (employee) {
       setEditingEmployee(employee);
+      const linked = linkableUsers.find((p) => p.id === employee.user_id);
       setFormData({
         employee_id: employee.employee_id,
         full_name: employee.full_name,
@@ -99,7 +101,8 @@ const EmployeeManagement = () => {
         bank_name: employee.bank_name || '',
         account_number: employee.account_number || '',
         email: employee.email || '',
-        user_id: employee.user_id || ''
+        user_id: employee.user_id || '',
+        manager_id: linked?.manager_id || ''
       });
     } else {
       setEditingEmployee(null);
@@ -110,7 +113,8 @@ const EmployeeManagement = () => {
         bank_name: '',
         account_number: '',
         email: '',
-        user_id: ''
+        user_id: '',
+        manager_id: ''
       });
     }
     setIsDialogOpen(true);
@@ -165,8 +169,14 @@ const EmployeeManagement = () => {
         toast({ title: "Success", description: "Employee added successfully" });
       }
 
+      // Persist direct manager on the linked user's profile
+      if (userIdValue) {
+        await (supabase as any).from('profiles').update({ manager_id: formData.manager_id || null }).eq('id', userIdValue);
+      }
+
       setIsDialogOpen(false);
       fetchEmployees();
+      fetchLinkableUsers();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -361,6 +371,29 @@ const EmployeeManagement = () => {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">Linking lets the user view their own payslips and activity.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Direct Manager</Label>
+                <Select
+                  value={formData.manager_id || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, manager_id: v === 'none' ? '' : v })}
+                  disabled={!formData.user_id}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select direct manager…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No manager —</SelectItem>
+                    {linkableUsers
+                      .filter((p) => p.id !== formData.user_id)
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formData.user_id
+                    ? "The direct manager can view this employee's form submissions and analytics."
+                    : 'Link a user account first to assign a direct manager.'}
+                </p>
               </div>
             </div>
             <DialogFooter>

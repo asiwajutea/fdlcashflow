@@ -61,8 +61,10 @@ const UserManagement = () => {
     full_name: '',
     role: 'employee' as 'admin' | 'employee' | 'guest',
     is_active: true,
-    new_password: ''
+    new_password: '',
+    manager_id: '' as string
   });
+  const [managerOptions, setManagerOptions] = useState<{ id: string; full_name: string | null }[]>([]);
 
   useEffect(() => {
     if (role && role !== 'admin') {
@@ -160,6 +162,9 @@ const UserManagement = () => {
       });
 
       if (response.error) throw response.error;
+
+      // Persist direct manager (separate from edge function)
+      await (supabase as any).from('profiles').update({ manager_id: editForm.manager_id || null }).eq('id', selectedUser.id);
 
       toast({ title: 'User Updated', description: 'User details updated successfully' });
       setEditDialogOpen(false);
@@ -272,13 +277,20 @@ const UserManagement = () => {
     }
   };
 
-  const openEditDialog = (user: User) => {
+  const openEditDialog = async (user: User) => {
     setSelectedUser(user);
+    // Load current manager_id from profile and the list of potential managers
+    const [{ data: prof }, { data: profs }] = await Promise.all([
+      (supabase as any).from('profiles').select('manager_id').eq('id', user.id).maybeSingle(),
+      (supabase as any).from('profiles').select('id, full_name').neq('id', user.id).order('full_name'),
+    ]);
+    setManagerOptions(profs || []);
     setEditForm({
       full_name: user.full_name || '',
       role: user.role,
       is_active: user.is_active,
-      new_password: ''
+      new_password: '',
+      manager_id: prof?.manager_id || ''
     });
     setEditDialogOpen(true);
   };
@@ -528,6 +540,24 @@ const UserManagement = () => {
                     <SelectItem value="guest">Guest</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <Label>Direct Manager</Label>
+                <Select
+                  value={editForm.manager_id || 'none'}
+                  onValueChange={(v) => setEditForm({ ...editForm, manager_id: v === 'none' ? '' : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select direct manager…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No manager —</SelectItem>
+                    {managerOptions.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Direct managers can view this user's form submissions and analytics.
+                </p>
               </div>
               <div>
                 <Label>New Password (leave blank to keep current)</Label>
