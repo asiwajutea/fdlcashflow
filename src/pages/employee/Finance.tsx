@@ -274,8 +274,8 @@ function RequestsList({ requests, categories, budgets, userId, onCreate, onDelet
   const [form, setForm] = useState<any>({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
 
   const applicableBudget = useMemo(() => {
-    return budgets.find((b: any) => b.kind === form.kind && (!b.category_id || b.category_id === form.category_id) && (b.scope_type === 'user' && b.scope_id === userId));
-  }, [budgets, form, userId]);
+    return budgets.find((b: any) => b.kind === form.kind && (!b.category_id || b.category_id === form.category_id));
+  }, [budgets, form]);
   const overBudget = applicableBudget && Number(form.amount || 0) > Number(applicableBudget.monthly_limit);
 
   const submit = () => {
