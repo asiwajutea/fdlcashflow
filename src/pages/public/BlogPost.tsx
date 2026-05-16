@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, Star, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Star, Phone, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 import { format } from 'date-fns';
 
