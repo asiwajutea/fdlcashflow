@@ -1,0 +1,21 @@
+# Footprints Dynasty
+
+> Footprints Dynasty preserves African family history and heritage through education, technology, and cultural projects.
+
+Footprints Dynasty is a Nigerian-founded organization focused on African heritage, family history, cultural preservation, and education technology (EdTech). The site shares stories, hosts events, and showcases services and innovations.
+
+## Pages
+
+- [Home](/): Overview of mission, services, events, innovations
+- [About](/about): Mission, history, and team
+- [Services](/services): Heritage, education, cultural services
+- [Innovations](/innovations): Tools and projects
+- [Events](/events): Upcoming and past events
+- [Gallery](/gallery): Photos and visuals
+- [Blog](/blog): Stories on EdTech, heritage, African history
+- [Careers](/careers): Open roles
+- [Contact](/contact): Get in touch
+
+## Optional
+
+- [Apply](/apply): Job application form
