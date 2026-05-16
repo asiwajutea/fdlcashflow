@@ -18,7 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 import RoleManagement, { CustomRole } from '@/components/RoleManagement';
-import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Filter } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Search, MoreHorizontal, UserCheck, UserX, Clock } from 'lucide-react';
 
 interface User {
   id: string;
@@ -46,6 +47,8 @@ const UserManagement = () => {
   const [createdPasscode, setCreatedPasscode] = useState<string | null>(null);
   const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee' | 'guest'>('all');
+  const [search, setSearch] = useState('');
 
   // Create user form
   const [newUser, setNewUser] = useState({
@@ -307,204 +310,242 @@ const UserManagement = () => {
 
   if (role !== 'admin') return null;
 
+  const pendingUsers = users.filter(u => (u.approval_status || 'approved') === 'pending');
+  const counts = {
+    total: users.length,
+    pending: pendingUsers.length,
+    active: users.filter(u => u.is_active).length,
+    inactive: users.filter(u => !u.is_active).length,
+  };
+
+  const filteredUsers = users.filter(u => {
+    if (statusFilter !== 'all' && (u.approval_status || 'approved') !== statusFilter) return false;
+    if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      if (!(u.full_name || '').toLowerCase().includes(q) && !(u.email || '').toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const StatTile = ({ label, value, icon: Icon, tone, onClick, active }: any) => (
+    <button
+      onClick={onClick}
+      className={`text-left p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors flex items-center gap-3 ${active ? 'ring-2 ring-primary' : ''}`}
+    >
+      <div className={`p-2 rounded-md ${tone}`}><Icon className="h-5 w-5" /></div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xl font-bold text-foreground">{value}</p>
+      </div>
+    </button>
+  );
+
   return (
     <DashboardLayout title="User Management">
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/dashboard')} className="-ml-2 mb-2">
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Dashboard
+            </Button>
+            <h2 className="text-2xl font-semibold tracking-tight">User Management</h2>
+            <p className="text-sm text-muted-foreground">Approve members, manage roles, and reset access codes.</p>
+          </div>
+          <Dialog open={createDialogOpen} onOpenChange={(open) => { setCreateDialogOpen(open); if (!open) setCreatedPasscode(null); }}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4 mr-2" /> Create User</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
+              {createdPasscode ? (
+                <div className="space-y-4">
+                  <div className="p-4 bg-primary/10 rounded-lg border">
+                    <p className="text-sm mb-2">User created successfully!</p>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-lg font-bold">{createdPasscode}</span>
+                      <Button size="sm" variant="outline" onClick={() => copyToClipboard(createdPasscode)}><Copy className="h-4 w-4" /></Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">Share this access code with the user. They will need it to log in.</p>
+                  </div>
+                  <Button onClick={() => { setCreateDialogOpen(false); setCreatedPasscode(null); }} className="w-full">Done</Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div><Label>Email</Label><Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="user@example.com" /></div>
+                  <div><Label>Full Name</Label><Input value={newUser.full_name} onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })} placeholder="John Doe" /></div>
+                  <div><Label>Password</Label><Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="••••••••" /></div>
+                  <div><Label>Confirm Password</Label><Input type="password" value={newUser.confirmPassword} onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })} placeholder="••••••••" /></div>
+                  <div>
+                    <Label>Role</Label>
+                    <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="admin">Admin</SelectItem>
+                        <SelectItem value="employee">Employee</SelectItem>
+                        <SelectItem value="guest">Guest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <DialogFooter><Button onClick={handleCreateUser} className="w-full">Create User</Button></DialogFooter>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
 
         <Tabs defaultValue="users">
           <TabsList>
-            <TabsTrigger value="users" className="gap-2">
-              <Users className="h-4 w-4" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="roles" className="gap-2">
-              <Shield className="h-4 w-4" />
-              Role Templates
-            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2"><Users className="h-4 w-4" /> Users</TabsTrigger>
+            <TabsTrigger value="roles" className="gap-2"><Shield className="h-4 w-4" /> Role Templates</TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="space-y-4">
-            <div className="flex justify-between items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-muted-foreground" />
-                <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
-                  <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All users</SelectItem>
-                    <SelectItem value="pending">Pending approval</SelectItem>
-                    <SelectItem value="approved">Approved</SelectItem>
-                    <SelectItem value="rejected">Rejected</SelectItem>
-                  </SelectContent>
-                </Select>
-                {users.filter(u => u.approval_status === 'pending').length > 0 && (
-                  <Badge variant="destructive">{users.filter(u => u.approval_status === 'pending').length} pending</Badge>
-                )}
+            {/* Stat tiles */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatTile label="Total users" value={counts.total} icon={Users} tone="bg-primary/10 text-primary"
+                onClick={() => setStatusFilter('all')} active={statusFilter === 'all'} />
+              <StatTile label="Pending approval" value={counts.pending} icon={Clock} tone="bg-orange-500/10 text-orange-500"
+                onClick={() => setStatusFilter('pending')} active={statusFilter === 'pending'} />
+              <StatTile label="Active" value={counts.active} icon={UserCheck} tone="bg-primary/10 text-primary"
+                onClick={() => setStatusFilter('approved')} active={statusFilter === 'approved'} />
+              <StatTile label="Inactive" value={counts.inactive} icon={UserX} tone="bg-destructive/10 text-destructive"
+                onClick={() => setStatusFilter('rejected')} active={statusFilter === 'rejected'} />
+            </div>
+
+            {/* Pending approvals card */}
+            {pendingUsers.length > 0 && (
+              <Card className="border-orange-500/30">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Clock className="h-4 w-4 text-orange-500" /> Pending Approvals
+                    <Badge variant="secondary">{pendingUsers.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {pendingUsers.map(u => (
+                    <div key={u.id} className="flex items-center justify-between gap-3 p-3 rounded-md bg-muted/40 border">
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground truncate">{u.full_name || '—'}</p>
+                        <p className="text-xs text-muted-foreground truncate">{u.email} · {u.role}</p>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <Button size="sm" onClick={() => handleApproval(u.id, 'approve')}>
+                          <Check className="h-4 w-4 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => handleApproval(u.id, 'reject')}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[220px]">
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or email…" className="pl-9" />
               </div>
-              <Dialog open={createDialogOpen} onOpenChange={(open) => {
-                setCreateDialogOpen(open);
-                if (!open) setCreatedPasscode(null);
-              }}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-primary">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Create User
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Create New User</DialogTitle>
-                  </DialogHeader>
-                  
-                  {createdPasscode ? (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                        <p className="text-sm text-green-800 dark:text-green-200 mb-2">User created successfully!</p>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-lg font-bold">{createdPasscode}</span>
-                          <Button size="sm" variant="outline" onClick={() => copyToClipboard(createdPasscode)}>
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Share this access code with the user. They will need it to log in.
-                        </p>
-                      </div>
-                      <Button onClick={() => { setCreateDialogOpen(false); setCreatedPasscode(null); }} className="w-full">
-                        Done
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div>
-                        <Label>Email</Label>
-                        <Input type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} placeholder="user@example.com" />
-                      </div>
-                      <div>
-                        <Label>Full Name</Label>
-                        <Input value={newUser.full_name} onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })} placeholder="John Doe" />
-                      </div>
-                      <div>
-                        <Label>Password</Label>
-                        <Input type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} placeholder="••••••••" />
-                      </div>
-                      <div>
-                        <Label>Confirm Password</Label>
-                        <Input type="password" value={newUser.confirmPassword} onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })} placeholder="••••••••" />
-                      </div>
-                      <div>
-                        <Label>Role</Label>
-                        <Select value={newUser.role} onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}>
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="employee">Employee</SelectItem>
-                            <SelectItem value="guest">Guest</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <DialogFooter>
-                        <Button onClick={handleCreateUser} className="w-full">Create User</Button>
-                      </DialogFooter>
-                    </div>
-                  )}
-                </DialogContent>
-              </Dialog>
+              <Select value={roleFilter} onValueChange={(v: any) => setRoleFilter(v)}>
+                <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All roles</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="employee">Employee</SelectItem>
+                  <SelectItem value="guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={(v: any) => setStatusFilter(v)}>
+                <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  All Users
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Users className="h-4 w-4" /> All Users <Badge variant="secondary">{filteredUsers.length}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {loading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading users...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-center py-10 text-muted-foreground">No users match the current filters.</div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Email</TableHead>
+                        <TableHead>User</TableHead>
                         <TableHead>Role</TableHead>
-                        <TableHead>Approval</TableHead>
-                        <TableHead>Passcode</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
+                        <TableHead>Passcode</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {users
-                        .filter(u => statusFilter === 'all' || (u.approval_status || 'approved') === statusFilter)
-                        .map((u) => {
+                      {filteredUsers.map((u) => {
                         const status = u.approval_status || 'approved';
                         return (
-                        <TableRow key={u.id}>
-                          <TableCell className="font-medium">{u.full_name || '-'}</TableCell>
-                          <TableCell>{u.email}</TableCell>
-                          <TableCell>
-                            <Badge variant={u.role === 'admin' ? 'default' : u.role === 'employee' ? 'secondary' : 'outline'}>
-                              {u.role}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={status === 'approved' ? 'default' : status === 'pending' ? 'secondary' : 'destructive'}>
-                                {status}
-                              </Badge>
-                              {status === 'pending' && (
-                                <>
-                                  <Button size="sm" variant="default" className="h-7 px-2" onClick={() => handleApproval(u.id, 'approve')}>
-                                    <Check className="h-3.5 w-3.5 mr-1" /> Approve
-                                  </Button>
-                                  <Button size="sm" variant="destructive" className="h-7 px-2" onClick={() => handleApproval(u.id, 'reject')}>
-                                    <X className="h-3.5 w-3.5" />
-                                  </Button>
-                                </>
+                          <TableRow key={u.id}>
+                            <TableCell>
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground truncate">{u.full_name || '—'}</p>
+                                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={u.role === 'admin' ? 'default' : u.role === 'employee' ? 'secondary' : 'outline'}>{u.role}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {status === 'pending' ? (
+                                <Badge variant="secondary" className="gap-1"><Clock className="h-3 w-3" /> Pending</Badge>
+                              ) : status === 'rejected' ? (
+                                <Badge variant="destructive">Rejected</Badge>
+                              ) : u.is_active ? (
+                                <Badge variant="default" className="gap-1"><UserCheck className="h-3 w-3" /> Active</Badge>
+                              ) : (
+                                <Badge variant="destructive" className="gap-1"><UserX className="h-3 w-3" /> Inactive</Badge>
                               )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <span className="font-mono">
-                                {showPasscode[u.id] ? (u.passcode || 'Not set') : '••••••••'}
-                              </span>
-                              {showPasscode[u.id] && u.passcode && (
-                                <Button size="sm" variant="ghost" onClick={() => copyToClipboard(u.passcode!)}>
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button size="sm" variant="ghost" onClick={() => setShowPasscode({ ...showPasscode, [u.id]: !showPasscode[u.id] })}>
-                                {showPasscode[u.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleRegeneratePasscode(u.id)}>
-                                <RefreshCw className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={u.is_active ? 'default' : 'destructive'}>
-                              {u.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button size="sm" variant="outline" onClick={() => openEditDialog(u)}>
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button size="sm" variant="outline" onClick={() => openCapabilitiesDialog(u)}>
-                                <Shield className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-sm">{showPasscode[u.id] ? (u.passcode || 'Not set') : '••••••••'}</span>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setShowPasscode({ ...showPasscode, [u.id]: !showPasscode[u.id] })}>
+                                      {showPasscode[u.id] ? <><EyeOff className="h-4 w-4 mr-2" /> Hide</> : <><Eye className="h-4 w-4 mr-2" /> Reveal</>}
+                                    </DropdownMenuItem>
+                                    {u.passcode && (
+                                      <DropdownMenuItem onClick={() => copyToClipboard(u.passcode!)}>
+                                        <Copy className="h-4 w-4 mr-2" /> Copy
+                                      </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuItem onClick={() => handleRegeneratePasscode(u.id)}>
+                                      <RefreshCw className="h-4 w-4 mr-2" /> Regenerate
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="inline-flex gap-1">
+                                <Button size="sm" variant="ghost" onClick={() => openEditDialog(u)} title="Edit user"><Edit className="h-4 w-4" /></Button>
+                                <Button size="sm" variant="ghost" onClick={() => openCapabilitiesDialog(u)} title="Manage capabilities"><Shield className="h-4 w-4" /></Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
                         );
                       })}
                     </TableBody>
