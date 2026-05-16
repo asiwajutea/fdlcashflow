@@ -155,14 +155,18 @@ export default function Finance() {
                 <CardHeader><CardTitle className="text-base">By category</CardTitle></CardHeader>
                 <CardContent>
                   <div className="w-full h-64">
-                    <ResponsiveContainer>
-                      <PieChart>
-                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e) => e.name}>
-                          {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(v: any) => fmt(Number(v))} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {categoryBreakdown.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No data yet</div>
+                    ) : (
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e: any) => e.name}>
+                            {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </CardContent>
               </Card>
