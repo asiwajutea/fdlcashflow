@@ -38,6 +38,7 @@ const NAV_SECTIONS = [
       { path: '/generate-invoice', label: 'Generate Invoice', icon: FileText, capability: 'generate_invoice' },
       { path: '/bulk-invoice', label: 'Bulk Invoice', icon: FileStack, capability: 'bulk_invoice' },
       { path: '/invoices', label: 'View Invoices', icon: FileText, capability: 'view_invoices' },
+      { path: '/my-invoices', label: 'My Payslips', icon: Receipt, capability: null },
       { path: '/invoice-statistics', label: 'Statistics', icon: BarChart3, capability: 'view_statistics' },
     ],
   },
