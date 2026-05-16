@@ -61,8 +61,10 @@ const UserManagement = () => {
     full_name: '',
     role: 'employee' as 'admin' | 'employee' | 'guest',
     is_active: true,
-    new_password: ''
+    new_password: '',
+    manager_id: '' as string
   });
+  const [managerOptions, setManagerOptions] = useState<{ id: string; full_name: string | null }[]>([]);
 
   useEffect(() => {
     if (role && role !== 'admin') {
