@@ -308,6 +308,8 @@ const UserManagement = () => {
     toast({ title: 'Copied', description: 'Passcode copied to clipboard' });
   };
 
+  if (role !== 'admin') return null;
+
   const pendingUsers = users.filter(u => (u.approval_status || 'approved') === 'pending');
   const counts = {
     total: users.length,
