@@ -220,7 +220,7 @@ export default function Finance() {
             <RequestsList
               requests={myRequests}
               categories={categories}
-              budgets={myBudgets.map((b) => b.budget)}
+              myBudgets={myBudgets}
               userId={user.id}
               onCreate={(p) => create.mutate(p)}
               onDelete={(id) => remove.mutate(id)}
