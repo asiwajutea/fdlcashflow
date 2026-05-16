@@ -372,6 +372,29 @@ const EmployeeManagement = () => {
                 </Select>
                 <p className="text-xs text-muted-foreground">Linking lets the user view their own payslips and activity.</p>
               </div>
+              <div className="space-y-2">
+                <Label>Direct Manager</Label>
+                <Select
+                  value={formData.manager_id || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, manager_id: v === 'none' ? '' : v })}
+                  disabled={!formData.user_id}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select direct manager…" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— No manager —</SelectItem>
+                    {linkableUsers
+                      .filter((p) => p.id !== formData.user_id)
+                      .map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {formData.user_id
+                    ? "The direct manager can view this employee's form submissions and analytics."
+                    : 'Link a user account first to assign a direct manager.'}
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
