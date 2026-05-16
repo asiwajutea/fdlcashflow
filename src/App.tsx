@@ -83,6 +83,7 @@ const CMSActivityFormBuilder = lazy(() => import("./pages/cms/CMSActivityFormBui
 const CMSFormSubmissions = lazy(() => import("./pages/cms/CMSFormSubmissions"));
 const CMSFormAnalytics = lazy(() => import("./pages/cms/CMSFormAnalytics"));
 const EmployeeFormAnalytics = lazy(() => import("./pages/employee/FormAnalytics"));
+const TeamReports = lazy(() => import("./pages/TeamReports"));
 
 // Prefetch high-traffic pages after initial render
 const prefetchRoutes = () => {
