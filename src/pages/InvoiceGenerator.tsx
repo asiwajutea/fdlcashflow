@@ -638,6 +638,7 @@ const InvoiceGenerator = () => {
         }
       } catch (e) {
         console.error('Advance auto-deduction failed:', e);
+      }
 
       // Auto-create daily expense entry for payslip (net payment including savings)
       await supabase.from('daily_transactions').insert({
