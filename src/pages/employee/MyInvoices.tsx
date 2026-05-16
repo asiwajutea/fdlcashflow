@@ -18,22 +18,28 @@ const MyInvoices = () => {
     queryFn: async () => {
       const uid = user!.id;
       const email = (user!.email || '').toLowerCase();
-      // Broad lookup: user_id OR profile_id OR email match
       const orParts = [`user_id.eq.${uid}`, `profile_id.eq.${uid}`];
       if (email) orParts.push(`email.ilike.${email}`);
       const { data: emps } = await (supabase as any)
         .from('employees')
-        .select('id, employee_id, full_name')
+        .select('id, employee_id, full_name, email')
         .or(orParts.join(','));
-      const emp = emps?.[0];
-      if (!emp) return { linked: false, rows: [] as any[] };
+      const empIds = (emps || []).map((e: any) => e.id);
+      if (empIds.length === 0) return { linked: false, rows: [] as any[] };
       const { data: rows } = await (supabase as any)
         .from('invoices')
         .select('*')
-        .eq('employee_id', emp.id)
+        .in('employee_id', empIds)
         .order('year', { ascending: false })
         .order('month', { ascending: false });
-      return { linked: true, rows: rows || [] };
+      // de-dup by id
+      const seen = new Set<string>();
+      const unique = (rows || []).filter((r: any) => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+      return { linked: true, rows: unique };
     },
   });
 
