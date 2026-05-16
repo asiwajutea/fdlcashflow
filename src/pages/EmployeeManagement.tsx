@@ -42,7 +42,8 @@ const EmployeeManagement = () => {
     bank_name: '',
     account_number: '',
     email: '',
-    user_id: '' as string
+    user_id: '' as string,
+    manager_id: '' as string
   });
 
   useEffect(() => {
