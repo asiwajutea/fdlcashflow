@@ -96,9 +96,15 @@ const BlogPost = () => {
               {post.title}
             </h1>
             {post.published_at && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
-                <BookOpen className="h-3.5 w-3.5 text-brand-red-orange-light" />
-                {format(new Date(post.published_at), 'MMMM d, yyyy')}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
+                  <BookOpen className="h-3.5 w-3.5 text-brand-red-orange-light" />
+                  {format(new Date(post.published_at), 'MMMM d, yyyy')}
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
+                  <User className="h-3.5 w-3.5 text-brand-red-orange-light" />
+                  By {authorName}
+                </div>
               </div>
             )}
           </div>
