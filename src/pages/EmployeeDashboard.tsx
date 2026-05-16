@@ -9,8 +9,9 @@ import { db } from '@/lib/supabase-db';
 import {
   User, CalendarClock, Briefcase, Mail, Receipt, BarChart3,
   Wallet, MessageSquare, BookOpen, LifeBuoy, ArrowRight,
-  AlertCircle, CheckCircle2, FileSignature, UserCircle2
+  AlertCircle, CheckCircle2, FileSignature, UserCircle2, Users
 } from 'lucide-react';
+import { useIsLeader } from '@/hooks/useIsLeader';
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
