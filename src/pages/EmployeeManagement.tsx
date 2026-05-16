@@ -67,7 +67,7 @@ const EmployeeManagement = () => {
     if (!ids.length) { setLinkableUsers([]); return; }
     const { data: profs } = await (supabase as any)
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, manager_id')
       .in('id', ids);
     setLinkableUsers(profs || []);
   };
