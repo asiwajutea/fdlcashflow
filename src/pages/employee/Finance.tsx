@@ -31,14 +31,14 @@ const statusVariant = (s: string): any =>
   s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : s === 'repaid' ? 'secondary' : 'outline';
 
 export default function Finance() {
-  const { user, role, capabilities } = useAuth();
+  const { user, role, capabilities, loading: authLoading } = useAuth();
   const isAdmin = role === 'admin';
   const canApprove = isAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isAdmin || capabilities.includes('manage_finance_budgets');
 
   const { transactions } = useTransactions({});
-  const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id });
-  const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id });
+  const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
+  const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
   const { categories } = useFinanceCategories();
   const { budgets } = useFinanceBudgets();
 
