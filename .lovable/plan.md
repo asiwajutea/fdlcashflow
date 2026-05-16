@@ -1,69 +1,81 @@
-## Goal
+## 1. Leader Dashboard (`/team-reports`)
 
-Introduce a leadership hierarchy (department head, project lead, team lead, direct manager) and let those leaders see their downlines' activity-form submissions and analytics — with admin overrides for which forms each leader can or cannot see.
+A new page accessible to anyone who leads at least one user (via `get_my_subordinates` RPC), summarizing their downline's financial and activity-report data.
 
-## Schema changes
+**Route**: `/team-reports` (added in `src/App.tsx`, gated by `useIsLeader()` hook).
 
-1. Add leader columns:
-   - `departments.head_user_id uuid` (references `profiles.id`, nullable)
-   - `projects.lead_user_id uuid` (nullable)
-   - `teams.lead_user_id uuid` (nullable)
-   - `profiles.manager_id uuid` (direct manager — nullable, references `profiles.id`)
+**Navigation entry**: Add "Team Reports" link in `EmployeeDashboard` + sidebar for users whose `get_my_subordinates()` returns ≥1 row. Admins also see it.
 
-2. New table `activity_form_leader_overrides`:
-   - `form_id uuid`, `user_id uuid`, `can_view boolean` (default true), unique `(form_id, user_id)`
-   - Lets the admin explicitly grant or revoke a leader's access to a specific form's submissions/analytics, overriding the implicit hierarchy access.
+**Page layout** (`src/pages/TeamReports.tsx`):
+- Header: "My Team Reports" + small subordinate count badge.
+- Filter bar: date range (last 7/30/90 days, custom), optional subordinate dropdown ("All team members" / individual).
+- **Top metric cards** (4): Total Income, Total Expenses, Net Balance, Submissions Count — aggregated across downline only.
+- **Charts row**:
+  - Income vs Expense line/area chart (reusing `useTransactionStats` logic).
+  - Submissions per form bar chart (count of `activity_form_submissions` per `form_id`).
+- **Tables**:
+  - "Team members" table: name, role, department/team, # submissions, last submission date.
+  - "Recent submissions" table: submitter, form title, submitted_at, link to view.
+- Empty state if no subordinates / no data in range.
 
-3. New SQL helper `public.get_subordinate_user_ids(_user_id uuid) returns setof uuid`:
-   - Recursive CTE collecting:
-     - all `profiles` where `manager_id = _user_id` (transitive),
-     - members of any `team` where `lead_user_id = _user_id`,
-     - members of any `project` where `lead_user_id = _user_id`,
-     - members of any `department` where `head_user_id = _user_id`.
-   - Marked `security definer`, `stable`.
+**Data source rules**: All queries are filtered server-side by RLS. We additionally pass `user_id IN (select user_id from get_my_subordinates())` in queries for:
+- `daily_transactions` (income/expense aggregates)
+- `weekly_data` (if income source)
+- `activity_form_submissions` (counts + recent list)
 
-4. New SQL helper `public.user_can_view_form_submissions(_user_id uuid, _form_id uuid) returns boolean`:
-   - Returns true if admin OR has `manage_activity_forms` capability OR is a leader (per `get_subordinate_user_ids` having ≥1 user assigned/submitting to the form) — unless an override row says `can_view = false`. An override row with `can_view = true` also explicitly grants access.
+No new RLS needed — existing policies (after the leader-hierarchy migration) already permit leaders to read their downline. We just constrain the query to subordinate ids client-side to scope the view.
 
-5. Update RLS on `activity_form_submissions`:
-   - Replace the "Managers view all submissions" SELECT policy with one that also allows leaders via `user_can_view_form_submissions(auth.uid(), form_id) AND submission.user_id IN (select get_subordinate_user_ids(auth.uid()))`.
-   - Keep self-view and admin/manager policies intact.
+**Reuse**:
+- Pull from existing `useTransactions` hook with a filter param `userIds?: string[]`, or write a small `useTeamTransactions(subordinateIds, range)` hook.
+- Reuse `FormAnalyticsView` in a compact mode for each top-form preview (optional, can defer).
 
-6. RLS on `activity_form_leader_overrides`: admin-only manage; authenticated read of own rows.
+## 2. User Management UI redesign (`src/pages/UserManagement.tsx`)
 
-## CMS / UI changes
+Goal: clean, scannable layout; tame the noisy "Approval" + "Passcode" columns shown in the screenshot.
 
-1. **Departments CMS** (`CMSDepartments` via `LookupCMSPage`): add a "Head of Department" user picker. Generalize `LookupCMSPage` to accept an optional `leaderField: { column, label }` and load eligible users (admin/employee profiles) for the Select.
+**Changes (presentation only — no logic changes)**:
 
-2. **Projects CMS** (`CMSProjects`): add "Project Lead" user picker (same mechanism, `lead_user_id`).
+1. **Header strip**: Replace the back button row with a real page header — title "User Management" + subtitle "Approve, manage roles, and reset access codes" on the left; "Create User" button on the right.
 
-3. **Teams CMS** (`CMSTeams`): add "Team Lead" user picker.
+2. **Stat tiles row** (4 small cards): Total Users, Pending Approval, Active, Inactive. Clicking a tile sets the status filter.
 
-4. **EmployeeManagement page**: add "Direct Manager" Select in the Add/Edit Employee dialog, persisted to `profiles.manager_id` of the linked user. Show current manager in the table.
+3. **Filter bar** below tiles:
+   - Search input (name/email) — new, client-side filter.
+   - Role filter dropdown — new.
+   - Status filter (existing).
+   - Remove the standalone red "1 pending" badge (now represented in the Pending tile).
 
-5. **UserManagement page**: in the user edit dialog, add a "Direct Manager" Select listing other admin/employee profiles; saves `profiles.manager_id`.
+4. **Pending approvals section** (only renders if any pending): a separate compact card titled "Pending Approvals" listing each pending user as a row with name/email/role + Approve / Reject buttons. This removes the cramped Approve/Reject buttons from the main table.
 
-6. **CMSActivityFormBuilder**: add a "Leader access overrides" section. After the existing assignment editor, show a list of computed leaders for the form's audience (department heads, project leads, team leads, direct managers above any assignee). For each leader, a switch "Can view submissions & analytics" — saved as rows in `activity_form_leader_overrides`. Default state is ON (implicit access); toggling OFF writes `can_view=false`; toggling back ON deletes the override row (or upserts `can_view=true`).
+5. **Main users table** redesigned:
+   - Columns: **User** (avatar + name + email stacked), **Role**, **Status** (single column merging account active + approval — color-coded chip), **Passcode** (compact: dots + single "actions" dropdown with View / Copy / Regenerate), **Manager**, **Actions** (Edit, Capabilities icons in a small ghost button group).
+   - Removes redundant Approval column (pending users live in the section above; approved/rejected reflected in Status chip).
+   - Row hover highlight, zebra striping via existing tokens, sticky header.
+   - Empty state when filtered list is empty.
 
-7. **CMSFormAnalytics / CMSFormSubmissions**: no UI change — they just respect RLS so leaders see only their downlines' rows. Add a small banner indicating "Showing submissions from your team" when current user is a leader (not admin).
+6. **Passcode UX**: collapse Eye / Copy / Regenerate into a `DropdownMenu` triggered by a single `MoreHorizontal` icon next to the masked code. Reduces visual clutter.
 
-8. **EmployeeDashboard / new "My Team" entry**: add a card linking to `/team-reports` for users who lead anyone. Page lists forms with available submissions from their downlines and links to the existing analytics view (read-only mode).
+7. **Tabs styling**: keep Users / Role Templates tabs, but move them under the header so they look like proper page tabs (slightly larger, with border-bottom active state). No functional change.
 
-## Frontend access logic
+All colors via semantic tokens (`bg-card`, `text-muted-foreground`, `bg-primary`, etc.). No raw hex.
 
-- Add a hook `useIsLeader()` that returns `{ isLeader: boolean, subordinateIds: string[] }` by calling a new RPC `get_my_subordinates`.
-- Use it to conditionally show the "Team Reports" navigation entry.
+## Technical Details
 
-## Technical section
+**Files created**
+- `src/pages/TeamReports.tsx` — leader dashboard page.
+- `src/hooks/useIsLeader.ts` — wraps `get_my_subordinates` RPC, returns `{ isLeader, subordinateIds, loading }`.
+- `src/hooks/useTeamTransactions.ts` (optional) — fetches `daily_transactions` + `weekly_data` for given user ids and date range, returns aggregated stats matching `TransactionStats` shape so we can reuse `MetricCards`/`FinancialCharts` if desired.
 
-- Migrations are additive; existing data is unaffected (`manager_id`, `head_user_id`, `lead_user_id` default null).
-- `analytics_visible_fields` / `analytics_employee_visible` on `activity_forms` continue to govern *what fields* are visible; the new override governs *whether the leader sees anything* per form.
-- `LookupCMSPage` change is backward-compatible — `leaderField` is optional.
-- No edge-function changes required.
-- Types file regenerates automatically after migration.
+**Files edited**
+- `src/App.tsx` — register `/team-reports` route.
+- `src/components/DashboardLayout.tsx` (or wherever sidebar lives) — conditional nav item using `useIsLeader`.
+- `src/pages/EmployeeDashboard.tsx` — "My Team" card linking to `/team-reports` when `isLeader`.
+- `src/pages/UserManagement.tsx` — UI restructure per section 2; no edge-function or RLS changes.
 
-## Out of scope
+**No DB migration required.** All hierarchy functions, override tables, and RLS policies already exist from the previous migration.
 
-- No changes to candidate/HR flows.
-- No changes to the public site.
-- Existing payslip/finance access rules remain unchanged.
+**Out of scope**
+- No changes to approve/reject, create-user, or update-user edge functions.
+- No changes to RLS policies.
+- No changes to public site or candidate flows.
+- Per-form drill-down inside team reports beyond a link to existing `FormAnalyticsView` (kept light; can expand later).
