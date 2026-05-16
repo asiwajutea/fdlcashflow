@@ -251,6 +251,23 @@ const EmployeeDashboard: React.FC = () => {
         </Card>
       </div>
 
+      {/* Leader entry */}
+      {isLeader && (
+        <button
+          onClick={() => navigate('/team-reports')}
+          className="w-full text-left p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors group flex items-center gap-3"
+        >
+          <div className="p-2 rounded-md bg-primary/10 text-primary">
+            <Users className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-foreground">Team Reports</p>
+            <p className="text-xs text-muted-foreground">Income, expenses and submissions for your {subordinateIds.length} downline member{subordinateIds.length === 1 ? '' : 's'}</p>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+        </button>
+      )}
+
       {/* Grouped workspace */}
       <div className="space-y-6">
         {WORKSPACE_GROUPS.map((group) => (
