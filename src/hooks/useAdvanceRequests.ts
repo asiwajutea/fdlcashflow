@@ -48,6 +48,14 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
     mutationFn: async (payload: Partial<AdvanceRequest>) => {
       const { data, error } = await db.from('advance_requests').insert(payload).select().single();
       if (error) throw error;
+      if (data && payload.user_id) {
+        await db.from('advance_request_events').insert({
+          request_id: (data as any).id,
+          actor_id: payload.user_id,
+          event_type: 'submitted',
+          note: '',
+        });
+      }
       return data;
     },
     onSuccess: () => {
@@ -64,10 +72,17 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
         .update({ status, approver_note: note, approver_id, decided_at: new Date().toISOString() })
         .eq('id', id);
       if (error) throw error;
+      await db.from('advance_request_events').insert({
+        request_id: id,
+        actor_id: approver_id,
+        event_type: status,
+        note,
+      });
     },
     onSuccess: (_d, v) => {
       toast({ title: v.status === 'approved' ? 'Approved' : 'Rejected' });
       qc.invalidateQueries({ queryKey: ['advance_requests'] });
+      qc.invalidateQueries({ queryKey: ['advance_request_events', v.id] });
     },
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
   });
