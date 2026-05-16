@@ -218,14 +218,6 @@ const Applications = () => {
       }
     }
   };
-    if (app) {
-      sendStageMessage(app, newStatus);
-    }
-
-    if (newStatus === 'screening') {
-      triggerScreeningGeneration(appId);
-    }
-  };
 
   const viewDetails = (app: ApplicationRow) => {
     setSelectedApp(app);
