@@ -72,6 +72,7 @@ interface ActionItem {
 const EmployeeDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, fullName, avatarUrl } = useAuth();
+  const { isLeader, subordinateIds } = useIsLeader();
   const [unread, setUnread] = useState(0);
   const [openJobs, setOpenJobs] = useState(0);
   const [actions, setActions] = useState<ActionItem[]>([]);
