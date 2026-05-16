@@ -4,7 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Upload, X, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2, Images } from 'lucide-react';
+import { optimizeImage } from '@/lib/imageOptimize';
+import MediaPicker from './MediaPicker';
 
 interface ImageUploadProps {
   value: string;
@@ -15,22 +17,26 @@ interface ImageUploadProps {
 
 const ImageUpload = ({ value, onChange, label = 'Image', bucket = 'cms-media' }: ImageUploadProps) => {
   const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const original = e.target.files?.[0];
+    if (!original) return;
 
-    if (!file.type.startsWith('image/')) {
+    if (!original.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
 
     setUploading(true);
+    const file = await optimizeImage(original);
     const ext = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    const { error } = await supabase.storage.from(bucket).upload(fileName, file);
+    const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+      contentType: file.type,
+    });
     if (error) {
       toast.error('Upload failed: ' + error.message);
       setUploading(false);
@@ -39,7 +45,7 @@ const ImageUpload = ({ value, onChange, label = 'Image', bucket = 'cms-media' }:
 
     const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(fileName);
     onChange(urlData.publicUrl);
-    toast.success('Image uploaded');
+    toast.success('Image uploaded & optimized');
     setUploading(false);
     if (fileRef.current) fileRef.current.value = '';
   };
@@ -51,13 +57,23 @@ const ImageUpload = ({ value, onChange, label = 'Image', bucket = 'cms-media' }:
         <Input
           value={value || ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="https://... or upload below"
+          placeholder="https://... , upload or pick from library"
           className="flex-1"
         />
         <Button
           type="button"
           variant="outline"
           size="icon"
+          title="Pick from media library"
+          onClick={() => setPickerOpen(true)}
+        >
+          <Images className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          title="Upload new image"
           disabled={uploading}
           onClick={() => fileRef.current?.click()}
         >
@@ -73,6 +89,7 @@ const ImageUpload = ({ value, onChange, label = 'Image', bucket = 'cms-media' }:
       {value && (
         <img src={value} alt="Preview" className="mt-1 h-32 w-full object-cover rounded-md border" />
       )}
+      <MediaPicker open={pickerOpen} onOpenChange={setPickerOpen} onPick={onChange} bucket={bucket} />
     </div>
   );
 };

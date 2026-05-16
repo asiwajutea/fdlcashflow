@@ -4,6 +4,7 @@ import { Briefcase, MapPin, ArrowRight, Star, TrendingUp, Heart, Users, Lightbul
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -41,6 +42,7 @@ const Careers = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Careers" description="Join Footprints Dynasty. Explore open roles and help us preserve and share African heritage." />
       {/* HERO */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
 
@@ -56,6 +57,7 @@ const Contact = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Contact Us" description="Get in touch with Footprints Dynasty for collaborations, partnerships and questions." />
       {/* HERO */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img

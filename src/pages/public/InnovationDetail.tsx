@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Sparkles, Star, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -49,6 +50,7 @@ const InnovationDetail = () => {
 
   return (
     <PublicLayout>
+      <SEO title={innovation.title} description={innovation.short_description || innovation.description} image={innovation.image_url} type="article" />
       {/* HERO */}
       <section className="relative h-[55vh] min-h-[380px] max-h-[550px] overflow-hidden">
         {innovation.image_url ? (

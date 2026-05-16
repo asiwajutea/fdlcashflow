@@ -205,6 +205,18 @@ const Applications = () => {
     if (newStatus === 'screening') {
       triggerScreeningGeneration(appId);
     }
+
+    if (newStatus === 'hired') {
+      try {
+        const { error: promoteErr } = await supabase.functions.invoke('promote-candidate-to-employee', {
+          body: { application_id: appId },
+        });
+        if (promoteErr) throw promoteErr;
+        toast({ title: 'Promoted to Employee', description: 'Candidate role updated and employee record linked.' });
+      } catch (e: any) {
+        toast({ title: 'Promotion Failed', description: e.message || 'Could not promote candidate', variant: 'destructive' });
+      }
+    }
   };
 
   const viewDetails = (app: ApplicationRow) => {

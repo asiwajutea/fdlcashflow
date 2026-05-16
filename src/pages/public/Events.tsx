@@ -4,6 +4,7 @@ import { Calendar, ArrowRight, Star, Users, Heart, Trophy, Sparkles, Phone } fro
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -53,6 +54,7 @@ const Events = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Events" description="Upcoming and past events from Footprints Dynasty — cultural showcases, talks, and educational gatherings." />
       {/* HERO */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img

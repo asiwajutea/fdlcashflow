@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Calendar, ExternalLink, Star, Phone, X, Sparkles
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -52,6 +53,22 @@ const EventDetail = () => {
 
   return (
     <PublicLayout>
+      <SEO
+        title={event.title}
+        description={event.short_description || event.description}
+        image={event.image_url}
+        type="article"
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'Event',
+          name: event.title,
+          description: event.short_description || event.description,
+          startDate: event.event_date,
+          image: event.image_url || undefined,
+          eventStatus: 'https://schema.org/EventScheduled',
+          organizer: { '@type': 'Organization', name: 'Footprints Dynasty' },
+        }}
+      />
       {/* HERO */}
       <section className="relative h-[55vh] min-h-[380px] max-h-[550px] overflow-hidden">
         {event.image_url ? (

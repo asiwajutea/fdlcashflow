@@ -4,6 +4,7 @@ import { BookOpen, ArrowRight, Star, Phone } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 import { format } from 'date-fns';
 
@@ -36,6 +37,7 @@ const Blog = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Blog & Stories" description="Insights on EdTech, African cultural preservation, heritage, and educational events." />
       {/* HERO */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img

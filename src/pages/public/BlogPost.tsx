@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, BookOpen, Star, Phone } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, Star, Phone, User } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 import { format } from 'date-fns';
 
@@ -48,8 +49,31 @@ const BlogPost = () => {
     );
   }
 
+  const authorName = post.author_name || 'Footprints Dynasty Team';
+  const articleLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt || post.meta_description || '',
+    image: post.featured_image || undefined,
+    datePublished: post.published_at,
+    dateModified: post.updated_at || post.published_at,
+    author: { '@type': 'Person', name: authorName },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Footprints Dynasty',
+    },
+  };
+
   return (
     <PublicLayout>
+      <SEO
+        title={post.meta_title || post.title}
+        description={post.meta_description || post.excerpt}
+        image={post.featured_image}
+        type="article"
+        jsonLd={articleLd}
+      />
       {/* HERO */}
       <section className="relative h-[55vh] min-h-[380px] max-h-[550px] overflow-hidden">
         <img
@@ -72,9 +96,15 @@ const BlogPost = () => {
               {post.title}
             </h1>
             {post.published_at && (
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
-                <BookOpen className="h-3.5 w-3.5 text-brand-red-orange-light" />
-                {format(new Date(post.published_at), 'MMMM d, yyyy')}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
+                  <BookOpen className="h-3.5 w-3.5 text-brand-red-orange-light" />
+                  {format(new Date(post.published_at), 'MMMM d, yyyy')}
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/80 text-sm">
+                  <User className="h-3.5 w-3.5 text-brand-red-orange-light" />
+                  By {authorName}
+                </div>
               </div>
             )}
           </div>

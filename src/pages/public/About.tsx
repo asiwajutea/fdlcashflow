@@ -4,6 +4,7 @@ import { Users, Target, Eye, Heart, Award, Lightbulb, Shield, Handshake, ArrowRi
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 /* ── Scroll animation hook ── */
@@ -67,6 +68,7 @@ const About = () => {
 
   return (
     <PublicLayout>
+      <SEO title="About Us" description="Learn about Footprints Dynasty — our mission to preserve African heritage and empower communities through education." />
       {/* ═══════════════════════════════════════════ */}
       {/* HERO — Cinematic Banner                     */}
       {/* ═══════════════════════════════════════════ */}
