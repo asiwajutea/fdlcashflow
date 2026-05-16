@@ -3,6 +3,7 @@ import { Camera, X, ArrowRight, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -36,6 +37,7 @@ const Gallery = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Gallery" description="Photos and visuals from Footprints Dynasty projects, events and heritage initiatives." />
       {/* HERO */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img

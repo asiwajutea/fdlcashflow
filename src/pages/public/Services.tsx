@@ -4,6 +4,7 @@ import { Sparkles, ArrowRight, Star, MessageSquare, ClipboardList, Rocket, Check
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
@@ -53,6 +54,7 @@ const Services = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Services" description="Services from Footprints Dynasty: education, heritage preservation, family history, cultural projects." />
       {/* ═══════════════════════════════════════════ */}
       {/* HERO — Cinematic Banner                     */}
       {/* ═══════════════════════════════════════════ */}

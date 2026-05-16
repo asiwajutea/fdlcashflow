@@ -8,6 +8,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const iconMap: Record<string, React.ReactNode> = {
@@ -126,6 +127,7 @@ const Home = () => {
 
   return (
     <PublicLayout>
+      <SEO title="Footprints Dynasty — African Heritage & Education" description="Footprints Dynasty preserves African family history and heritage through education, technology and cultural projects." />
       {/* ═══════════════════════════════════════════ */}
       {/* HERO SECTION — Split Layout with Gradient   */}
       {/* ═══════════════════════════════════════════ */}
