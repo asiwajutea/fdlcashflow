@@ -18,7 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 import RoleManagement, { CustomRole } from '@/components/RoleManagement';
-import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Filter } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Search, MoreHorizontal, UserCheck, UserX, Clock } from 'lucide-react';
 
 interface User {
   id: string;
