@@ -179,7 +179,7 @@ export default function Finance() {
               requests={myRequests}
               categories={categories}
               budgets={budgets}
-              userId={user!.id}
+              userId={user.id}
               onCreate={(p) => create.mutate(p)}
               onDelete={(id) => remove.mutate(id)}
               isCreating={create.isPending}
@@ -193,7 +193,7 @@ export default function Finance() {
                 requests={allRequests}
                 categories={categories}
                 budgets={budgets}
-                onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user!.id })}
+                onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user.id })}
               />
             </TabsContent>
           )}
