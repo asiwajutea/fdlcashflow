@@ -169,8 +169,14 @@ const EmployeeManagement = () => {
         toast({ title: "Success", description: "Employee added successfully" });
       }
 
+      // Persist direct manager on the linked user's profile
+      if (userIdValue) {
+        await (supabase as any).from('profiles').update({ manager_id: formData.manager_id || null }).eq('id', userIdValue);
+      }
+
       setIsDialogOpen(false);
       fetchEmployees();
+      fetchLinkableUsers();
     } catch (error: any) {
       toast({
         title: "Error",
