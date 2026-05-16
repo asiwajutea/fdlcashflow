@@ -4,6 +4,7 @@ import { ArrowLeft, ArrowRight, Calendar, ExternalLink, Star, Phone, X, Sparkles
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
+import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
 
 const useInView = (threshold = 0.2) => {
