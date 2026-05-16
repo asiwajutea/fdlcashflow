@@ -15,7 +15,7 @@ import { useAdvanceRequests, useFinanceCategories, useFinanceBudgets, AdvanceKin
 import { useTransactions } from '@/hooks/useTransactions';
 import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
-import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -31,14 +31,14 @@ const statusVariant = (s: string): any =>
   s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : s === 'repaid' ? 'secondary' : 'outline';
 
 export default function Finance() {
-  const { user, role, capabilities } = useAuth();
+  const { user, role, capabilities, loading: authLoading } = useAuth();
   const isAdmin = role === 'admin';
   const canApprove = isAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isAdmin || capabilities.includes('manage_finance_budgets');
 
   const { transactions } = useTransactions({});
-  const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id });
-  const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id });
+  const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
+  const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
   const { categories } = useFinanceCategories();
   const { budgets } = useFinanceBudgets();
 
@@ -89,6 +89,16 @@ export default function Finance() {
   }, [myRequests, summary]);
 
   const pendingCount = allRequests.filter(r => r.status === 'pending').length;
+
+  if (authLoading || !user) {
+    return (
+      <DashboardLayout title="Finance">
+        <div className="min-h-[300px] flex items-center justify-center text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Finance">
@@ -145,14 +155,18 @@ export default function Finance() {
                 <CardHeader><CardTitle className="text-base">By category</CardTitle></CardHeader>
                 <CardContent>
                   <div className="w-full h-64">
-                    <ResponsiveContainer>
-                      <PieChart>
-                        <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e) => e.name}>
-                          {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(v: any) => fmt(Number(v))} />
-                      </PieChart>
-                    </ResponsiveContainer>
+                    {categoryBreakdown.length === 0 ? (
+                      <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No data yet</div>
+                    ) : (
+                      <ResponsiveContainer>
+                        <PieChart>
+                          <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e: any) => e.name}>
+                            {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                          </Pie>
+                          <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -165,7 +179,7 @@ export default function Finance() {
               requests={myRequests}
               categories={categories}
               budgets={budgets}
-              userId={user!.id}
+              userId={user.id}
               onCreate={(p) => create.mutate(p)}
               onDelete={(id) => remove.mutate(id)}
               isCreating={create.isPending}
@@ -179,7 +193,7 @@ export default function Finance() {
                 requests={allRequests}
                 categories={categories}
                 budgets={budgets}
-                onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user!.id })}
+                onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user.id })}
               />
             </TabsContent>
           )}

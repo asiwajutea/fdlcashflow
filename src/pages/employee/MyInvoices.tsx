@@ -1,37 +1,54 @@
-import { useEffect, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Receipt } from 'lucide-react';
+import { Receipt, Loader2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 const MyInvoices = () => {
-  const { user } = useAuth();
-  const [rows, setRows] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [linked, setLinked] = useState(true);
+  const { user, loading: authLoading } = useAuth();
 
-  useEffect(() => {
-    if (!user) return;
-    (async () => {
-      const { data: emp } = await (supabase as any).from('employees').select('id,employee_id,full_name').eq('user_id', user.id).maybeSingle();
-      if (!emp) { setLinked(false); setLoading(false); return; }
-      const { data } = await (supabase as any).from('invoices').select('*').eq('employee_id', emp.id).order('year', { ascending: false }).order('month', { ascending: false });
-      setRows(data || []);
-      setLoading(false);
-    })();
-  }, [user]);
+  const { data, isLoading } = useQuery({
+    enabled: !!user,
+    queryKey: ['my-payslips', user?.id, user?.email],
+    queryFn: async () => {
+      const uid = user!.id;
+      const email = (user!.email || '').toLowerCase();
+      // Broad lookup: user_id OR profile_id OR email match
+      const orParts = [`user_id.eq.${uid}`, `profile_id.eq.${uid}`];
+      if (email) orParts.push(`email.ilike.${email}`);
+      const { data: emps } = await (supabase as any)
+        .from('employees')
+        .select('id, employee_id, full_name')
+        .or(orParts.join(','));
+      const emp = emps?.[0];
+      if (!emp) return { linked: false, rows: [] as any[] };
+      const { data: rows } = await (supabase as any)
+        .from('invoices')
+        .select('*')
+        .eq('employee_id', emp.id)
+        .order('year', { ascending: false })
+        .order('month', { ascending: false });
+      return { linked: true, rows: rows || [] };
+    },
+  });
+
+  const loading = authLoading || isLoading;
+  const linked = data?.linked ?? true;
+  const rows = data?.rows ?? [];
 
   return (
     <DashboardLayout title="My Payslips">
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> My Payslips</CardTitle></CardHeader>
         <CardContent>
-          {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : !linked ? (
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>
+          ) : !linked ? (
             <p className="text-sm text-muted-foreground">Your account isn't linked to an employee record yet. Please ask an admin to link your profile in Employee Management.</p>
           ) : rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">No payslips have been issued to you yet.</p>
@@ -39,7 +56,7 @@ const MyInvoices = () => {
             <Table>
               <TableHeader><TableRow><TableHead>Period</TableHead><TableHead>Slip #</TableHead><TableHead>Gross</TableHead><TableHead>Deductions</TableHead><TableHead>Net</TableHead><TableHead>Issued</TableHead></TableRow></TableHeader>
               <TableBody>
-                {rows.map((r) => (
+                {rows.map((r: any) => (
                   <TableRow key={r.id}>
                     <TableCell><Badge variant="outline">{MONTHS[(r.month||1)-1]} {r.year}</Badge></TableCell>
                     <TableCell className="font-mono text-xs">{r.slip_number || r.invoice_number}</TableCell>
