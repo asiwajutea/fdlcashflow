@@ -47,8 +47,8 @@ const Inbox = () => {
   const fetchMessages = useCallback(async () => {
     if (!user) return;
     const query = tab === 'inbox'
-      ? (supabase as any).from('messages').select('*').eq('recipient_id', user.id).is('parent_message_id', null).order('created_at', { ascending: false })
-      : (supabase as any).from('messages').select('*').eq('sender_id', user.id).is('parent_message_id', null).order('created_at', { ascending: false });
+      ? (supabase as any).from('messages').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false })
+      : (supabase as any).from('messages').select('*').eq('sender_id', user.id).order('created_at', { ascending: false });
 
     const { data, error } = await query;
     if (error) { console.error(error); setLoading(false); return; }
