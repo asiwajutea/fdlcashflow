@@ -50,6 +50,39 @@ async function callGemini(prompt: string, system?: string): Promise<string> {
   return json.choices?.[0]?.message?.content || '';
 }
 
+async function generateImage(prompt: string): Promise<Uint8Array | null> {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text'],
+      }),
+    });
+    if (!resp.ok) {
+      console.error('Image gen failed', resp.status, await resp.text());
+      return null;
+    }
+    const json = await resp.json();
+    const dataUrl: string | undefined =
+      json.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+      json.choices?.[0]?.message?.images?.[0]?.url;
+    if (!dataUrl) return null;
+    const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch (e) {
+    console.error('generateImage error', e);
+    return null;
+  }
+}
+
 function extractJson(text: string): any {
   // Try fenced ```json block
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
