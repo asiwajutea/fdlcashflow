@@ -147,6 +147,28 @@ Requirements:
       if (n > 50) { finalSlug = `${slug}-${Date.now()}`; break; }
     }
 
+    // Generate a hero image for the post (non-blocking on failure)
+    let featuredImage = '';
+    try {
+      const imgPrompt = `Editorial hero photograph for a blog post titled "${parsed.title}". Theme: ${topic}. Cinematic, warm natural light, rich African heritage / educational atmosphere, photojournalistic style, no text, no logos, no watermarks, 16:9 composition.`;
+      const bytes = await generateImage(imgPrompt);
+      if (bytes) {
+        const path = `auto-blog/${finalSlug}-${Date.now()}.png`;
+        const { error: upErr } = await admin.storage.from('cms-media').upload(path, bytes, {
+          contentType: 'image/png',
+          upsert: false,
+        });
+        if (!upErr) {
+          const { data: pub } = admin.storage.from('cms-media').getPublicUrl(path);
+          featuredImage = pub?.publicUrl || '';
+        } else {
+          console.error('image upload error', upErr);
+        }
+      }
+    } catch (imgErr) {
+      console.error('image step failed', imgErr);
+    }
+
     const { data: inserted, error: insErr } = await admin
       .from('blog_posts')
       .insert({
@@ -158,12 +180,13 @@ Requirements:
         meta_description: parsed.meta_description || parsed.excerpt || '',
         tags: parsed.tags || [],
         sources: parsed.sources || [],
+        featured_image: featuredImage,
         author_name: 'Ehny',
         is_auto_generated: true,
         status: 'published',
         published_at: new Date().toISOString(),
       })
-      .select('id, slug, title')
+      .select('id, slug, title, featured_image')
       .single();
 
     if (insErr) throw insErr;
