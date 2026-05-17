@@ -79,8 +79,8 @@ const About = () => {
       {/* ═══════════════════════════════════════════ */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img
-          src="https://tdbtxqmutisakzduwkhb.supabase.co/storage/v1/object/public/cms-media/1775309515990-as1gd1zf35.jpg"
-          alt="Footprints Dynasty team"
+          src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80"
+          alt="Team working together"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[hsl(214,95%,6%)/0.92] via-[hsl(214,95%,8%)/0.85] to-[hsl(214,95%,10%)/0.7]" />
@@ -138,7 +138,7 @@ const About = () => {
             <div className={`relative ${storySection.inView ? 'animate-slide-in-right' : 'opacity-0'}`}>
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-financial-lg">
                 <img
-                  src="https://scontent.fiba2-3.fna.fbcdn.net/v/t1.6435-9/55437925_429020411178200_8762309054270799872_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=2a1932&_nc_ohc=UPyNGaN5qdUQ7kNvwET3L8L&_nc_oc=AdnNYGGB1umhYFL_Q2JkgfOBmgvkmNf4IDF5ahUI-Um_NeNllvn4bseEgA9T4Gb6PUg&_nc_zt=23&_nc_ht=scontent.fiba2-3.fna&_nc_gid=FT7ILLA3f4y6qiRswiwPQQ&oh=00_Aftcx-ZI8pmNvFBFOYb3gs0Y0rRrEhHB5XZP3OxjSspalQ&oe=69C92BED"
+                  src="https://tdbtxqmutisakzduwkhb.supabase.co/storage/v1/object/public/cms-media/1775309515990-as1gd1zf35.jpg"
                   alt="Young woman speaking at Footprints Dynasty event"
                   className="w-full h-full object-cover"
                   loading="lazy"
