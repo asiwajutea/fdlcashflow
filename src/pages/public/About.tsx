@@ -23,18 +23,23 @@ const useInView = (threshold = 0.2) => {
 };
 
 /* ── Animated counter hook ── */
-const useCounter = (end: number, duration = 2000, startCounting = false) => {
-  const [count, setCount] = useState(0);
+const useCounter = (end: number, duration = 2000, startCounting = false, from = 0) => {
+  const [count, setCount] = useState(from);
   useEffect(() => {
     if (!startCounting) return;
-    let start = 0;
-    const increment = end / (duration / 16);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) { setCount(end); clearInterval(timer); } else setCount(Math.floor(start));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [end, duration, startCounting]);
+    const startTs = performance.now();
+    const delta = end - from;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTs) / duration);
+      const v = from + delta * t;
+      setCount(delta >= 0 ? Math.floor(v) : Math.ceil(v));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setCount(end);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [end, duration, startCounting, from]);
   return count;
 };
 
@@ -57,7 +62,7 @@ const About = () => {
   const statsSection = useInView(0.3);
   const ctaSection = useInView(0.2);
 
-  const yearsFounded = useCounter(2019, 1500, statsSection.inView);
+  const yearsFounded = useCounter(2019, 1500, statsSection.inView, new Date().getFullYear());
   const teamSize = useCounter(50, 1500, statsSection.inView);
   const projectsCount = useCounter(100, 1500, statsSection.inView);
   const communitiesCount = useCounter(25, 1500, statsSection.inView);
@@ -74,8 +79,8 @@ const About = () => {
       {/* ═══════════════════════════════════════════ */}
       <section className="relative h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden">
         <img
-          src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1920&q=80"
-          alt="Team working together"
+          src="https://tdbtxqmutisakzduwkhb.supabase.co/storage/v1/object/public/cms-media/1775309515990-as1gd1zf35.jpg"
+          alt="Footprints Dynasty team"
           className="absolute inset-0 w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[hsl(214,95%,6%)/0.92] via-[hsl(214,95%,8%)/0.85] to-[hsl(214,95%,10%)/0.7]" />
