@@ -114,12 +114,38 @@ const BlogPost = () => {
       {/* CONTENT — Split Layout */}
       <section ref={contentSection.ref} className="bg-card py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`grid md:grid-cols-3 gap-12 lg:gap-16 ${contentSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
+          <div className="grid md:grid-cols-3 gap-12 lg:gap-16">
             <div className="md:col-span-2">
               {post.featured_image && (
                 <img src={post.featured_image} alt={post.title} className="rounded-2xl mb-8 w-full shadow-lg" />
               )}
-              <div className="prose prose-lg max-w-none text-muted-foreground prose-headings:text-card-foreground prose-a:text-brand-red-orange" dangerouslySetInnerHTML={{ __html: post.body }} />
+              <div
+                className="prose prose-lg max-w-none text-foreground prose-headings:text-card-foreground prose-p:text-foreground/85 prose-li:text-foreground/85 prose-strong:text-card-foreground prose-a:text-brand-red-orange prose-a:no-underline hover:prose-a:underline"
+                dangerouslySetInnerHTML={{ __html: post.body || '' }}
+              />
+              {Array.isArray(post.tags) && post.tags.length > 0 && (
+                <div className="mt-8 flex flex-wrap gap-2">
+                  {post.tags.map((t: string) => (
+                    <span key={t} className="px-3 py-1 rounded-full bg-[hsl(214,25%,95%)] text-card-foreground text-xs font-medium">
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {Array.isArray(post.sources) && post.sources.length > 0 && (
+                <div className="mt-10 pt-6 border-t border-card-border">
+                  <h3 className="text-sm font-semibold text-card-foreground uppercase tracking-wider mb-3">Sources</h3>
+                  <ul className="space-y-2 list-disc list-inside text-sm">
+                    {post.sources.map((s: any, i: number) => (
+                      <li key={i}>
+                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-brand-red-orange hover:underline">
+                          {s.title || s.url}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
             <div className="space-y-6">

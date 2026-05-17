@@ -23,18 +23,23 @@ const useInView = (threshold = 0.2) => {
 };
 
 /* ── Animated counter hook ── */
-const useCounter = (end: number, duration = 2000, startCounting = false) => {
-  const [count, setCount] = useState(0);
+const useCounter = (end: number, duration = 2000, startCounting = false, from = 0) => {
+  const [count, setCount] = useState(from);
   useEffect(() => {
     if (!startCounting) return;
-    let start = 0;
-    const increment = end / (duration / 16);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) { setCount(end); clearInterval(timer); } else setCount(Math.floor(start));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [end, duration, startCounting]);
+    const startTs = performance.now();
+    const delta = end - from;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTs) / duration);
+      const v = from + delta * t;
+      setCount(delta >= 0 ? Math.floor(v) : Math.ceil(v));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setCount(end);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [end, duration, startCounting, from]);
   return count;
 };
 
@@ -57,7 +62,7 @@ const About = () => {
   const statsSection = useInView(0.3);
   const ctaSection = useInView(0.2);
 
-  const yearsFounded = useCounter(2019, 1500, statsSection.inView);
+  const yearsFounded = useCounter(2019, 1500, statsSection.inView, new Date().getFullYear());
   const teamSize = useCounter(50, 1500, statsSection.inView);
   const projectsCount = useCounter(100, 1500, statsSection.inView);
   const communitiesCount = useCounter(25, 1500, statsSection.inView);
@@ -133,7 +138,7 @@ const About = () => {
             <div className={`relative ${storySection.inView ? 'animate-slide-in-right' : 'opacity-0'}`}>
               <div className="relative rounded-2xl overflow-hidden aspect-[4/3] shadow-financial-lg">
                 <img
-                  src="https://scontent.fiba2-3.fna.fbcdn.net/v/t1.6435-9/55437925_429020411178200_8762309054270799872_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=2a1932&_nc_ohc=UPyNGaN5qdUQ7kNvwET3L8L&_nc_oc=AdnNYGGB1umhYFL_Q2JkgfOBmgvkmNf4IDF5ahUI-Um_NeNllvn4bseEgA9T4Gb6PUg&_nc_zt=23&_nc_ht=scontent.fiba2-3.fna&_nc_gid=FT7ILLA3f4y6qiRswiwPQQ&oh=00_Aftcx-ZI8pmNvFBFOYb3gs0Y0rRrEhHB5XZP3OxjSspalQ&oe=69C92BED"
+                  src="https://tdbtxqmutisakzduwkhb.supabase.co/storage/v1/object/public/cms-media/1775309515990-as1gd1zf35.jpg"
                   alt="Young woman speaking at Footprints Dynasty event"
                   className="w-full h-full object-cover"
                   loading="lazy"

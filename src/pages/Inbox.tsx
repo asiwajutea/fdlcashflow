@@ -47,8 +47,8 @@ const Inbox = () => {
   const fetchMessages = useCallback(async () => {
     if (!user) return;
     const query = tab === 'inbox'
-      ? (supabase as any).from('messages').select('*').eq('recipient_id', user.id).is('parent_message_id', null).order('created_at', { ascending: false })
-      : (supabase as any).from('messages').select('*').eq('sender_id', user.id).is('parent_message_id', null).order('created_at', { ascending: false });
+      ? (supabase as any).from('messages').select('*').eq('recipient_id', user.id).order('created_at', { ascending: false })
+      : (supabase as any).from('messages').select('*').eq('sender_id', user.id).order('created_at', { ascending: false });
 
     const { data, error } = await query;
     if (error) { console.error(error); setLoading(false); return; }
@@ -80,16 +80,25 @@ const Inbox = () => {
   }, [user, fetchMessages]);
 
   const selectMessage = async (msg: Message) => {
-    setSelectedMessage(msg);
+    // Resolve to thread root so replies show with their parent
+    let root: Message = msg;
+    if (msg.parent_message_id) {
+      const { data: parent } = await (supabase as any).from('messages').select('*').eq('id', msg.parent_message_id).maybeSingle();
+      if (parent) {
+        const senderName = messages.find(m => m.id === parent.sender_id)?.sender_name;
+        root = { ...parent, sender_name: senderName || msg.sender_name, recipient_name: msg.recipient_name } as Message;
+      }
+    }
+    setSelectedMessage(root);
     setReplyText('');
-    // Mark as read
+    // Mark the clicked message as read
     if (!msg.is_read && msg.recipient_id === user?.id) {
       await (supabase as any).from('messages').update({ is_read: true }).eq('id', msg.id);
       setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, is_read: true } : m));
     }
-    // Fetch thread replies
-    const { data } = await (supabase as any).from('messages').select('*').eq('parent_message_id', msg.id).order('created_at', { ascending: true });
-    
+    // Fetch thread replies under the root
+    const { data } = await (supabase as any).from('messages').select('*').eq('parent_message_id', root.id).order('created_at', { ascending: true });
+
     if (data && data.length > 0) {
       const userIds = [...new Set(data.flatMap((m: any) => [m.sender_id, m.recipient_id]))];
       const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name').in('id', userIds);

@@ -35,19 +35,23 @@ const useInView = (threshold = 0.2) => {
 };
 
 // Animated counter hook
-const useCounter = (end: number, duration = 2000, startCounting = false) => {
-  const [count, setCount] = useState(0);
+const useCounter = (end: number, duration = 2000, startCounting = false, from = 0) => {
+  const [count, setCount] = useState(from);
   useEffect(() => {
     if (!startCounting) return;
-    let start = 0;
-    const increment = end / (duration / 16);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= end) {setCount(end);clearInterval(timer);} else
-      setCount(Math.floor(start));
-    }, 16);
-    return () => clearInterval(timer);
-  }, [end, duration, startCounting]);
+    const startTs = performance.now();
+    const delta = end - from;
+    let raf = 0;
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTs) / duration);
+      const v = from + delta * t;
+      setCount(delta >= 0 ? Math.floor(v) : Math.ceil(v));
+      if (t < 1) raf = requestAnimationFrame(tick);
+      else setCount(end);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [end, duration, startCounting, from]);
   return count;
 };
 
@@ -69,7 +73,7 @@ const Home = () => {
   const testimonialsSection = useInView(0.15);
   const ctaSection = useInView(0.2);
 
-  const founded = useCounter(2019, 1500, statsSection.inView);
+  const founded = useCounter(2019, 1500, statsSection.inView, new Date().getFullYear());
   const eventsCount = useCounter(5, 1500, statsSection.inView);
   const innovationsCount = useCounter(4, 1500, statsSection.inView);
   const serviceLines = useCounter(5, 1500, statsSection.inView);

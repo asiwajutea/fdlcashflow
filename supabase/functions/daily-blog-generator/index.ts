@@ -50,6 +50,39 @@ async function callGemini(prompt: string, system?: string): Promise<string> {
   return json.choices?.[0]?.message?.content || '';
 }
 
+async function generateImage(prompt: string): Promise<Uint8Array | null> {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) return null;
+  try {
+    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'google/gemini-3-flash-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text'],
+      }),
+    });
+    if (!resp.ok) {
+      console.error('Image gen failed', resp.status, await resp.text());
+      return null;
+    }
+    const json = await resp.json();
+    const dataUrl: string | undefined =
+      json.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
+      json.choices?.[0]?.message?.images?.[0]?.url;
+    if (!dataUrl) return null;
+    const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch (e) {
+    console.error('generateImage error', e);
+    return null;
+  }
+}
+
 function extractJson(text: string): any {
   // Try fenced ```json block
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -114,6 +147,28 @@ Requirements:
       if (n > 50) { finalSlug = `${slug}-${Date.now()}`; break; }
     }
 
+    // Generate a hero image for the post (non-blocking on failure)
+    let featuredImage = '';
+    try {
+      const imgPrompt = `Editorial hero photograph for a blog post titled "${parsed.title}". Theme: ${topic}. Cinematic, warm natural light, rich African heritage / educational atmosphere, photojournalistic style, no text, no logos, no watermarks, 16:9 composition.`;
+      const bytes = await generateImage(imgPrompt);
+      if (bytes) {
+        const path = `auto-blog/${finalSlug}-${Date.now()}.png`;
+        const { error: upErr } = await admin.storage.from('cms-media').upload(path, bytes, {
+          contentType: 'image/png',
+          upsert: false,
+        });
+        if (!upErr) {
+          const { data: pub } = admin.storage.from('cms-media').getPublicUrl(path);
+          featuredImage = pub?.publicUrl || '';
+        } else {
+          console.error('image upload error', upErr);
+        }
+      }
+    } catch (imgErr) {
+      console.error('image step failed', imgErr);
+    }
+
     const { data: inserted, error: insErr } = await admin
       .from('blog_posts')
       .insert({
@@ -125,12 +180,13 @@ Requirements:
         meta_description: parsed.meta_description || parsed.excerpt || '',
         tags: parsed.tags || [],
         sources: parsed.sources || [],
+        featured_image: featuredImage,
         author_name: 'Ehny',
         is_auto_generated: true,
         status: 'published',
         published_at: new Date().toISOString(),
       })
-      .select('id, slug, title')
+      .select('id, slug, title, featured_image')
       .single();
 
     if (insErr) throw insErr;
