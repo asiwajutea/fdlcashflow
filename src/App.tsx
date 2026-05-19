@@ -48,6 +48,7 @@ const Offers = lazy(() => import("./pages/Offers"));
 const Inbox = lazy(() => import("./pages/Inbox"));
 const ProfileSetup = lazy(() => import("./pages/ProfileSetup"));
 const Profile = lazy(() => import("./pages/Profile"));
+const PendingApproval = lazy(() => import("./pages/PendingApproval"));
 
 // Employee skeleton pages
 const MyInvoices = lazy(() => import("./pages/employee/MyInvoices"));
