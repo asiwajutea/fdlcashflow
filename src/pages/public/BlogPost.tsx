@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
 import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
+import BlogComments from '@/components/BlogComments';
 import { format } from 'date-fns';
 
 const useInView = (threshold = 0.2) => {
