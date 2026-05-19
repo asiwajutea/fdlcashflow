@@ -266,8 +266,13 @@ const Auth = () => {
       }
 
       if (isEmployee) {
-        await supabase.auth.signOut();
-        toast({ title: "Registration Submitted", description: "Your account is awaiting admin approval." });
+        // Auto-login if a session is present (email auto-confirm on) — otherwise prompt to verify email
+        if (signUpData.session) {
+          toast({ title: "Welcome aboard!", description: "Account created. While we verify you, explore the site." });
+          navigate('/pending-approval');
+          return;
+        }
+        toast({ title: "Check your email", description: "We sent a verification link. Once you verify, sign in to continue." });
       } else {
         toast({ title: "Account Created", description: "You can now log in and apply for jobs." });
       }
