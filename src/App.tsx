@@ -170,6 +170,7 @@ const AppRoutes = () =>
       <Route path="/apply" element={<Apply />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
       <Route path="/profile" element={<AvatarGuard><Profile /></AvatarGuard>} />
+      <Route path="/pending-approval" element={<PendingApproval />} />
 
       {/* Backend routes */}
       <Route path="/dashboard" element={<AvatarGuard><Index /></AvatarGuard>} />
