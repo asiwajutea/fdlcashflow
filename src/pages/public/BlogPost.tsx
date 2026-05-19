@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import PublicLayout from '@/components/PublicLayout';
 import SEO from '@/components/SEO';
 import { db } from '@/lib/supabase-db';
+import BlogComments from '@/components/BlogComments';
 import { format } from 'date-fns';
 
 const useInView = (threshold = 0.2) => {
@@ -120,8 +121,8 @@ const BlogPost = () => {
                 <img src={post.featured_image} alt={post.title} className="rounded-2xl mb-8 w-full shadow-lg" />
               )}
               <div
-                className="prose prose-lg max-w-none text-foreground prose-headings:text-card-foreground prose-p:text-foreground/85 prose-li:text-foreground/85 prose-strong:text-card-foreground prose-a:text-brand-red-orange prose-a:no-underline hover:prose-a:underline"
-                dangerouslySetInnerHTML={{ __html: post.body || '' }}
+                className="prose prose-lg max-w-none prose-headings:text-card-foreground prose-headings:font-bold prose-headings:mt-10 prose-headings:mb-4 prose-h2:text-2xl prose-h3:text-xl prose-p:text-foreground/85 prose-p:my-5 prose-p:leading-[1.8] prose-li:text-foreground/85 prose-li:my-2 prose-strong:text-card-foreground prose-a:text-brand-red-orange prose-a:no-underline hover:prose-a:underline prose-blockquote:border-l-brand-red-orange prose-blockquote:text-foreground/75"
+                dangerouslySetInnerHTML={{ __html: (post.body || '').replace(/<h2[^>]*>\s*Sources?\s*<\/h2>[\s\S]*$/i, '') }}
               />
               {Array.isArray(post.tags) && post.tags.length > 0 && (
                 <div className="mt-8 flex flex-wrap gap-2">
@@ -146,6 +147,7 @@ const BlogPost = () => {
                   </ul>
                 </div>
               )}
+              <BlogComments postId={post.id} />
             </div>
 
             <div className="space-y-6">

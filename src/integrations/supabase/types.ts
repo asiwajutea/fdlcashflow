@@ -350,6 +350,24 @@ export type Database = {
           },
         ]
       }
+      app_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string | null
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           applied_at: string
@@ -412,6 +430,47 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      blog_comments: {
+        Row: {
+          author_email: string | null
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          is_approved: boolean
+          post_id: string
+          user_id: string | null
+        }
+        Insert: {
+          author_email?: string | null
+          author_name?: string
+          body: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          post_id: string
+          user_id?: string | null
+        }
+        Update: {
+          author_email?: string | null
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          is_approved?: boolean
+          post_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blog_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "blog_posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       blog_posts: {
         Row: {
@@ -2070,6 +2129,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_employee_id: { Args: never; Returns: string }
       get_my_subordinates: {
         Args: never
         Returns: {

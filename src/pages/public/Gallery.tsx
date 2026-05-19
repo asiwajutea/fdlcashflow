@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Camera, X, ArrowRight, Phone } from 'lucide-react';
+import { Camera, X, ArrowRight, Phone, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
 import PublicLayout from '@/components/PublicLayout';
