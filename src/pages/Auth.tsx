@@ -101,9 +101,9 @@ const Auth = () => {
       const acknowledged = profileData?.passcode_acknowledged ?? true;
 
       if (status === 'pending') {
-        await supabase.auth.signOut();
-        setStoredUserId(null);
-        toast({ title: "Pending Approval", description: "Your account is awaiting admin approval.", variant: "destructive" });
+        // Keep them logged in but redirect to the awaiting-approval screen
+        toast({ title: "Welcome!", description: "Your account is awaiting verification." });
+        navigate('/pending-approval');
         return;
       }
       if (status === 'rejected') {
