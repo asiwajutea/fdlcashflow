@@ -88,7 +88,7 @@ const ServiceDetail = () => {
       {/* ═══════════════════════════════════════════ */}
       <section ref={contentSection.ref} className="bg-card py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`grid md:grid-cols-3 gap-12 lg:gap-16 ${contentSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
+          <div className="grid md:grid-cols-3 gap-12 lg:gap-16">
             {/* Main content */}
             <div className="md:col-span-2 space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red-orange/10 text-brand-red-orange text-xs font-semibold uppercase tracking-wider mb-2">
