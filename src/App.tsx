@@ -124,10 +124,24 @@ const LoadingFallback = () =>
 
 // Guard for backend routes only
 const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
-  const { user, avatarUrl, loading } = useAuth();
+  const { user, avatarUrl, loading, role } = useAuth();
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user) { setPendingStatus(null); return; }
+    if (role === 'candidate') { setPendingStatus(null); return; }
+    import('@/integrations/supabase/client').then(({ supabase }) => {
+      (supabase as any).from('profiles').select('approval_status').eq('id', user.id).maybeSingle()
+        .then(({ data }: any) => setPendingStatus(data?.approval_status || null));
+    });
+  }, [user, role]);
+
   if (loading) return null;
   if (!user) return <>{children}</>;
-  if (!avatarUrl && window.location.pathname !== '/profile-setup' && window.location.pathname !== '/auth') {
+  if (pendingStatus === 'pending' && role !== 'candidate' && window.location.pathname !== '/pending-approval') {
+    return <Navigate to="/pending-approval" replace />;
+  }
+  if (!avatarUrl && window.location.pathname !== '/profile-setup' && window.location.pathname !== '/auth' && window.location.pathname !== '/pending-approval') {
     return <Navigate to="/profile-setup" replace />;
   }
   return <>{children}</>;
