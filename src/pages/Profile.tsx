@@ -51,31 +51,42 @@ const Profile = () => {
   const [projects, setProjects] = useState<Lookup[]>([]);
   const [teams, setTeams] = useState<Lookup[]>([]);
 
+  const [linkedFromEmployee, setLinkedFromEmployee] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const [profileRes, posRes, deptRes, projRes, teamRes] = await Promise.all([
+      const [profileRes, empRes, posRes, deptRes, projRes, teamRes] = await Promise.all([
         (supabase as any).from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        (supabase as any).from('employees').select('*').eq('user_id', user.id).maybeSingle(),
         (supabase as any).from('positions').select('id, name').eq('is_active', true).order('display_order'),
         (supabase as any).from('departments').select('id, name').eq('is_active', true).order('display_order'),
         (supabase as any).from('projects').select('id, name').eq('is_active', true).order('display_order'),
         (supabase as any).from('teams').select('id, name').eq('is_active', true).order('display_order'),
       ]);
       const p = profileRes.data || {};
+      const emp = empRes.data || {};
+      // Prefill from employee record when profile fields are empty
+      const bank_name = p.bank_name || emp.bank_name || '';
+      const account_number = p.account_number || emp.account_number || '';
+      const account_name = p.account_name || '';
+      const employee_id = p.employee_id || emp.employee_id || '';
+      if (!!emp.id && (!p.bank_name || !p.account_number)) setLinkedFromEmployee(true);
+
       setForm({
-        full_name: p.full_name || fullName || '',
+        full_name: p.full_name || emp.full_name || fullName || '',
         phone: p.phone || '',
         birthday: p.birthday || '',
         gender: p.gender || '',
-        employee_id: p.employee_id || '',
+        employee_id,
         employment_start_date: p.employment_start_date || '',
         position_id: p.position_id || '',
         department_id: p.department_id || '',
         project_id: p.project_id || '',
         team_id: p.team_id || '',
-        bank_name: p.bank_name || '',
-        account_number: p.account_number || '',
-        account_name: p.account_name || '',
+        bank_name,
+        account_number,
+        account_name,
       });
       setCvUrl(p.cv_url || '');
       setIdCardPath(p.id_card_url || '');
@@ -304,6 +315,9 @@ const Profile = () => {
             <CardDescription>Used for payslip payments. Kept in sync with your employee record.</CardDescription>
           </CardHeader>
           <CardContent>
+            {linkedFromEmployee && (
+              <p className="text-xs text-muted-foreground mb-3 italic">✓ Prefilled from your linked employee record</p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Bank Name</Label>

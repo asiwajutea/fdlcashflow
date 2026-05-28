@@ -29,10 +29,7 @@ async function callGemini(prompt: string, system?: string): Promise<string> {
 
   const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
       messages: [
@@ -41,57 +38,87 @@ async function callGemini(prompt: string, system?: string): Promise<string> {
       ],
     }),
   });
-
-  if (!resp.ok) {
-    const t = await resp.text();
-    throw new Error(`AI Gateway ${resp.status}: ${t}`);
-  }
+  if (!resp.ok) throw new Error(`AI Gateway ${resp.status}: ${await resp.text()}`);
   const json = await resp.json();
   return json.choices?.[0]?.message?.content || '';
+}
+
+function extractImageBytes(json: any): Uint8Array | null {
+  const msg = json?.choices?.[0]?.message;
+  if (!msg) return null;
+  let dataUrl: string | undefined;
+
+  // Try several known response shapes
+  dataUrl = msg.images?.[0]?.image_url?.url
+    || msg.images?.[0]?.url
+    || msg.images?.[0]?.b64_json
+    || json?.data?.[0]?.b64_json
+    || json?.data?.[0]?.url;
+
+  if (!dataUrl && Array.isArray(msg.content)) {
+    for (const part of msg.content) {
+      if (part?.type === 'image_url' && part?.image_url?.url) { dataUrl = part.image_url.url; break; }
+      if (part?.type === 'output_image' && part?.image_url) { dataUrl = part.image_url; break; }
+    }
+  }
+
+  if (!dataUrl) return null;
+  const b64 = dataUrl.includes(',') ? dataUrl.split(',').pop()! : dataUrl;
+  try {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
 }
 
 async function generateImage(prompt: string): Promise<Uint8Array | null> {
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) return null;
-  try {
-    const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-image-preview',
-        messages: [{ role: 'user', content: prompt }],
-        modalities: ['image', 'text'],
-      }),
-    });
-    if (!resp.ok) {
-      console.error('Image gen failed', resp.status, await resp.text());
-      return null;
+  const models = ['google/gemini-3-flash-image-preview', 'google/gemini-3-pro-image-preview', 'google/gemini-2.5-flash-image'];
+
+  for (const model of models) {
+    try {
+      const resp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          modalities: ['image', 'text'],
+        }),
+      });
+      if (!resp.ok) {
+        console.error(`Image gen ${model} failed`, resp.status, (await resp.text()).slice(0, 400));
+        continue;
+      }
+      const json = await resp.json();
+      const bytes = extractImageBytes(json);
+      if (bytes) return bytes;
+      console.error(`Image gen ${model} - no image in response shape:`, JSON.stringify(json).slice(0, 800));
+    } catch (e) {
+      console.error(`generateImage ${model} error`, e);
     }
-    const json = await resp.json();
-    const dataUrl: string | undefined =
-      json.choices?.[0]?.message?.images?.[0]?.image_url?.url ||
-      json.choices?.[0]?.message?.images?.[0]?.url;
-    if (!dataUrl) return null;
-    const b64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
-    const bin = atob(b64);
-    const bytes = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return bytes;
-  } catch (e) {
-    console.error('generateImage error', e);
-    return null;
   }
+  return null;
 }
 
 function extractJson(text: string): any {
-  // Try fenced ```json block
   const fence = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const candidate = fence ? fence[1] : text;
-  // Find first {...}
   const start = candidate.indexOf('{');
   const end = candidate.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('No JSON found');
   return JSON.parse(candidate.slice(start, end + 1));
+}
+
+function stripInBodySources(html: string): string {
+  return html
+    .replace(/<h2[^>]*>\s*Sources?\s*<\/h2>[\s\S]*$/i, '')
+    .replace(/<h3[^>]*>\s*Sources?\s*<\/h3>[\s\S]*$/i, '')
+    .trim();
 }
 
 serve(async (req) => {
@@ -104,7 +131,6 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // Pick topic by day-of-year
     const dayOfYear = Math.floor(
       (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
     );
@@ -117,8 +143,9 @@ serve(async (req) => {
 Requirements:
 - Pick 1 ranking/trending angle worth talking about today.
 - 600-900 words. Conversational but informative tone.
-- Output the post body as semantic HTML (no <html>, <body>, or <head> tags) using <p>, <h2>, <h3>, <ul>, <li>, <strong>, <em>, <blockquote>, and <a href> for citations.
-- Structure: opening paragraph, then 3-5 H2 sections, optional bullet lists, short closing paragraph, then a final <h2>Sources</h2> followed by <ul> of 3-5 plausible reputable source links (BBC Africa, Quartz Africa, EdSurge, UNESCO, Brookings, The Conversation Africa, etc.). Use <a href="URL" target="_blank" rel="noopener">Source Title</a>. Cite homepage URLs if exact article URLs are uncertain — never invent fake-looking URLs.
+- Output the post body as semantic HTML (no <html>, <body>, or <head> tags) using <p>, <h2>, <h3>, <ul>, <li>, <strong>, <em>, <blockquote>.
+- Structure: opening paragraph, then 3-5 H2 sections, optional bullet lists, short closing paragraph.
+- DO NOT include a Sources section, source links, citations, or any <h2>Sources</h2> block inside the body. Sources go ONLY in the JSON "sources" array below.
 - Return ONLY valid JSON, no commentary, in this shape:
 
 {
@@ -128,15 +155,19 @@ Requirements:
   "meta_title": "string (max 60 chars, SEO optimized)",
   "meta_description": "string (max 160 chars)",
   "tags": ["tag1","tag2","tag3"],
-  "body": "string (full HTML body as described)",
+  "body": "string (full HTML body as described, no Sources section)",
   "sources": [{"title":"...","url":"https://..."}]
-}`;
+}
+
+Provide 3-5 plausible reputable source links in the "sources" array (BBC Africa, Quartz Africa, EdSurge, UNESCO, Brookings, The Conversation Africa, etc.). Use homepage URLs if exact article URLs are uncertain — never invent fake-looking URLs.`;
 
     const raw = await callGemini(prompt, system);
     const parsed = extractJson(raw);
 
+    // Clean any in-body Sources block the model may have included anyway
+    parsed.body = stripInBodySources(parsed.body || '');
+
     const slug = (parsed.slug && slugify(parsed.slug)) || slugify(parsed.title || 'post');
-    // Ensure unique slug
     let finalSlug = slug;
     let n = 1;
     while (true) {
@@ -147,7 +178,6 @@ Requirements:
       if (n > 50) { finalSlug = `${slug}-${Date.now()}`; break; }
     }
 
-    // Generate a hero image for the post (non-blocking on failure)
     let featuredImage = '';
     try {
       const imgPrompt = `Editorial hero photograph for a blog post titled "${parsed.title}". Theme: ${topic}. Cinematic, warm natural light, rich African heritage / educational atmosphere, photojournalistic style, no text, no logos, no watermarks, 16:9 composition.`;

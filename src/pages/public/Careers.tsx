@@ -74,53 +74,57 @@ const Careers = () => {
 
       {/* INTRO */}
       <section ref={introSection.ref} className="bg-card py-16 md:py-20">
-        <div className={`max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center ${introSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red-orange/10 text-brand-red-orange text-xs font-semibold uppercase tracking-wider mb-6">
             <Star className="h-3 w-3" />
             We're Hiring
           </div>
-          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-card-foreground mb-6 leading-[1.2]">
+          <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-card-foreground mb-6 leading-tight">
             Be part of a team that <span className="text-brand-red-orange">makes a difference</span>
           </h2>
-          <p className="text-muted-foreground text-lg leading-relaxed max-w-3xl mx-auto">
+          <p className="text-muted-foreground text-base sm:text-lg leading-relaxed max-w-3xl mx-auto">
             At Footprints Dynasty, we believe in empowering our people to grow, innovate, and create meaningful impact. Explore our open positions below.
           </p>
         </div>
       </section>
 
       {/* JOB LISTINGS */}
-      <section ref={gridSection.ref} className="bg-[hsl(210,20%,97%)] py-20 md:py-28">
+      <section ref={gridSection.ref} className="bg-[hsl(210,20%,97%)] py-16 md:py-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className={`text-center mb-14 ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-[hsl(214,95%,15%)] mb-4">Open Positions</h2>
+          <div className="text-center mb-10 sm:mb-14">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[hsl(214,95%,15%)] mb-4 leading-tight">Open Positions</h2>
             <p className="text-muted-foreground max-w-xl mx-auto">Find the role that's right for you</p>
           </div>
           {jobs.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No open positions at the moment. Check back soon!</p>
+            <div className="text-center py-10 space-y-4">
+              <p className="text-muted-foreground">No open positions at the moment. Check back soon!</p>
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/contact">Contact Us <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              </Button>
+            </div>
           ) : (
             <div className="space-y-4">
-              {jobs.map((job, i) => (
+              {jobs.map((job) => (
                 <Card
                   key={job.id}
-                  className={`border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 rounded-2xl overflow-hidden ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
-                  style={{ animationDelay: `${(i + 1) * 100}ms` }}
+                  className="border border-card-border hover:border-brand-red-orange/20 hover:shadow-card-hover transition-all duration-500 rounded-2xl overflow-hidden"
                 >
-                  <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <div className="flex items-start gap-4">
+                  <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4 min-w-0 flex-1">
                       <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-brand-red-orange/15 to-brand-red-orange/5 flex items-center justify-center shrink-0">
                         <Briefcase className="h-5 w-5 text-brand-red-orange" />
                       </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-card-foreground">{job.title}</h3>
-                        <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base sm:text-lg font-bold text-card-foreground break-words">{job.title}</h3>
+                        <div className="flex flex-wrap gap-2 sm:gap-3 mt-2 text-xs sm:text-sm text-muted-foreground">
                           {job.department && (
-                            <span className="flex items-center gap-1">
-                              <Briefcase className="h-3.5 w-3.5" /> {job.department}
+                            <span className="flex items-center gap-1 break-words">
+                              <Briefcase className="h-3.5 w-3.5 shrink-0" /> {job.department}
                             </span>
                           )}
                           {job.work_location_state && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="h-3.5 w-3.5" /> {job.work_location_state}
+                            <span className="flex items-center gap-1 break-words">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" /> {job.work_location_state}
                             </span>
                           )}
                           {job.job_type && (
@@ -131,7 +135,7 @@ const Careers = () => {
                         </div>
                       </div>
                     </div>
-                    <Button asChild className="rounded-full bg-gradient-to-r from-brand-red-orange to-brand-red-orange-dark text-primary-foreground border-0 shadow-glow-orange shrink-0">
+                    <Button asChild className="w-full sm:w-auto rounded-full bg-gradient-to-r from-brand-red-orange to-brand-red-orange-dark text-primary-foreground border-0 shadow-glow-orange shrink-0">
                       <Link to="/apply">
                         Apply Now <ArrowRight className="ml-2 h-4 w-4" />
                       </Link>
