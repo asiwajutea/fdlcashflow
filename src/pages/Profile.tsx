@@ -315,6 +315,9 @@ const Profile = () => {
             <CardDescription>Used for payslip payments. Kept in sync with your employee record.</CardDescription>
           </CardHeader>
           <CardContent>
+            {linkedFromEmployee && (
+              <p className="text-xs text-muted-foreground mb-3 italic">✓ Prefilled from your linked employee record</p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Bank Name</Label>
