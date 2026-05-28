@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { Camera, X, ArrowRight, Phone, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -23,7 +23,10 @@ const useInView = (threshold = 0.2) => {
 const Gallery = () => {
   const [items, setItems] = useState<any[]>([]);
   const [filter, setFilter] = useState('all');
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef<number | null>(null);
 
   const gridSection = useInView(0.1);
   const ctaSection = useInView(0.2);
@@ -34,6 +37,40 @@ const Gallery = () => {
 
   const categories = ['all', ...new Set(items.map(i => i.category).filter(Boolean))];
   const filtered = filter === 'all' ? items : items.filter(i => i.category === filter);
+  const total = filtered.length;
+
+  const close = useCallback(() => { setLightboxIndex(null); setPlaying(false); }, []);
+  const next = useCallback(() => setLightboxIndex(i => i === null ? null : (i + 1) % total), [total]);
+  const prev = useCallback(() => setLightboxIndex(i => i === null ? null : (i - 1 + total) % total), [total]);
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+      else if (e.key === 'ArrowRight') next();
+      else if (e.key === 'ArrowLeft') prev();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [lightboxIndex, close, next, prev]);
+
+  useEffect(() => {
+    if (!playing || paused || lightboxIndex === null) return;
+    const id = setInterval(() => next(), 4000);
+    return () => clearInterval(id);
+  }, [playing, paused, lightboxIndex, next]);
+
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; setPaused(true); };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (delta > 50) prev();
+    else if (delta < -50) next();
+    touchStartX.current = null;
+    setTimeout(() => setPaused(false), 100);
+  };
+
+  const current = lightboxIndex !== null ? filtered[lightboxIndex] : null;
 
   return (
     <PublicLayout>
@@ -47,18 +84,14 @@ const Gallery = () => {
         />
         <div className="absolute inset-0 bg-gradient-to-r from-[hsl(214,95%,6%)/0.92] via-[hsl(214,95%,8%)/0.85] to-[hsl(214,95%,10%)/0.7]" />
         <div className="absolute inset-0 bg-gradient-to-t from-[hsl(214,95%,6%)/0.95] via-transparent to-transparent" />
-        <div className="absolute inset-0 opacity-[0.03]" style={{
-          backgroundImage: 'linear-gradient(hsl(0,0%,100%) 1px, transparent 1px), linear-gradient(90deg, hsl(0,0%,100%) 1px, transparent 1px)',
-          backgroundSize: '60px 60px'
-        }} />
         <div className="relative z-10 h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-16 md:pb-20">
           <div className="max-w-3xl">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/15 backdrop-blur-sm text-white/90 text-xs sm:text-sm font-medium mb-4 sm:mb-6">
               <Camera className="h-3 w-3 text-brand-red-orange-light" />
               Gallery
             </div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-[1.1] mb-4 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)] [text-shadow:_0_2px_20px_rgba(0,0,0,0.7)]">
-              Our <span className="text-brand-red-orange-light drop-shadow-none [filter:drop-shadow(0_2px_8px_rgba(200,80,0,0.5))]">Gallery</span>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-primary-foreground leading-[1.1] mb-4 tracking-tight drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+              Our <span className="text-brand-red-orange-light">Gallery</span>
             </h1>
             <p className="text-sm sm:text-lg md:text-xl text-white/80 leading-relaxed max-w-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">
               Moments captured across our events, projects, and community engagements.
@@ -71,7 +104,7 @@ const Gallery = () => {
       <section ref={gridSection.ref} className="bg-card py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {categories.length > 1 && (
-            <div className={`flex flex-wrap gap-2 mb-10 justify-center ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
+            <div className="flex flex-wrap gap-2 mb-10 justify-center">
               {categories.map(c => (
                 <button
                   key={c}
@@ -95,9 +128,8 @@ const Gallery = () => {
               {filtered.map((item, i) => (
                 <button
                   key={item.id}
-                  onClick={() => setLightboxImage(item.media_url)}
-                  className={`relative aspect-square rounded-2xl overflow-hidden group ${gridSection.inView ? 'animate-fade-up' : 'opacity-0'}`}
-                  style={{ animationDelay: `${(i + 1) * 60}ms` }}
+                  onClick={() => setLightboxIndex(i)}
+                  className="relative aspect-square rounded-2xl overflow-hidden group"
                 >
                   <img src={item.media_url} alt={item.title || 'Gallery image'} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" loading="lazy" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[hsl(214,95%,10%)/0.7] via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -116,7 +148,7 @@ const Gallery = () => {
       {/* CTA */}
       <section ref={ctaSection.ref} className="relative bg-[hsl(214,95%,12%)] py-16 md:py-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-brand-red-orange/10 via-transparent to-transparent" />
-        <div className={`relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center ${ctaSection.inView ? 'animate-fade-up' : 'opacity-0'}`}>
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-red-orange/15 text-brand-red-orange-light text-xs font-semibold uppercase tracking-wider mb-6">
             <Phone className="h-3 w-3" />
             Get In Touch
@@ -134,12 +166,71 @@ const Gallery = () => {
       </section>
 
       {/* Lightbox */}
-      {lightboxImage && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" onClick={() => setLightboxImage(null)}>
-          <button className="absolute top-6 right-6 text-white hover:text-brand-red-orange transition-colors" onClick={() => setLightboxImage(null)}>
-            <X className="h-8 w-8" />
-          </button>
-          <img src={lightboxImage} alt="Gallery" className="max-w-full max-h-[90vh] object-contain rounded-lg" />
+      {current && lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+        >
+          {/* Top bar */}
+          <div className="absolute top-0 inset-x-0 p-4 flex items-center justify-between text-white z-10">
+            <span className="text-sm font-medium bg-white/10 backdrop-blur-sm px-3 py-1 rounded-full">
+              {lightboxIndex + 1} / {total}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPlaying(p => !p)}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors"
+                aria-label={playing ? 'Pause slideshow' : 'Play slideshow'}
+              >
+                {playing ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+              </button>
+              <button
+                onClick={close}
+                className="p-2 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Prev */}
+          {total > 1 && (
+            <button
+              onClick={prev}
+              className="absolute left-2 sm:left-6 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-colors z-10"
+              aria-label="Previous"
+            >
+              <ChevronLeft className="h-6 w-6" />
+            </button>
+          )}
+
+          {/* Image */}
+          <div className="px-4 sm:px-20 max-w-7xl w-full flex flex-col items-center">
+            <img
+              src={current.media_url}
+              alt={current.title || 'Gallery'}
+              className="max-w-full max-h-[80vh] object-contain rounded-lg select-none"
+              draggable={false}
+            />
+            {current.title && (
+              <p className="mt-4 text-white/90 text-center text-sm sm:text-base">{current.title}</p>
+            )}
+          </div>
+
+          {/* Next */}
+          {total > 1 && (
+            <button
+              onClick={next}
+              className="absolute right-2 sm:right-6 p-3 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white transition-colors z-10"
+              aria-label="Next"
+            >
+              <ChevronRight className="h-6 w-6" />
+            </button>
+          )}
         </div>
       )}
     </PublicLayout>
