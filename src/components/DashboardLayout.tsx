@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt, Network, MessageSquare } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,7 @@ const NAV_SECTIONS = [
       { path: '/daily-tracker', label: 'Daily Tracker', icon: CalendarClock, capability: 'view_daily_tracker' },
       { path: '/finance', label: 'Finance', icon: Wallet, capability: null },
       { path: '/employees', label: 'Employees', icon: Users, capability: 'manage_employees' },
+      { path: '/org-chart', label: 'Org Chart', icon: Network, capability: null },
       { path: '/company-settings', label: 'Company Settings', icon: Settings, capability: 'manage_company_settings' },
     ],
   },
@@ -58,6 +59,7 @@ const NAV_SECTIONS = [
       { path: '/applications', label: 'HR Recruitment', icon: Briefcase, capability: 'manage_recruitment' },
       { path: '/jobs', label: 'Manage Job Positions', icon: Briefcase, capability: 'add_job_position' },
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
+      { path: '/cms/sms-templates', label: 'SMS Templates', icon: MessageSquare, capability: 'manage_users' },
     ],
   },
   {
