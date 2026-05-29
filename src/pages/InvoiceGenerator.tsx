@@ -24,6 +24,7 @@ interface Employee {
   full_name: string;
   designation: string;
   email?: string;
+  user_id?: string | null;
 }
 interface LineItem {
   id: string;
