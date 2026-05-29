@@ -197,9 +197,24 @@ const Applications = () => {
     toast({ title: 'Status Updated', description: `Application moved to "${newStatus}"` });
     setApplications(prev => prev.map(a => (a.id === appId ? { ...a, status: newStatus } : a)));
 
-    // Send stage message to candidate
+    // Send stage message + SMS to candidate
     if (app) {
       sendStageMessage(app, newStatus);
+      try {
+        const { data: prof } = await (supabase as any).from('profiles').select('full_name, phone').eq('id', app.candidate.user_id).maybeSingle();
+        if (prof?.phone) {
+          supabase.functions.invoke('send-sms', {
+            body: {
+              to: prof.phone, user_id: app.candidate.user_id,
+              template_key: newStatus === 'hired' ? 'candidate_hire' : 'candidate_stage',
+              vars: {
+                name: (prof.full_name || 'there').split(' ')[0],
+                job: app.job.title, stage: newStatus, position: app.job.title,
+              },
+            },
+          }).catch(() => {});
+        }
+      } catch (e) { console.error('candidate sms', e); }
     }
 
     if (newStatus === 'screening') {
