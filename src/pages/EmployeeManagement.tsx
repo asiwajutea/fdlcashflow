@@ -169,9 +169,17 @@ const EmployeeManagement = () => {
         toast({ title: "Success", description: "Employee added successfully" });
       }
 
-      // Persist direct manager on the linked user's profile
+      // Persist direct manager on the linked user's profile (via edge function so admin RLS doesn't block)
       if (userIdValue) {
-        await (supabase as any).from('profiles').update({ manager_id: formData.manager_id || null }).eq('id', userIdValue);
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          await supabase.functions.invoke('update-user', {
+            body: { user_id: userIdValue, manager_id: formData.manager_id || null },
+            headers: { Authorization: `Bearer ${sessionData.session?.access_token}` },
+          });
+        } catch (e: any) {
+          toast({ title: 'Manager update failed', description: e.message || 'Could not save manager', variant: 'destructive' });
+        }
       }
 
       setIsDialogOpen(false);

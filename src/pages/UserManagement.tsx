@@ -157,7 +157,8 @@ const UserManagement = () => {
           full_name: editForm.full_name,
           role: editForm.role,
           is_active: editForm.is_active,
-          new_password: editForm.new_password || undefined
+          new_password: editForm.new_password || undefined,
+          manager_id: editForm.manager_id || null,
         },
         headers: {
           Authorization: `Bearer ${sessionData.session?.access_token}`
@@ -165,9 +166,6 @@ const UserManagement = () => {
       });
 
       if (response.error) throw response.error;
-
-      // Persist direct manager (separate from edge function)
-      await (supabase as any).from('profiles').update({ manager_id: editForm.manager_id || null }).eq('id', selectedUser.id);
 
       toast({ title: 'User Updated', description: 'User details updated successfully' });
       setEditDialogOpen(false);
