@@ -1877,6 +1877,81 @@ export type Database = {
         }
         Relationships: []
       }
+      sms_logs: {
+        Row: {
+          balance: number | null
+          body: string
+          created_at: string
+          error: string | null
+          id: string
+          provider_msg_id: string | null
+          recipient_phone: string
+          status: string
+          template_key: string | null
+          units: number | null
+          user_id: string | null
+        }
+        Insert: {
+          balance?: number | null
+          body: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          provider_msg_id?: string | null
+          recipient_phone: string
+          status: string
+          template_key?: string | null
+          units?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          balance?: number | null
+          body?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          provider_msg_id?: string | null
+          recipient_phone?: string
+          status?: string
+          template_key?: string | null
+          units?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sms_templates: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          is_active: boolean
+          key: string
+          name: string
+          updated_at: string
+          variables: Json
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key: string
+          name: string
+          updated_at?: string
+          variables?: Json
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          name?: string
+          updated_at?: string
+          variables?: Json
+        }
+        Relationships: []
+      }
       team_members: {
         Row: {
           bio: string | null
