@@ -66,7 +66,7 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
   });
 
   const decide = useMutation({
-    mutationFn: async ({ id, status, note, approver_id }: { id: string; status: 'approved' | 'rejected'; note: string; approver_id: string }) => {
+    mutationFn: async ({ id, status, note, approver_id, amount, user_id }: { id: string; status: 'approved' | 'rejected'; note: string; approver_id: string; amount?: number; user_id?: string }) => {
       const { error } = await db
         .from('advance_requests')
         .update({ status, approver_note: note, approver_id, decided_at: new Date().toISOString() })
@@ -78,6 +78,33 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
         event_type: status,
         note,
       });
+      // Fire-and-forget SMS to requester
+      try {
+        // resolve user_id and amount if missing
+        let uid = user_id;
+        let amt = amount;
+        if (!uid || amt === undefined) {
+          const { data: req } = await db.from('advance_requests').select('user_id, amount').eq('id', id).maybeSingle();
+          uid = uid || req?.user_id;
+          amt = amt ?? Number(req?.amount || 0);
+        }
+        if (uid) {
+          const { data: prof } = await db.from('profiles').select('full_name, phone').eq('id', uid).maybeSingle();
+          if (prof?.phone) {
+            const { supabase } = await import('@/integrations/supabase/client');
+            supabase.functions.invoke('send-sms', {
+              body: {
+                to: prof.phone, user_id: uid, template_key: 'finance_decision',
+                vars: {
+                  name: (prof.full_name || 'there').split(' ')[0],
+                  amount: Number(amt || 0).toLocaleString(),
+                  status, note: note || '',
+                },
+              },
+            }).catch(() => {});
+          }
+        }
+      } catch (e) { console.error('finance sms failed', e); }
     },
     onSuccess: (_d, v) => {
       toast({ title: v.status === 'approved' ? 'Approved' : 'Rejected' });

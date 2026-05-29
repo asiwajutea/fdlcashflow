@@ -89,6 +89,26 @@ serve(async (req) => {
       }
     }
 
+    // Hire SMS
+    try {
+      const { data: prof } = await admin.from('profiles').select('full_name, phone').eq('id', userId).maybeSingle();
+      if (prof?.phone) {
+        const firstName = (prof.full_name || fullName || 'there').split(' ')[0];
+        fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-sms`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            apikey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: prof.phone, user_id: userId, template_key: 'candidate_hire',
+            vars: { name: firstName, position: jobTitle || 'your role' },
+          }),
+        }).catch((e) => console.error('hire sms failed', e));
+      }
+    } catch (e) { console.error('hire sms wrap', e); }
+
     return new Response(JSON.stringify({ success: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

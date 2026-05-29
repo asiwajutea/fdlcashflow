@@ -55,7 +55,7 @@ serve(async (req) => {
     const {
       user_id, full_name, role, is_active, new_password, regenerate_passcode,
       birthday, gender, employee_id, phone, employment_start_date,
-      position_id, department_id, project_id, team_id
+      position_id, department_id, project_id, team_id, manager_id
     } = body;
 
     if (!user_id) {
@@ -93,6 +93,7 @@ serve(async (req) => {
     if (department_id !== undefined) profileUpdates.department_id = department_id || null;
     if (project_id !== undefined) profileUpdates.project_id = project_id || null;
     if (team_id !== undefined) profileUpdates.team_id = team_id || null;
+    if (manager_id !== undefined) profileUpdates.manager_id = manager_id || null;
 
     if (Object.keys(profileUpdates).length > 0) {
       const { error: profileError } = await supabaseAdmin

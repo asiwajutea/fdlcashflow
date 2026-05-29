@@ -61,6 +61,27 @@ serve(async (req) => {
         .insert(caps.map((c) => ({ user_id, capability: c })));
     }
 
+    // Send approval SMS (fire-and-forget; non-blocking)
+    try {
+      const { data: prof } = await supabaseAdmin
+        .from('profiles').select('full_name, phone').eq('id', user_id).maybeSingle();
+      if (prof?.phone) {
+        const firstName = (prof.full_name || 'there').split(' ')[0];
+        fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-sms`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`,
+            apikey: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to: prof.phone, user_id, template_key: 'account_approved',
+            vars: { name: firstName },
+          }),
+        }).catch((e) => console.error('approval sms failed', e));
+      }
+    } catch (e) { console.error('approval sms wrap error', e); }
+
     return new Response(JSON.stringify({ success: true, status: 'approved' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {

@@ -85,6 +85,8 @@ const CMSFormSubmissions = lazy(() => import("./pages/cms/CMSFormSubmissions"));
 const CMSFormAnalytics = lazy(() => import("./pages/cms/CMSFormAnalytics"));
 const EmployeeFormAnalytics = lazy(() => import("./pages/employee/FormAnalytics"));
 const TeamReports = lazy(() => import("./pages/TeamReports"));
+const OrgChart = lazy(() => import("./pages/OrgChart"));
+const CMSSmsTemplates = lazy(() => import("./pages/cms/CMSSmsTemplates"));
 import { CapabilityGuard } from "@/components/CapabilityGuard";
 
 // Prefetch high-traffic pages after initial render
@@ -226,6 +228,8 @@ const AppRoutes = () =>
       <Route path="/cms/activity-forms/:id/submissions" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSFormSubmissions /></CapabilityGuard></AvatarGuard>} />
       <Route path="/cms/activity-forms/:id/analytics" element={<AvatarGuard><CapabilityGuard requires="manage_activity_forms"><CMSFormAnalytics /></CapabilityGuard></AvatarGuard>} />
       <Route path="/activity-report/:id/analytics" element={<AvatarGuard><EmployeeFormAnalytics /></AvatarGuard>} />
+      <Route path="/org-chart" element={<AvatarGuard><OrgChart /></AvatarGuard>} />
+      <Route path="/cms/sms-templates" element={<AvatarGuard><CapabilityGuard adminOnly><CMSSmsTemplates /></CapabilityGuard></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
