@@ -76,6 +76,11 @@ const EmployeeDashboard: React.FC = () => {
   const [unread, setUnread] = useState(0);
   const [openJobs, setOpenJobs] = useState(0);
   const [actions, setActions] = useState<ActionItem[]>([]);
+  
+  // New state variables for header details
+  const [positionName, setPositionName] = useState<string>('');
+  const [departmentName, setDepartmentName] = useState<string>('');
+  const [managerName, setManagerName] = useState<string>('');
 
   useEffect(() => {
     if (!user) return;
@@ -87,6 +92,7 @@ const EmployeeDashboard: React.FC = () => {
         db.from('activity_forms').select('id,title,frequency').eq('is_active', true),
         db.from('activity_form_submissions').select('form_id,period_key').eq('user_id', user.id),
       ]);
+      
       setUnread(msgCount || 0);
       setOpenJobs(jobCount || 0);
 
@@ -95,25 +101,20 @@ const EmployeeDashboard: React.FC = () => {
       const forms = (formsRes as any).data || [];
       const subs = (subsRes as any).data || [];
 
-      // Overdue forms
-      const overdue = forms.filter((f: any) => {
-        const pk = periodKey(f.frequency);
-        return !subs.some((s: any) => s.form_id === f.id && s.period_key === pk);
-      });
-      if (overdue.length) {
-        list.push({
-          id: 'forms',
-          icon: AlertCircle,
-          label: `${overdue.length} activity form${overdue.length > 1 ? 's' : ''} due`,
-          detail: overdue.slice(0, 2).map((f: any) => f.title).join(', ') + (overdue.length > 2 ? '…' : ''),
-          cta: 'Submit now',
-          path: '/activity-report',
-          severity: 'high',
-        });
-      }
-
-      // Profile gaps
+      // Fetch Designation, Department, and Manager details
       if (profile) {
+        const detailsDeps = [
+          profile.position_id ? db.from('positions').select('name').eq('id', profile.position_id).maybeSingle() : Promise.resolve({ data: null }),
+          profile.department_id ? db.from('departments').select('name').eq('id', profile.department_id).maybeSingle() : Promise.resolve({ data: null }),
+          profile.manager_id ? (supabase as any).from('profiles').select('full_name').eq('id', profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
+        ];
+        
+        const [posRes, deptRes, mgrRes] = await Promise.all(detailsDeps);
+        if (posRes.data) setPositionName(posRes.data.name);
+        if (deptRes.data) setDepartmentName(deptRes.data.name);
+        if (mgrRes.data) setManagerName(mgrRes.data.full_name);
+
+        // Profile gaps
         const gaps: string[] = [];
         if (!profile.avatar_url && !avatarUrl) gaps.push('photo');
         if (!profile.phone) gaps.push('phone');
@@ -130,6 +131,23 @@ const EmployeeDashboard: React.FC = () => {
             severity: 'medium',
           });
         }
+      }
+
+      // Overdue forms
+      const overdue = forms.filter((f: any) => {
+        const pk = periodKey(f.frequency);
+        return !subs.some((s: any) => s.form_id === f.id && s.period_key === pk);
+      });
+      if (overdue.length) {
+        list.push({
+          id: 'forms',
+          icon: AlertCircle,
+          label: `${overdue.length} activity form${overdue.length > 1 ? 's' : ''} due`,
+          detail: overdue.slice(0, 2).map((f: any) => f.title).join(', ') + (overdue.length > 2 ? '…' : ''),
+          cta: 'Submit now',
+          path: '/activity-report',
+          severity: 'high',
+        });
       }
 
       // Unread messages
@@ -181,9 +199,35 @@ const EmployeeDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/5 border-0">
-        <CardContent className="p-6">
-          <h2 className="text-2xl font-bold text-foreground">Welcome back, {fullName || 'Team member'}! 👋</h2>
-          <p className="text-muted-foreground mt-1">Here's your personal workspace.</p>
+        <CardContent className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">Welcome back, {fullName || 'Team member'}! 👋</h2>
+            <p className="text-muted-foreground mt-1">Here's your personal workspace.</p>
+          </div>
+          
+          {/* New Details Section */}
+          {(positionName || departmentName || managerName) && (
+            <div className="flex flex-wrap gap-2">
+              {positionName && (
+                <Badge variant="outline" className="bg-background/60 flex items-center gap-1.5 py-1">
+                  <Briefcase className="h-3.5 w-3.5 text-primary" />
+                  {positionName}
+                </Badge>
+              )}
+              {departmentName && (
+                <Badge variant="outline" className="bg-background/60 flex items-center gap-1.5 py-1">
+                  <Users className="h-3.5 w-3.5 text-primary" />
+                  {departmentName}
+                </Badge>
+              )}
+              {managerName && (
+                <Badge variant="outline" className="bg-background/60 flex items-center gap-1.5 py-1">
+                  <UserCircle2 className="h-3.5 w-3.5 text-primary" />
+                  Manager: {managerName}
+                </Badge>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
