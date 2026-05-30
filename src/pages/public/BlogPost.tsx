@@ -150,7 +150,8 @@ const BlogPost = () => {
               <BlogComments postId={post.id} />
             </div>
 
-            <div className="space-y-6">
+            {/* STICKY WIDGET CONTAINER */}
+            <div className="space-y-6 md:sticky md:top-24 self-start">
               <Card className="rounded-2xl border-0 shadow-sm bg-[hsl(210,20%,97%)]">
                 <CardContent className="p-6">
                   <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-brand-red-orange/15 to-brand-red-orange/5 flex items-center justify-center mb-4">
