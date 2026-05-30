@@ -23,11 +23,16 @@ interface SmsTemplate {
   is_active: boolean;
 }
 
+interface Holiday {
+  date: string;
+  label: string;
+}
+
 const CMSSmsTemplates = () => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
-  const [holidaysJson, setHolidaysJson] = useState('[]');
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [testPhone, setTestPhone] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
@@ -41,7 +46,14 @@ const CMSSmsTemplates = () => {
     ]);
     setTemplates(tpls || []);
     setLogs(lg || []);
-    setHolidaysJson(hol?.value || '[]');
+    
+    // Parse holidays JSON into an array for the form
+    try {
+      setHolidays(JSON.parse(hol?.value || '[]'));
+    } catch (e) {
+      setHolidays([]);
+    }
+    
     setLoading(false);
   };
 
@@ -83,16 +95,34 @@ const CMSSmsTemplates = () => {
     }
   };
 
+  // Holiday Form Handlers
+  const addHoliday = () => {
+    setHolidays([...holidays, { date: '', label: '' }]);
+  };
+
+  const updateHoliday = (index: number, field: keyof Holiday, value: string) => {
+    const newHolidays = [...holidays];
+    newHolidays[index][field] = value;
+    setHolidays(newHolidays);
+  };
+
+  const removeHoliday = (index: number) => {
+    setHolidays(holidays.filter((_, i) => i !== index));
+  };
+
   const saveHolidays = async () => {
-    try {
-      JSON.parse(holidaysJson);
-    } catch {
-      toast({ title: 'Invalid JSON', variant: 'destructive' });
-      return;
+    // Filter out completely empty rows before saving
+    const validHolidays = holidays.filter(h => h.date.trim() !== '' || h.label.trim() !== '');
+    const jsonString = JSON.stringify(validHolidays);
+
+    const { error } = await db.from('app_settings').upsert({ key: 'holidays', value: jsonString });
+    
+    if (error) {
+      toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Holidays saved' });
+      setHolidays(validHolidays); // Update state to remove any empty rows that were filtered out
     }
-    const { error } = await db.from('app_settings').upsert({ key: 'holidays', value: holidaysJson });
-    if (error) toast({ title: 'Save failed', description: error.message, variant: 'destructive' });
-    else toast({ title: 'Holidays saved' });
   };
 
   return (
@@ -169,13 +199,51 @@ const CMSSmsTemplates = () => {
             <CardHeader>
               <CardTitle className="text-base">Holiday Schedule</CardTitle>
               <p className="text-xs text-muted-foreground">
-                JSON array of holidays. Each item: <code>{`{"date":"MM-DD or YYYY-MM-DD","label":"New Year"}`}</code>.
-                The daily SMS job sends the "holiday" template to all approved users on these dates.
+                Define the dates and names for upcoming holidays. The daily SMS job sends the "holiday" template to all approved users on these dates.
               </p>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <Textarea rows={10} className="font-mono text-sm" value={holidaysJson} onChange={(e) => setHolidaysJson(e.target.value)} />
-              <Button size="sm" onClick={saveHolidays}><Save className="h-4 w-4 mr-1" /> Save Holidays</Button>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {holidays.map((h, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <Input
+                      placeholder="MM-DD or YYYY-MM-DD"
+                      value={h.date}
+                      onChange={(e) => updateHoliday(index, 'date', e.target.value)}
+                      className="w-48 font-mono text-sm"
+                    />
+                    <Input
+                      placeholder="Holiday Name (e.g. New Year)"
+                      value={h.label}
+                      onChange={(e) => updateHoliday(index, 'label', e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => removeHoliday(index)} 
+                      className="text-destructive hover:bg-destructive/10 shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                
+                {holidays.length === 0 && (
+                  <p className="text-sm text-muted-foreground py-4 text-center border rounded-md border-dashed">
+                    No holidays configured. Click "Add Holiday" below to create one.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <Button size="sm" variant="outline" onClick={addHoliday}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Holiday
+                </Button>
+                <Button size="sm" onClick={saveHolidays}>
+                  <Save className="h-4 w-4 mr-1" /> Save Holidays
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
