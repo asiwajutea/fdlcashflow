@@ -12,7 +12,6 @@ import {
 import '@xyflow/react/dist/style.css';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { db } from '@/lib/supabase-db';
 import { Loader2 } from 'lucide-react';
 
@@ -20,7 +19,7 @@ interface PersonNode {
   id: string;
   fullName: string;
   position: string;
-  gender: string;
+  department: string;
   avatar: string;
   managerId: string | null;
 }
@@ -44,8 +43,10 @@ function PersonCard({ data }: { data: PersonNode }) {
       </Avatar>
       <p className="text-sm font-semibold text-foreground mt-2 leading-tight truncate w-full">{data.fullName}</p>
       <p className="text-xs text-muted-foreground leading-tight truncate w-full">{data.position || '—'}</p>
-      {data.gender && (
-        <Badge variant="outline" className="mt-1 text-[10px] capitalize">{data.gender}</Badge>
+      {data.department && (
+        <p className="text-[11px] italic text-muted-foreground/80 mt-1 leading-tight truncate w-full">
+          {data.department}
+        </p>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-primary !w-2 !h-2" />
     </div>
@@ -117,12 +118,14 @@ const OrgChart = () => {
 
   useEffect(() => {
     (async () => {
-      const [{ data: profiles }, { data: positions }, { data: roles }] = await Promise.all([
-        db.from('profiles').select('id, full_name, avatar_url, gender, position_id, manager_id, approval_status'),
+      const [{ data: profiles }, { data: positions }, { data: roles }, { data: departments }] = await Promise.all([
+        db.from('profiles').select('id, full_name, avatar_url, department_id, position_id, manager_id, approval_status'),
         db.from('positions').select('id, name'),
         db.from('user_roles').select('user_id, role'),
+        db.from('departments').select('id, name'),
       ]);
       const posMap = new Map((positions || []).map((p: any) => [p.id, p.name]));
+      const deptMap = new Map((departments || []).map((d: any) => [d.id, d.name]));
       const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
       const usable = (profiles || []).filter((p: any) => {
         const r = roleMap.get(p.id);
@@ -133,7 +136,7 @@ const OrgChart = () => {
         id: p.id,
         fullName: p.full_name || 'Unknown',
         position: posMap.get(p.position_id) || (roleMap.get(p.id) === 'admin' ? 'Admin' : 'Employee'),
-        gender: p.gender || '',
+        department: deptMap.get(p.department_id) || '',
         avatar: p.avatar_url || '',
         managerId: p.manager_id && validIds.has(p.manager_id) ? p.manager_id : null,
       }));
