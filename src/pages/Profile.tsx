@@ -55,6 +55,21 @@ const Profile = () => {
 
   const [linkedFromEmployee, setLinkedFromEmployee] = useState(false);
 
+  // About Me
+  const ABOUT_KEYS = [
+    { key: 'background', label: 'Personal background', required: true, multiline: true },
+    { key: 'education', label: 'Education', required: true, multiline: true },
+    { key: 'family', label: 'Marriage / family', required: false, multiline: true },
+    { key: 'hobbies', label: 'Hobbies & interests', required: false, multiline: true },
+    { key: 'achievements', label: 'Achievements (optional)', required: false, multiline: true },
+    { key: 'fun_fact', label: 'A fun fact about you (optional)', required: false, multiline: false },
+  ] as const;
+  const [aboutDetails, setAboutDetails] = useState<Record<string, string>>({});
+  const [aboutVisibility, setAboutVisibility] = useState<Record<string, boolean>>({ about_me: true });
+  const [aboutMe, setAboutMe] = useState('');
+  const [aboutExcerpt, setAboutExcerpt] = useState('');
+  const [generatingAbout, setGeneratingAbout] = useState(false);
+
   useEffect(() => {
     if (!user) return;
     (async () => {
