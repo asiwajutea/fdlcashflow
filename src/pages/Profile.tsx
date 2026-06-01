@@ -214,6 +214,30 @@ const Profile = () => {
   const displayAvatar = previewUrl || avatarUrl || undefined;
   const setF = (patch: Partial<typeof form>) => setForm({ ...form, ...patch });
 
+  const generateAbout = async () => {
+    const missing = ABOUT_KEYS.filter(k => k.required && !(aboutDetails[k.key] || '').trim());
+    if (missing.length) {
+      toast({ title: 'A few details first', description: `Please fill: ${missing.map(m => m.label).join(', ')}`, variant: 'destructive' });
+      return;
+    }
+    setGeneratingAbout(true);
+    try {
+      const positionName = positions.find(p => p.id === form.position_id)?.name || '';
+      const departmentName = departments.find(d => d.id === form.department_id)?.name || '';
+      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
+        body: { full_name: form.full_name, position: positionName, department: departmentName, details: aboutDetails },
+      });
+      if (error) throw error;
+      setAboutMe((data as any)?.about_me || '');
+      setAboutExcerpt((data as any)?.excerpt || '');
+      toast({ title: 'About Me drafted', description: 'Review & edit, then Save Changes.' });
+    } catch (e: any) {
+      toast({ title: 'Generation failed', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setGeneratingAbout(false);
+    }
+  };
+
   return (
     <DashboardLayout title="My Profile">
       <div className="max-w-4xl mx-auto space-y-6">
