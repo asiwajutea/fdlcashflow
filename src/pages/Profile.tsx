@@ -495,6 +495,7 @@ const Profile = () => {
           </CardContent>
         </Card>
 
+        <div className="sticky bottom-4 z-10">
           <Button className="w-full gap-2 shadow-lg" size="lg" onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save Changes'}
