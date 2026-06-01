@@ -115,6 +115,10 @@ const Profile = () => {
       setDepartments(deptRes.data || []);
       setProjects(projRes.data || []);
       setTeams(teamRes.data || []);
+      setAboutDetails((p.about_details && typeof p.about_details === 'object') ? p.about_details : {});
+      setAboutVisibility((p.about_visibility && typeof p.about_visibility === 'object') ? p.about_visibility : { about_me: true });
+      setAboutMe(p.about_me || '');
+      setAboutExcerpt(p.about_me_excerpt || '');
     })();
   }, [user, fullName]);
 
