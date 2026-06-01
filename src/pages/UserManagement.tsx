@@ -534,6 +534,7 @@ const UserManagement = () => {
                                 );
                               })()}
                             </TableCell>
+                            <TableCell>
                               <div className="flex items-center gap-2">
                                 <span className="font-mono text-sm">{showPasscode[u.id] ? (u.passcode || 'Not set') : '••••••••'}</span>
                                 <DropdownMenu>
