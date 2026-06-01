@@ -1,97 +1,79 @@
-# Plan
+## Plan
 
-## A. Fixes
+### 1. Fix Payslip Generator saving
+- Add the missing `ytd_taxable_income` and `ytd_tax_paid` fields to the `invoices` table so the current Payslip Generator can save without schema-cache errors.
+- Keep the existing PAYE/YTD calculation flow intact.
+- Validate the save path after the database migration is applied.
 
-### 1. Direct Manager not saving
+### 2. Fix welcome inbox messages and backfill approved employees
+- Recreate the missing profile trigger so welcome inbox messages are sent when `approval_status` changes to `approved`.
+- Make the sender lookup more reliable by using the existing `welcome_sender_email` setting and a safe fallback.
+- Backfill welcome inbox messages for already-approved admin/employee users who have not received one yet.
+- Prevent duplicate welcome messages by checking for an existing welcome subject per recipient.
 
-Both `UserManagement.openEditDialog` and `EmployeeManagement.handleSave` write `profiles.manager_id`, but the update is failing silently because the admin's UPDATE on `profiles` is blocked by RLS (current policies only let users update their own profile). 
+### 3. Improve SMS Holiday Schedule page
+- Replace the raw JSON holiday editor with a simple form/table:
+  - Holiday date
+  - Holiday label/message title
+  - Add, edit, remove rows
+  - Save all holidays
+- Preserve storage in `app_settings.holidays`, but make the UI handle parsing/serialization behind the scenes.
+- Update the daily SMS job to robustly handle either a single object or an array, because the current stored value is a single JSON object.
 
-- Add an RLS policy: `Admins can update any profile` using `has_role(auth.uid(), 'admin')`.
-- Move the `manager_id` update inside `update-user` edge function (service role) so it bypasses RLS, and surface errors via toast.
-- After save, re-read the profile to verify and reflect in UI.
+### 4. Add AI-generated quarterly holidays/important days
+- Add a backend function to generate holiday/important-day suggestions for the current quarter using Lovable AI.
+- Add a button on the SMS Templates holiday page: “Generate this quarter”.
+- Insert the generated suggestions into the editable holiday form, not directly into the schedule until the user saves.
+- Allow users to edit or delete AI suggestions before saving.
 
-### 2. Welcome inbox message not firing on approval
+### 5. Add AI-generated employee About Me profile
+- Add profile fields for:
+  - Personal background
+  - Education
+  - Marital/family details
+  - Hobbies/interests
+  - Other details
+  - Public/private visibility settings
+  - Generated About Me writeup
+  - Short intro/excerpt
+- Update the Profile page with a new “About Me” section.
+- Mark core details as required for generation, while keeping sensitive details optional.
+- Add a “Generate About Me” action that uses Lovable AI to create both the full section and short intro from the employee’s submitted details.
+- Let employees edit the generated content before saving.
 
-The current `send_welcome_inbox_message` trigger fires on `profiles` INSERT — but at insert time the user is still `pending`, so it sends too early (or skipped if status check is reversed). Refactor:
+### 6. Add direct-manager introduction nag modal
+- Add profile state to track whether the employee has acknowledged their manager introduction.
+- Show a modal on the employee dashboard when:
+  - the employee has a direct manager,
+  - the manager has completed the required profile/About Me details,
+  - the employee has not acknowledged the introduction.
+- The modal remains until the employee acknowledges and closes it.
+- Backfill this for existing employees by defaulting acknowledgment to not completed, so they will see it once their manager has enough profile data.
 
-- Drop the existing AFTER INSERT trigger.
-- Recreate as AFTER UPDATE OF approval_status trigger that fires only when `OLD.approval_status <> 'approved' AND NEW.approval_status = 'approved'`.
-- Also seed `app_settings.welcome_sender_email` if missing (Temidayo's email — will ask user below).
-- Send personalized warm message from Temidayo, urging profile completion.
+### 7. Enhance Employee Dashboard manager details
+- Show each employee’s department, designation, and direct manager name more prominently on the employee homepage.
+- Add “View manager” from the dashboard.
+- Display the manager’s public About Me and short intro in a dialog, respecting the manager’s public/private visibility choices.
 
-### 3. Employee Payslip page — view PDF + download + scorecard
+### 8. Add last login and online status to User Management
+- Update the `get-users` backend function to return each user’s last login time from the auth user record.
+- Add lightweight online tracking:
+  - record the current user’s recent activity timestamp while they use the app,
+  - treat users active within the last few minutes as online.
+- Add “Online/Offline” and “Last login” columns to User Management.
 
-Update `src/pages/employee/MyInvoices.tsx`:
-
-- Add "View" button → opens the existing `InvoiceTemplate` rendered in a Dialog (read-only).
-- Add "Download PDF" button using `html2canvas` + `jsPDF` (same pattern as bulk export).
-- Add a scorecard at top: YTD gross, YTD net, YTD tax, YTD savings, # of payslips, avg net — small grid of metric cards.
-
-## B. New Features
-
-### 4. Org Chart page
-
-New route `/org-chart` (and link in DashboardLayout sidebar).
-
-- New component `src/pages/OrgChart.tsx` using `reactflow` (or a lightweight custom tree) to render nodes built from `profiles.manager_id` hierarchy.
-- Each node: circular avatar (avatar_url from profile, fallback to initials), full_name, position name (join `positions`), gender badge.
-- Top of tree = users with `manager_id IS NULL` and role admin/employee.
-- Mobile: collapsible vertical tree.
-
-### 5. MultiTexter SMS Integration
-
-**Secrets** to add: `MULTITEXTER_API_KEY`, `MULTITEXTER_SENDER_NAME` (≤11 chars).
-
-**Schema**
-
-```sql
--- sms_templates
-id, key (unique: account_approved | birthday | holiday | finance_decision |
-         payslip_generated | candidate_stage | candidate_hire),
-name, body (with {{placeholders}}), is_active, updated_at
-
--- sms_logs
-id, template_key, recipient_phone, user_id, body, status, provider_msg_id,
-units, balance, error, created_at
-```
-
-**Edge function** `send-sms`:
-
-- POST `{ to, template_key, vars, user_id? }`
-- Loads template, renders `{{var}}` placeholders, POSTs to `https://app.multitexter.com/v2/app/sendsms` with `Authorization: Bearer ${MULTITEXTER_API_KEY}`.
-- Logs to `sms_logs`. Skips silently if template `is_active=false`.
-
-**Triggers / hooks for each notification:**
-
-
-| Event                            | Where triggered                                                                                                                                                                                                  |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Account approved                 | extend `approve-user` edge function to call `send-sms`                                                                                                                                                           |
-| Birthday                         | new daily cron edge function `daily-birthday-sms` (pg_cron at 08:00) — sends to profiles whose `birthday` month/day = today AND `approval_status='approved'` AND `is_active` (existing field check via approval) |
-| Holiday wishes                   | new `app_settings.holidays` JSON list (date + label) + same daily cron checks today's date                                                                                                                       |
-| Finance request approval/decline | hook in `useAdvanceRequests`/approver UI after status update                                                                                                                                                     |
-| Payslip generated                | hook in `InvoiceGenerator.tsx` after insert                                                                                                                                                                      |
-| Candidate stage change           | hook in `Applications.tsx` / `Screening.tsx` on stage update                                                                                                                                                     |
-| Candidate hire                   | hook in `promote-candidate-to-employee` edge function                                                                                                                                                            |
-
-
-All trigger sites call `supabase.functions.invoke('send-sms', { body: {...} })` with the user's `profiles.phone`.
-
-**CMS Template page** `src/pages/cms/CMSSmsTemplates.tsx`:
-
-- Lists the 7 templates, edit body, toggle `is_active`, "Send test" button, show last 50 `sms_logs` entries with delivery status.
-- Variable hints rendered per template (e.g. payslip: `{{name}} {{amount}} {{month}}`).
-- Route added under CMS sidebar.
-
-## Technical Notes
-
-- `pg_cron` and `pg_net` extensions enabled; scheduled SQL inserted via `insert` tool (not migration) since it embeds the function URL.
-- All edge functions use `verify_jwt = false` default; validate caller with `getClaims()` where called from app.
-- Phone normalization: strip non-digits, ensure leading `234` (Nigeria).
-- The `is_active` filter for birthdays uses `approval_status='approved'` (no `is_active` column on profiles — per memory).
-
-## Questions Before I Build
-
-1. **Welcome sender email**: confirm Temidayo's exact account email so the trigger can resolve `auth.users.id`.Answer:  Use [admin@footprintsdynasty.com.ng](mailto:tea@footprintsdynasty.com.ng) as the sender email.
-2. **MultiTexter sender_name**: what 11-char-max display name (e.g. `FDLWORKFRC`)? Answer: Use "Footprints"
-3. **Org Chart library**: OK to add `reactflow` (~150KB) for clean pan/zoom, or prefer a lightweight custom SVG tree? Answer: Use reactflow
+## Technical notes
+- Database changes will be done through a migration before code changes:
+  - alter `invoices`
+  - restore missing triggers
+  - add profile/About Me and manager-intro fields
+  - add a small user presence table with RLS and grants
+- Existing project rules will be preserved:
+  - use “Payslip” in UI text, not “Invoice”
+  - do not edit generated Lovable Cloud client/type files manually
+  - keep private data protected with authenticated-only access and owner/admin rules
+- Edge functions to update/create:
+  - `daily-sms-jobs`
+  - new AI holiday generator function
+  - new AI About Me generator function
+  - `get-users`

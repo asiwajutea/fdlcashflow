@@ -31,6 +31,8 @@ interface User {
   capabilities: string[];
   created_at: string;
   approval_status?: 'pending' | 'approved' | 'rejected';
+  last_sign_in_at?: string | null;
+  last_seen_at?: string | null;
 }
 
 const UserManagement = () => {
@@ -485,6 +487,7 @@ const UserManagement = () => {
                         <TableHead>User</TableHead>
                         <TableHead>Role</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Last login</TableHead>
                         <TableHead>Passcode</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
@@ -513,6 +516,23 @@ const UserManagement = () => {
                               ) : (
                                 <Badge variant="destructive" className="gap-1"><UserX className="h-3 w-3" /> Inactive</Badge>
                               )}
+                            </TableCell>
+                            <TableCell>
+                              {(() => {
+                                const lastSeen = u.last_seen_at ? new Date(u.last_seen_at).getTime() : 0;
+                                const online = lastSeen && (Date.now() - lastSeen) < 5 * 60 * 1000;
+                                return (
+                                  <div className="flex flex-col gap-0.5">
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                      <span className={`h-2 w-2 rounded-full ${online ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                                      <span className={online ? 'text-green-600 font-medium' : 'text-muted-foreground'}>{online ? 'Online' : 'Offline'}</span>
+                                    </div>
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString() : 'Never'}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">

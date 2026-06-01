@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { usePresence } from '@/hooks/usePresence';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -89,6 +90,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   const { user, fullName, role, avatarUrl, signOut } = useAuth();
   const { hasCapability } = useCapabilities(user?.id ?? null);
   const [unreadCount, setUnreadCount] = useState(0);
+  usePresence(user?.id ?? null);
 
   useEffect(() => {
     if (!user) return;

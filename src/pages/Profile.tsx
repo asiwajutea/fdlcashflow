@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Camera, Save, User, FileText, Check, ExternalLink, Briefcase, CreditCard, Phone } from 'lucide-react';
+import { Camera, Save, User, FileText, Check, ExternalLink, Briefcase, CreditCard, Phone, Sparkles, Heart, Eye, EyeOff } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ImageCropper } from '@/components/ImageCropper';
 
@@ -52,6 +54,21 @@ const Profile = () => {
   const [teams, setTeams] = useState<Lookup[]>([]);
 
   const [linkedFromEmployee, setLinkedFromEmployee] = useState(false);
+
+  // About Me
+  const ABOUT_KEYS = [
+    { key: 'background', label: 'Personal background', required: true, multiline: true },
+    { key: 'education', label: 'Education', required: true, multiline: true },
+    { key: 'family', label: 'Marriage / family', required: false, multiline: true },
+    { key: 'hobbies', label: 'Hobbies & interests', required: false, multiline: true },
+    { key: 'achievements', label: 'Achievements (optional)', required: false, multiline: true },
+    { key: 'fun_fact', label: 'A fun fact about you (optional)', required: false, multiline: false },
+  ] as const;
+  const [aboutDetails, setAboutDetails] = useState<Record<string, string>>({});
+  const [aboutVisibility, setAboutVisibility] = useState<Record<string, boolean>>({ about_me: true });
+  const [aboutMe, setAboutMe] = useState('');
+  const [aboutExcerpt, setAboutExcerpt] = useState('');
+  const [generatingAbout, setGeneratingAbout] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -98,6 +115,10 @@ const Profile = () => {
       setDepartments(deptRes.data || []);
       setProjects(projRes.data || []);
       setTeams(teamRes.data || []);
+      setAboutDetails((p.about_details && typeof p.about_details === 'object') ? p.about_details : {});
+      setAboutVisibility((p.about_visibility && typeof p.about_visibility === 'object') ? p.about_visibility : { about_me: true });
+      setAboutMe(p.about_me || '');
+      setAboutExcerpt(p.about_me_excerpt || '');
     })();
   }, [user, fullName]);
 
@@ -137,6 +158,10 @@ const Profile = () => {
         bank_name: form.bank_name || null,
         account_number: form.account_number || null,
         account_name: form.account_name || null,
+        about_me: aboutMe || null,
+        about_me_excerpt: aboutExcerpt || null,
+        about_details: aboutDetails,
+        about_visibility: aboutVisibility,
       };
 
       if (croppedBlob) {
@@ -188,6 +213,30 @@ const Profile = () => {
 
   const displayAvatar = previewUrl || avatarUrl || undefined;
   const setF = (patch: Partial<typeof form>) => setForm({ ...form, ...patch });
+
+  const generateAbout = async () => {
+    const missing = ABOUT_KEYS.filter(k => k.required && !(aboutDetails[k.key] || '').trim());
+    if (missing.length) {
+      toast({ title: 'A few details first', description: `Please fill: ${missing.map(m => m.label).join(', ')}`, variant: 'destructive' });
+      return;
+    }
+    setGeneratingAbout(true);
+    try {
+      const positionName = positions.find(p => p.id === form.position_id)?.name || '';
+      const departmentName = departments.find(d => d.id === form.department_id)?.name || '';
+      const { data, error } = await supabase.functions.invoke('ai-generate-about-me', {
+        body: { full_name: form.full_name, position: positionName, department: departmentName, details: aboutDetails },
+      });
+      if (error) throw error;
+      setAboutMe((data as any)?.about_me || '');
+      setAboutExcerpt((data as any)?.excerpt || '');
+      toast({ title: 'About Me drafted', description: 'Review & edit, then Save Changes.' });
+    } catch (e: any) {
+      toast({ title: 'Generation failed', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setGeneratingAbout(false);
+    }
+  };
 
   return (
     <DashboardLayout title="My Profile">
@@ -363,6 +412,85 @@ const Profile = () => {
                 <Input type="file" accept=".pdf,image/*" onChange={(e) => setIdFile(e.target.files?.[0] || null)} />
                 {idFile && <p className="text-xs text-primary flex items-center gap-1"><Check className="h-3 w-3" /> {idFile.name}</p>}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* About Me */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Heart className="h-5 w-5" /> About Me</CardTitle>
+            <CardDescription>
+              Tell us about yourself. We'll use the details below to draft your About Me with AI. You can edit anything before saving.
+              Use the toggles to mark each item as public or private.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {ABOUT_KEYS.map(({ key, label, required, multiline }) => (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-sm">
+                    {label} {required && <span className="text-destructive">*</span>}
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setAboutVisibility(v => ({ ...v, [key]: !v[key] }))}
+                    className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    {aboutVisibility[key] ? <><Eye className="h-3 w-3" /> Public</> : <><EyeOff className="h-3 w-3" /> Private</>}
+                  </button>
+                </div>
+                {multiline ? (
+                  <Textarea
+                    rows={3}
+                    value={aboutDetails[key] || ''}
+                    onChange={(e) => setAboutDetails(d => ({ ...d, [key]: e.target.value }))}
+                    placeholder={required ? 'Required' : 'Optional'}
+                  />
+                ) : (
+                  <Input
+                    value={aboutDetails[key] || ''}
+                    onChange={(e) => setAboutDetails(d => ({ ...d, [key]: e.target.value }))}
+                    placeholder={required ? 'Required' : 'Optional'}
+                  />
+                )}
+              </div>
+            ))}
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">
+              <p className="text-xs text-muted-foreground">AI uses the details above to draft a warm About Me.</p>
+              <Button type="button" variant="outline" size="sm" onClick={generateAbout} disabled={generatingAbout}>
+                <Sparkles className="h-4 w-4 mr-1" /> {generatingAbout ? 'Generating…' : 'Generate About Me'}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm">Short intro (excerpt)</Label>
+                <span className="text-xs text-muted-foreground flex items-center gap-1"><Eye className="h-3 w-3" /> Always public</span>
+              </div>
+              <Input
+                value={aboutExcerpt}
+                onChange={(e) => setAboutExcerpt(e.target.value)}
+                maxLength={200}
+                placeholder="One warm sentence about you…"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm">About Me</Label>
+                <div className="flex items-center gap-2 text-xs">
+                  <Switch checked={!!aboutVisibility.about_me} onCheckedChange={(v) => setAboutVisibility(av => ({ ...av, about_me: v }))} />
+                  <span className="text-muted-foreground">{aboutVisibility.about_me ? 'Public' : 'Private'}</span>
+                </div>
+              </div>
+              <Textarea
+                rows={8}
+                value={aboutMe}
+                onChange={(e) => setAboutMe(e.target.value)}
+                placeholder="Your full About Me writeup will appear here. Generate with AI or write your own."
+              />
             </div>
           </CardContent>
         </Card>

@@ -39,7 +39,6 @@ serve(async (req) => {
 
   let birthdayCount = 0, holidayCount = 0;
 
-  // 1. Birthdays — approved profiles with matching MM-DD
   const { data: profiles } = await admin
     .from("profiles")
     .select("id, full_name, phone, birthday, approval_status")
@@ -53,17 +52,18 @@ serve(async (req) => {
     const dd = String(d.getUTCDate()).padStart(2, "0");
     if (`${mm}-${dd}` !== isoDay) continue;
     const firstName = (p.full_name || "there").split(" ")[0];
-    await callSendSms({
-      to: p.phone, user_id: p.id, template_key: "birthday",
-      vars: { name: firstName },
-    });
+    await callSendSms({ to: p.phone, user_id: p.id, template_key: "birthday", vars: { name: firstName } });
     birthdayCount++;
   }
 
-  // 2. Holidays — app_settings.holidays JSON: [{date:'YYYY-MM-DD' or 'MM-DD', label:'New Year'}]
+  // Holidays — accept array, single object, or stringified versions
   const { data: setting } = await admin.from("app_settings").select("value").eq("key", "holidays").maybeSingle();
   let holidays: Array<{ date: string; label: string }> = [];
-  try { holidays = JSON.parse(setting?.value || "[]"); } catch { holidays = []; }
+  try {
+    const parsed = JSON.parse(setting?.value || "[]");
+    if (Array.isArray(parsed)) holidays = parsed;
+    else if (parsed && typeof parsed === "object" && parsed.date) holidays = [parsed];
+  } catch { holidays = []; }
 
   const todayHoliday = holidays.find((h) => {
     if (!h?.date) return false;
@@ -80,10 +80,7 @@ serve(async (req) => {
     for (const p of all || []) {
       if (!p.phone) continue;
       const firstName = (p.full_name || "there").split(" ")[0];
-      await callSendSms({
-        to: p.phone, user_id: p.id, template_key: "holiday",
-        vars: { name: firstName, holiday: todayHoliday.label },
-      });
+      await callSendSms({ to: p.phone, user_id: p.id, template_key: "holiday", vars: { name: firstName, holiday: todayHoliday.label } });
       holidayCount++;
     }
   }
