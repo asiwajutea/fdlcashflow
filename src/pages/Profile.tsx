@@ -416,7 +416,85 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        <div className="sticky bottom-4 z-10">
+        {/* About Me */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Heart className="h-5 w-5" /> About Me</CardTitle>
+            <CardDescription>
+              Tell us about yourself. We'll use the details below to draft your About Me with AI. You can edit anything before saving.
+              Use the toggles to mark each item as public or private.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {ABOUT_KEYS.map(({ key, label, required, multiline }) => (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Label className="text-sm">
+                    {label} {required && <span className="text-destructive">*</span>}
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={() => setAboutVisibility(v => ({ ...v, [key]: !v[key] }))}
+                    className="text-xs flex items-center gap-1 text-muted-foreground hover:text-foreground"
+                  >
+                    {aboutVisibility[key] ? <><Eye className="h-3 w-3" /> Public</> : <><EyeOff className="h-3 w-3" /> Private</>}
+                  </button>
+                </div>
+                {multiline ? (
+                  <Textarea
+                    rows={3}
+                    value={aboutDetails[key] || ''}
+                    onChange={(e) => setAboutDetails(d => ({ ...d, [key]: e.target.value }))}
+                    placeholder={required ? 'Required' : 'Optional'}
+                  />
+                ) : (
+                  <Input
+                    value={aboutDetails[key] || ''}
+                    onChange={(e) => setAboutDetails(d => ({ ...d, [key]: e.target.value }))}
+                    placeholder={required ? 'Required' : 'Optional'}
+                  />
+                )}
+              </div>
+            ))}
+
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-2 border-t">
+              <p className="text-xs text-muted-foreground">AI uses the details above to draft a warm About Me.</p>
+              <Button type="button" variant="outline" size="sm" onClick={generateAbout} disabled={generatingAbout}>
+                <Sparkles className="h-4 w-4 mr-1" /> {generatingAbout ? 'Generating…' : 'Generate About Me'}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm">Short intro (excerpt)</Label>
+                <span className="text-xs text-muted-foreground flex items-center gap-1"><Eye className="h-3 w-3" /> Always public</span>
+              </div>
+              <Input
+                value={aboutExcerpt}
+                onChange={(e) => setAboutExcerpt(e.target.value)}
+                maxLength={200}
+                placeholder="One warm sentence about you…"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-sm">About Me</Label>
+                <div className="flex items-center gap-2 text-xs">
+                  <Switch checked={!!aboutVisibility.about_me} onCheckedChange={(v) => setAboutVisibility(av => ({ ...av, about_me: v }))} />
+                  <span className="text-muted-foreground">{aboutVisibility.about_me ? 'Public' : 'Private'}</span>
+                </div>
+              </div>
+              <Textarea
+                rows={8}
+                value={aboutMe}
+                onChange={(e) => setAboutMe(e.target.value)}
+                placeholder="Your full About Me writeup will appear here. Generate with AI or write your own."
+              />
+            </div>
+          </CardContent>
+        </Card>
+
           <Button className="w-full gap-2 shadow-lg" size="lg" onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4" />
             {saving ? 'Saving...' : 'Save Changes'}
