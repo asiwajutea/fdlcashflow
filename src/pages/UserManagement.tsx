@@ -31,6 +31,8 @@ interface User {
   capabilities: string[];
   created_at: string;
   approval_status?: 'pending' | 'approved' | 'rejected';
+  last_sign_in_at?: string | null;
+  last_seen_at?: string | null;
 }
 
 const UserManagement = () => {
