@@ -158,6 +158,10 @@ const Profile = () => {
         bank_name: form.bank_name || null,
         account_number: form.account_number || null,
         account_name: form.account_name || null,
+        about_me: aboutMe || null,
+        about_me_excerpt: aboutExcerpt || null,
+        about_details: aboutDetails,
+        about_visibility: aboutVisibility,
       };
 
       if (croppedBlob) {
