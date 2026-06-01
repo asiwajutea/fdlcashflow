@@ -1198,6 +1198,8 @@ export type Database = {
           total_monthly_income: number
           total_savings: number
           year: number
+          ytd_tax_paid: number
+          ytd_taxable_income: number
         }
         Insert: {
           created_at?: string
@@ -1221,6 +1223,8 @@ export type Database = {
           total_monthly_income?: number
           total_savings?: number
           year: number
+          ytd_tax_paid?: number
+          ytd_taxable_income?: number
         }
         Update: {
           created_at?: string
@@ -1244,6 +1248,8 @@ export type Database = {
           total_monthly_income?: number
           total_savings?: number
           year?: number
+          ytd_tax_paid?: number
+          ytd_taxable_income?: number
         }
         Relationships: [
           {
@@ -1528,6 +1534,10 @@ export type Database = {
       }
       profiles: {
         Row: {
+          about_details: Json
+          about_me: string | null
+          about_me_excerpt: string | null
+          about_visibility: Json
           account_name: string | null
           account_number: string | null
           approval_status: string
@@ -1544,6 +1554,7 @@ export type Database = {
           id: string
           id_card_url: string | null
           manager_id: string | null
+          manager_intro_acknowledged: boolean
           passcode: string | null
           passcode_acknowledged: boolean
           phone: string | null
@@ -1553,6 +1564,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          about_details?: Json
+          about_me?: string | null
+          about_me_excerpt?: string | null
+          about_visibility?: Json
           account_name?: string | null
           account_number?: string | null
           approval_status?: string
@@ -1569,6 +1584,7 @@ export type Database = {
           id: string
           id_card_url?: string | null
           manager_id?: string | null
+          manager_intro_acknowledged?: boolean
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
@@ -1578,6 +1594,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          about_details?: Json
+          about_me?: string | null
+          about_me_excerpt?: string | null
+          about_visibility?: Json
           account_name?: string | null
           account_number?: string | null
           approval_status?: string
@@ -1594,6 +1614,7 @@ export type Database = {
           id?: string
           id_card_url?: string | null
           manager_id?: string | null
+          manager_intro_acknowledged?: boolean
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
@@ -2076,6 +2097,21 @@ export type Database = {
         Update: {
           capability?: string
           id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_presence: {
+        Row: {
+          last_seen_at: string
+          user_id: string
+        }
+        Insert: {
+          last_seen_at?: string
+          user_id: string
+        }
+        Update: {
+          last_seen_at?: string
           user_id?: string
         }
         Relationships: []
