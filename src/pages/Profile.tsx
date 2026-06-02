@@ -70,8 +70,11 @@ const Profile = () => {
   const [aboutExcerpt, setAboutExcerpt] = useState('');
   const [generatingAbout, setGeneratingAbout] = useState(false);
 
+  const loadedRef = useRef(false);
   useEffect(() => {
     if (!user) return;
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     (async () => {
       const [profileRes, empRes, posRes, deptRes, projRes, teamRes] = await Promise.all([
         (supabase as any).from('profiles').select('*').eq('id', user.id).maybeSingle(),
