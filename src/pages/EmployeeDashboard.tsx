@@ -122,13 +122,28 @@ const EmployeeDashboard: React.FC = () => {
         const detailsDeps = [
           profile.position_id ? db.from('positions').select('name').eq('id', profile.position_id).maybeSingle() : Promise.resolve({ data: null }),
           profile.department_id ? db.from('departments').select('name').eq('id', profile.department_id).maybeSingle() : Promise.resolve({ data: null }),
-          profile.manager_id ? (supabase as any).from('profiles').select('full_name').eq('id', profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
+          profile.manager_id ? (supabase as any).from('profiles').select('id, full_name, avatar_url, about_me, about_me_excerpt, about_details, about_visibility, position_id').eq('id', profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
         ];
-        
+
         const [posRes, deptRes, mgrRes] = await Promise.all(detailsDeps);
         if (posRes.data) setPositionName(posRes.data.name);
         if (deptRes.data) setDepartmentName(deptRes.data.name);
-        if (mgrRes.data) setManagerName(mgrRes.data.full_name);
+        if (mgrRes.data) {
+          setManagerName(mgrRes.data.full_name);
+          let mgrPositionName: string | null = null;
+          if (mgrRes.data.position_id) {
+            const { data: mp } = await db.from('positions').select('name').eq('id', mgrRes.data.position_id).maybeSingle();
+            mgrPositionName = (mp as any)?.name || null;
+          }
+          const mgrInfo: ManagerInfo = { ...mgrRes.data, position_name: mgrPositionName };
+          setManager(mgrInfo);
+
+          // Nag modal: manager has filled About Me and employee hasn't acknowledged
+          const managerHasIntro = !!(mgrRes.data.about_me || mgrRes.data.about_me_excerpt);
+          if (managerHasIntro && profile.manager_intro_acknowledged !== true) {
+            setIntroNagOpen(true);
+          }
+        }
 
         // Profile gaps
         const gaps: string[] = [];
