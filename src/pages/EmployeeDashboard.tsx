@@ -376,6 +376,28 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Manager introduction nag modal */}
+      <ManagerIntroModal
+        open={introNagOpen}
+        manager={manager}
+        acknowledging={acknowledging}
+        onViewMore={() => { setIntroNagOpen(false); setManagerDialogOpen(true); }}
+        onAcknowledge={async () => {
+          if (!user) return;
+          setAcknowledging(true);
+          await (supabase as any).from('profiles').update({ manager_intro_acknowledged: true }).eq('id', user.id);
+          setAcknowledging(false);
+          setIntroNagOpen(false);
+        }}
+      />
+
+      {/* Manager About Me dialog */}
+      <ManagerAboutDialog
+        open={managerDialogOpen}
+        onOpenChange={setManagerDialogOpen}
+        manager={manager}
+      />
     </div>
   );
 };
