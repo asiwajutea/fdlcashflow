@@ -575,7 +575,6 @@ const InvoiceGenerator = () => {
           description: e.description,
           amount: parseFloat(e.amount),
           is_taxable: e.isTaxable ?? true,
-          created_by: user?.id
         })), 
         ...deductions.filter(d => d.description && d.amount).map(d => ({
           invoice_id: invoiceData.id,
@@ -583,7 +582,6 @@ const InvoiceGenerator = () => {
           description: d.description,
           amount: parseFloat(d.amount),
           is_taxable: null,
-          created_by: user?.id
         }))
       ];
       if (lineItems.length > 0) {
@@ -616,7 +614,6 @@ const InvoiceGenerator = () => {
               description: `Salary advance repayment ${(adv.repaid_count || 0) + 1}/${installments}`,
               amount: deductAmount,
               is_taxable: null,
-              created_by: user?.id,
             });
             await sdb.from('advance_repayments').insert({
               advance_id: adv.id,
