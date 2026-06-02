@@ -402,4 +402,103 @@ const EmployeeDashboard: React.FC = () => {
   );
 };
 
+// ---- Manager intro modal ----
+const ManagerIntroModal: React.FC<{
+  open: boolean;
+  manager: ManagerInfo | null;
+  acknowledging: boolean;
+  onViewMore: () => void;
+  onAcknowledge: () => void;
+}> = ({ open, manager, acknowledging, onViewMore, onAcknowledge }) => {
+  if (!manager) return null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onAcknowledge(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Meet your direct manager</DialogTitle>
+          <DialogDescription>
+            A quick introduction from the person you'll be reporting to.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={manager.avatar_url || undefined} />
+            <AvatarFallback>{manager.full_name?.charAt(0) || 'M'}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">{manager.full_name}</p>
+            {manager.position_name && (
+              <p className="text-xs text-muted-foreground">{manager.position_name}</p>
+            )}
+            <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">
+              {manager.about_me_excerpt || (manager.about_me ? manager.about_me.slice(0, 240) + (manager.about_me.length > 240 ? '…' : '') : 'No introduction provided.')}
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onViewMore}>View full profile</Button>
+          <Button onClick={onAcknowledge} disabled={acknowledging}>
+            {acknowledging ? 'Saving…' : 'Got it, thanks'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ---- Manager About Me dialog ----
+const ManagerAboutDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  manager: ManagerInfo | null;
+}> = ({ open, onOpenChange, manager }) => {
+  if (!manager) return null;
+  const visibility = manager.about_visibility || {};
+  const details = manager.about_details || {};
+  const visibleEntries = Object.entries(details).filter(([key, val]) => {
+    if (!val) return false;
+    // Default to public if visibility not set explicitly
+    return visibility[key] !== false;
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={manager.avatar_url || undefined} />
+              <AvatarFallback>{manager.full_name?.charAt(0) || 'M'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <DialogTitle>{manager.full_name}</DialogTitle>
+              {manager.position_name && (
+                <DialogDescription>{manager.position_name}</DialogDescription>
+              )}
+            </div>
+          </div>
+        </DialogHeader>
+        {manager.about_me && (
+          <div>
+            <h4 className="text-sm font-semibold text-foreground mb-1">About</h4>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{manager.about_me}</p>
+          </div>
+        )}
+        {visibleEntries.length > 0 && (
+          <div className="space-y-3 mt-2">
+            {visibleEntries.map(([key, val]) => (
+              <div key={key}>
+                <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{key.replace(/_/g, ' ')}</h4>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{String(val)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {!manager.about_me && visibleEntries.length === 0 && (
+          <p className="text-sm text-muted-foreground">Your manager hasn't shared any public details yet.</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export default EmployeeDashboard;
