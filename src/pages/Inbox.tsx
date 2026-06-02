@@ -250,19 +250,30 @@ const Inbox = () => {
                 </ScrollArea>
 
                 <div className="p-4 border-t bg-muted/30">
-                  <div className="flex gap-2">
-                    <Textarea
-                      value={replyText}
-                      onChange={(e) => setReplyText(e.target.value)}
-                      placeholder="Write a reply..."
-                      rows={2}
-                      className="flex-1"
-                    />
-                    <Button onClick={handleReply} disabled={sending || !replyText.trim()} size="sm" className="self-end gap-1">
-                      <Send className="h-3.5 w-3.5" />
-                      Reply
+                  {!replyOpen ? (
+                    <Button onClick={() => setReplyOpen(true)} size="sm" variant="outline" className="gap-1">
+                      <Reply className="h-3.5 w-3.5" /> Reply
                     </Button>
-                  </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Textarea
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        placeholder="Write a reply..."
+                        rows={2}
+                        className="flex-1"
+                        autoFocus
+                      />
+                      <div className="flex flex-col gap-1 self-end">
+                        <Button onClick={handleReply} disabled={sending || !replyText.trim()} size="sm" className="gap-1">
+                          <Send className="h-3.5 w-3.5" /> Send
+                        </Button>
+                        <Button onClick={() => { setReplyOpen(false); setReplyText(''); }} size="sm" variant="ghost">
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
