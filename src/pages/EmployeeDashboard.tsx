@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
@@ -12,6 +14,17 @@ import {
   AlertCircle, CheckCircle2, FileSignature, UserCircle2, Users
 } from 'lucide-react';
 import { useIsLeader } from '@/hooks/useIsLeader';
+
+interface ManagerInfo {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  about_me: string | null;
+  about_me_excerpt: string | null;
+  about_details: Record<string, any> | null;
+  about_visibility: Record<string, boolean> | null;
+  position_name?: string | null;
+}
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
@@ -77,10 +90,13 @@ const EmployeeDashboard: React.FC = () => {
   const [openJobs, setOpenJobs] = useState(0);
   const [actions, setActions] = useState<ActionItem[]>([]);
   
-  // New state variables for header details
   const [positionName, setPositionName] = useState<string>('');
   const [departmentName, setDepartmentName] = useState<string>('');
   const [managerName, setManagerName] = useState<string>('');
+  const [manager, setManager] = useState<ManagerInfo | null>(null);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
+  const [introNagOpen, setIntroNagOpen] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -106,13 +122,28 @@ const EmployeeDashboard: React.FC = () => {
         const detailsDeps = [
           profile.position_id ? db.from('positions').select('name').eq('id', profile.position_id).maybeSingle() : Promise.resolve({ data: null }),
           profile.department_id ? db.from('departments').select('name').eq('id', profile.department_id).maybeSingle() : Promise.resolve({ data: null }),
-          profile.manager_id ? (supabase as any).from('profiles').select('full_name').eq('id', profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
+          profile.manager_id ? (supabase as any).from('profiles').select('id, full_name, avatar_url, about_me, about_me_excerpt, about_details, about_visibility, position_id').eq('id', profile.manager_id).maybeSingle() : Promise.resolve({ data: null }),
         ];
-        
+
         const [posRes, deptRes, mgrRes] = await Promise.all(detailsDeps);
         if (posRes.data) setPositionName(posRes.data.name);
         if (deptRes.data) setDepartmentName(deptRes.data.name);
-        if (mgrRes.data) setManagerName(mgrRes.data.full_name);
+        if (mgrRes.data) {
+          setManagerName(mgrRes.data.full_name);
+          let mgrPositionName: string | null = null;
+          if (mgrRes.data.position_id) {
+            const { data: mp } = await db.from('positions').select('name').eq('id', mgrRes.data.position_id).maybeSingle();
+            mgrPositionName = (mp as any)?.name || null;
+          }
+          const mgrInfo: ManagerInfo = { ...mgrRes.data, position_name: mgrPositionName };
+          setManager(mgrInfo);
+
+          // Nag modal: manager has filled About Me and employee hasn't acknowledged
+          const managerHasIntro = !!(mgrRes.data.about_me || mgrRes.data.about_me_excerpt);
+          if (managerHasIntro && profile.manager_intro_acknowledged !== true) {
+            setIntroNagOpen(true);
+          }
+        }
 
         // Profile gaps
         const gaps: string[] = [];
@@ -221,7 +252,11 @@ const EmployeeDashboard: React.FC = () => {
                 </Badge>
               )}
               {managerName && (
-                <Badge variant="outline" className="bg-background/60 flex items-center gap-1.5 py-1">
+                <Badge
+                  variant="outline"
+                  className="bg-background/60 flex items-center gap-1.5 py-1 cursor-pointer hover:bg-background"
+                  onClick={() => manager && setManagerDialogOpen(true)}
+                >
                   <UserCircle2 className="h-3.5 w-3.5 text-primary" />
                   Manager: {managerName}
                 </Badge>
@@ -341,7 +376,128 @@ const EmployeeDashboard: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Manager introduction nag modal */}
+      <ManagerIntroModal
+        open={introNagOpen}
+        manager={manager}
+        acknowledging={acknowledging}
+        onViewMore={() => { setIntroNagOpen(false); setManagerDialogOpen(true); }}
+        onAcknowledge={async () => {
+          if (!user) return;
+          setAcknowledging(true);
+          await (supabase as any).from('profiles').update({ manager_intro_acknowledged: true }).eq('id', user.id);
+          setAcknowledging(false);
+          setIntroNagOpen(false);
+        }}
+      />
+
+      {/* Manager About Me dialog */}
+      <ManagerAboutDialog
+        open={managerDialogOpen}
+        onOpenChange={setManagerDialogOpen}
+        manager={manager}
+      />
     </div>
+  );
+};
+
+// ---- Manager intro modal ----
+const ManagerIntroModal: React.FC<{
+  open: boolean;
+  manager: ManagerInfo | null;
+  acknowledging: boolean;
+  onViewMore: () => void;
+  onAcknowledge: () => void;
+}> = ({ open, manager, acknowledging, onViewMore, onAcknowledge }) => {
+  if (!manager) return null;
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onAcknowledge(); }}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Meet your direct manager</DialogTitle>
+          <DialogDescription>
+            A quick introduction from the person you'll be reporting to.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-start gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={manager.avatar_url || undefined} />
+            <AvatarFallback>{manager.full_name?.charAt(0) || 'M'}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground">{manager.full_name}</p>
+            {manager.position_name && (
+              <p className="text-xs text-muted-foreground">{manager.position_name}</p>
+            )}
+            <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">
+              {manager.about_me_excerpt || (manager.about_me ? manager.about_me.slice(0, 240) + (manager.about_me.length > 240 ? '…' : '') : 'No introduction provided.')}
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onViewMore}>View full profile</Button>
+          <Button onClick={onAcknowledge} disabled={acknowledging}>
+            {acknowledging ? 'Saving…' : 'Got it, thanks'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// ---- Manager About Me dialog ----
+const ManagerAboutDialog: React.FC<{
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  manager: ManagerInfo | null;
+}> = ({ open, onOpenChange, manager }) => {
+  if (!manager) return null;
+  const visibility = manager.about_visibility || {};
+  const details = manager.about_details || {};
+  const visibleEntries = Object.entries(details).filter(([key, val]) => {
+    if (!val) return false;
+    // Default to public if visibility not set explicitly
+    return visibility[key] !== false;
+  });
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <Avatar className="h-12 w-12">
+              <AvatarImage src={manager.avatar_url || undefined} />
+              <AvatarFallback>{manager.full_name?.charAt(0) || 'M'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <DialogTitle>{manager.full_name}</DialogTitle>
+              {manager.position_name && (
+                <DialogDescription>{manager.position_name}</DialogDescription>
+              )}
+            </div>
+          </div>
+        </DialogHeader>
+        {manager.about_me && (
+          <div>
+            <h4 className="text-sm font-semibold text-foreground mb-1">About</h4>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{manager.about_me}</p>
+          </div>
+        )}
+        {visibleEntries.length > 0 && (
+          <div className="space-y-3 mt-2">
+            {visibleEntries.map(([key, val]) => (
+              <div key={key}>
+                <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{key.replace(/_/g, ' ')}</h4>
+                <p className="text-sm text-foreground whitespace-pre-wrap">{String(val)}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {!manager.about_me && visibleEntries.length === 0 && (
+          <p className="text-sm text-muted-foreground">Your manager hasn't shared any public details yet.</p>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
