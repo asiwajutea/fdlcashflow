@@ -90,10 +90,13 @@ const EmployeeDashboard: React.FC = () => {
   const [openJobs, setOpenJobs] = useState(0);
   const [actions, setActions] = useState<ActionItem[]>([]);
   
-  // New state variables for header details
   const [positionName, setPositionName] = useState<string>('');
   const [departmentName, setDepartmentName] = useState<string>('');
   const [managerName, setManagerName] = useState<string>('');
+  const [manager, setManager] = useState<ManagerInfo | null>(null);
+  const [managerDialogOpen, setManagerDialogOpen] = useState(false);
+  const [introNagOpen, setIntroNagOpen] = useState(false);
+  const [acknowledging, setAcknowledging] = useState(false);
 
   useEffect(() => {
     if (!user) return;
