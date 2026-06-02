@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
@@ -12,6 +14,17 @@ import {
   AlertCircle, CheckCircle2, FileSignature, UserCircle2, Users
 } from 'lucide-react';
 import { useIsLeader } from '@/hooks/useIsLeader';
+
+interface ManagerInfo {
+  id: string;
+  full_name: string | null;
+  avatar_url: string | null;
+  about_me: string | null;
+  about_me_excerpt: string | null;
+  about_details: Record<string, any> | null;
+  about_visibility: Record<string, boolean> | null;
+  position_name?: string | null;
+}
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
