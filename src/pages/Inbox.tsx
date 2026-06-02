@@ -92,6 +92,7 @@ const Inbox = () => {
     }
     setSelectedMessage(root);
     setReplyText('');
+    setReplyOpen(false);
     // Mark the clicked message as read
     if (!msg.is_read && msg.recipient_id === user?.id) {
       await (supabase as any).from('messages').update({ is_read: true }).eq('id', msg.id);
