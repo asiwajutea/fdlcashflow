@@ -252,7 +252,11 @@ const EmployeeDashboard: React.FC = () => {
                 </Badge>
               )}
               {managerName && (
-                <Badge variant="outline" className="bg-background/60 flex items-center gap-1.5 py-1">
+                <Badge
+                  variant="outline"
+                  className="bg-background/60 flex items-center gap-1.5 py-1 cursor-pointer hover:bg-background"
+                  onClick={() => manager && setManagerDialogOpen(true)}
+                >
                   <UserCircle2 className="h-3.5 w-3.5 text-primary" />
                   Manager: {managerName}
                 </Badge>
