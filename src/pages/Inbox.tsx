@@ -35,6 +35,7 @@ const Inbox = () => {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replies, setReplies] = useState<Message[]>([]);
   const [replyText, setReplyText] = useState('');
+  const [replyOpen, setReplyOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
