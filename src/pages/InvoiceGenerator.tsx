@@ -614,7 +614,6 @@ const InvoiceGenerator = () => {
               description: `Salary advance repayment ${(adv.repaid_count || 0) + 1}/${installments}`,
               amount: deductAmount,
               is_taxable: null,
-              created_by: user?.id,
             });
             await sdb.from('advance_repayments').insert({
               advance_id: adv.id,
