@@ -203,11 +203,11 @@ const InvoiceGenerator = () => {
         
         // Sum taxable earnings (is_taxable = true or null for backwards compatibility with old data)
         const taxableEarnings = invoiceLineItems
-          .filter(li => li.item_type === 'earning' && (li.is_taxable === true || li.is_taxable === null))
+          .filter(li => li.item_type === 'earning' && (li.is_taxable === true || li.is_taxable === false))
           .reduce((sum, li) => sum + (li.amount || 0), 0);
         
         // If no line items have is_taxable set, use the stored taxable_income or gross_payment as fallback
-        if (invoiceLineItems.filter(li => li.item_type === 'earning').every(li => li.is_taxable === null)) {
+        if (invoiceLineItems.filter(li => li.item_type === 'earning').every(li => li.is_taxable === false)) {
           totalYtdTaxableIncome += invoice.taxable_income || invoice.gross_payment || 0;
         } else {
           totalYtdTaxableIncome += taxableEarnings;
@@ -581,7 +581,7 @@ const InvoiceGenerator = () => {
           item_type: 'deduction' as const,
           description: d.description,
           amount: parseFloat(d.amount),
-          is_taxable: null,
+          is_taxable: false,
         }))
       ];
       if (lineItems.length > 0) {
@@ -613,7 +613,7 @@ const InvoiceGenerator = () => {
               item_type: 'deduction',
               description: `Salary advance repayment ${(adv.repaid_count || 0) + 1}/${installments}`,
               amount: deductAmount,
-              is_taxable: null,
+              is_taxable: false,
             });
             await sdb.from('advance_repayments').insert({
               advance_id: adv.id,
@@ -1254,7 +1254,7 @@ const InvoiceGenerator = () => {
                     item_type: 'deduction' as const,
                     description: d.description,
                     amount: parseFloat(d.amount),
-                    is_taxable: null
+                    is_taxable: false
                   }))
                 ];
                 if (lineItems.length > 0) {
