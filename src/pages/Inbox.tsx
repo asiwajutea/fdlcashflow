@@ -29,6 +29,8 @@ interface Message {
   recipient_name?: string;
 }
 
+interface MsgAttachment { id: string; message_id: string; file_url: string; file_name: string; mime_type?: string }
+
 const Inbox = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -36,12 +38,16 @@ const Inbox = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replies, setReplies] = useState<Message[]>([]);
+  const [attachmentsByMsg, setAttachmentsByMsg] = useState<Record<string, MsgAttachment[]>>({});
   const [replyText, setReplyText] = useState('');
   const [replyOpen, setReplyOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
   const [tab, setTab] = useState<'inbox' | 'sent'>('inbox');
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+  const [replyEmojiOpen, setReplyEmojiOpen] = useState(false);
+  const replyFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
