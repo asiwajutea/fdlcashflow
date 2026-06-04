@@ -29,6 +29,13 @@ const CMSSmsTemplates = () => {
   const { toast } = useToast();
   const [templates, setTemplates] = useState<SmsTemplate[]>([]);
   const [logs, setLogs] = useState<any[]>([]);
+  const [logsTotal, setLogsTotal] = useState(0);
+  const [logsPage, setLogsPage] = useState(0);
+  const [logsPageSize] = useState(25);
+  const [logsStatus, setLogsStatus] = useState<'all' | 'sent' | 'failed' | 'error'>('all');
+  const [logsSearch, setLogsSearch] = useState('');
+  const [logsSort, setLogsSort] = useState<'desc' | 'asc'>('desc');
+  const [retrying, setRetrying] = useState<string | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [testPhone, setTestPhone] = useState('');
   const [loading, setLoading] = useState(true);
@@ -36,15 +43,27 @@ const CMSSmsTemplates = () => {
   const [generating, setGenerating] = useState(false);
   const [savingHolidays, setSavingHolidays] = useState(false);
 
+  const fetchLogs = async () => {
+    let q = db.from('sms_logs').select('*', { count: 'exact' });
+    if (logsStatus !== 'all') q = q.eq('status', logsStatus);
+    if (logsSearch.trim()) {
+      const s = `%${logsSearch.trim()}%`;
+      q = q.or(`recipient_phone.ilike.${s},body.ilike.${s},template_key.ilike.${s}`);
+    }
+    q = q.order('created_at', { ascending: logsSort === 'asc' })
+      .range(logsPage * logsPageSize, logsPage * logsPageSize + logsPageSize - 1);
+    const { data, count } = await q;
+    setLogs(data || []);
+    setLogsTotal(count || 0);
+  };
+
   const load = async () => {
     setLoading(true);
-    const [{ data: tpls }, { data: lg }, { data: hol }] = await Promise.all([
+    const [{ data: tpls }, { data: hol }] = await Promise.all([
       db.from('sms_templates').select('*').order('name'),
-      db.from('sms_logs').select('*').order('created_at', { ascending: false }).limit(50),
       db.from('app_settings').select('value').eq('key', 'holidays').maybeSingle(),
     ]);
     setTemplates(tpls || []);
-    setLogs(lg || []);
     let parsed: Holiday[] = [];
     try {
       const v = JSON.parse(hol?.value || '[]');
@@ -52,10 +71,27 @@ const CMSSmsTemplates = () => {
       else if (v && v.date) parsed = [v];
     } catch { parsed = []; }
     setHolidays(parsed.map(h => ({ date: h.date || '', label: h.label || '' })));
+    await fetchLogs();
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => { fetchLogs(); /* eslint-disable-next-line */ }, [logsPage, logsStatus, logsSort]);
+
+  const retrySend = async (logId: string) => {
+    setRetrying(logId);
+    try {
+      const { error } = await supabase.functions.invoke('send-sms', { body: { retry_log_id: logId } });
+      if (error) throw error;
+      toast({ title: 'Retry attempted' });
+      await fetchLogs();
+    } catch (e: any) {
+      toast({ title: 'Retry failed', description: e?.message || 'Unknown error', variant: 'destructive' });
+    } finally {
+      setRetrying(null);
+    }
+  };
+
 
   const updateField = (id: string, patch: Partial<SmsTemplate>) => {
     setTemplates(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
