@@ -87,6 +87,7 @@ const EmployeeFormAnalytics = lazy(() => import("./pages/employee/FormAnalytics"
 const TeamReports = lazy(() => import("./pages/TeamReports"));
 const OrgChart = lazy(() => import("./pages/OrgChart"));
 const CMSSmsTemplates = lazy(() => import("./pages/cms/CMSSmsTemplates"));
+const ChatPolicies = lazy(() => import("./pages/admin/ChatPolicies"));
 import { CapabilityGuard } from "@/components/CapabilityGuard";
 
 // Prefetch high-traffic pages after initial render
