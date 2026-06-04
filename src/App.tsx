@@ -231,6 +231,7 @@ const AppRoutes = () =>
       <Route path="/activity-report/:id/analytics" element={<AvatarGuard><EmployeeFormAnalytics /></AvatarGuard>} />
       <Route path="/org-chart" element={<AvatarGuard><OrgChart /></AvatarGuard>} />
       <Route path="/cms/sms-templates" element={<AvatarGuard><CapabilityGuard adminOnly><CMSSmsTemplates /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/admin/chat-policies" element={<AvatarGuard><CapabilityGuard adminOnly><ChatPolicies /></CapabilityGuard></AvatarGuard>} />
 
       <Route path="*" element={<NotFound />} />
     </Routes>
