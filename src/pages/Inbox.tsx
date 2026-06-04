@@ -266,6 +266,16 @@ const Inbox = () => {
                   <div className="prose prose-sm max-w-none">
                     <p className="whitespace-pre-wrap text-foreground">{selectedMessage.body}</p>
                   </div>
+                  {(attachmentsByMsg[selectedMessage.id] || []).length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {attachmentsByMsg[selectedMessage.id].map((a) => (
+                        <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer"
+                          className="text-xs inline-flex items-center gap-1 px-2 py-1 border rounded-md bg-background hover:bg-accent">
+                          <FileText className="h-3 w-3" /> {a.file_name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
 
                   {replies.length > 0 && (
                     <div className="mt-6 space-y-4">
@@ -278,6 +288,16 @@ const Inbox = () => {
                             <span>{format(new Date(reply.created_at), 'MMM d, p')}</span>
                           </div>
                           <p className="text-sm whitespace-pre-wrap">{reply.body}</p>
+                          {(attachmentsByMsg[reply.id] || []).length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {attachmentsByMsg[reply.id].map((a) => (
+                                <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer"
+                                  className="text-xs inline-flex items-center gap-1 px-2 py-1 border rounded-md bg-background hover:bg-accent">
+                                  <FileText className="h-3 w-3" /> {a.file_name}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -290,26 +310,55 @@ const Inbox = () => {
                       <Reply className="h-3.5 w-3.5" /> Reply
                     </Button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <Textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder="Write a reply..."
                         rows={2}
-                        className="flex-1"
                         autoFocus
                       />
-                      <div className="flex flex-col gap-1 self-end">
-                        <Button onClick={handleReply} disabled={sending || !replyText.trim()} size="sm" className="gap-1">
-                          <Send className="h-3.5 w-3.5" /> Send
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button size="sm" variant="ghost" type="button" onClick={() => replyFileRef.current?.click()} className="gap-1">
+                          <Paperclip className="h-3.5 w-3.5" /> Attach
                         </Button>
-                        <Button onClick={() => { setReplyOpen(false); setReplyText(''); }} size="sm" variant="ghost">
-                          Cancel
-                        </Button>
+                        <input ref={replyFileRef} type="file" multiple className="hidden"
+                          onChange={(e) => { if (e.target.files) setReplyAttachments(prev => [...prev, ...Array.from(e.target.files!)]); e.target.value = ''; }} />
+                        <Popover open={replyEmojiOpen} onOpenChange={setReplyEmojiOpen}>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" variant="ghost" type="button" className="gap-1">
+                              <Smile className="h-3.5 w-3.5" /> Emoji
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 border-0" align="start">
+                            <EmojiPicker onEmojiClick={(e: EmojiClickData) => setReplyText(p => p + e.emoji)} width={300} height={350} />
+                          </PopoverContent>
+                        </Popover>
+                        <div className="ml-auto flex gap-2">
+                          <Button onClick={() => { setReplyOpen(false); setReplyText(''); setReplyAttachments([]); }} size="sm" variant="ghost">
+                            Cancel
+                          </Button>
+                          <Button onClick={handleReply} disabled={sending || (!replyText.trim() && replyAttachments.length === 0)} size="sm" className="gap-1">
+                            <Send className="h-3.5 w-3.5" /> Send
+                          </Button>
+                        </div>
                       </div>
+                      {replyAttachments.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {replyAttachments.map((f, i) => (
+                            <Badge key={i} variant="secondary" className="gap-1">
+                              {f.name}
+                              <button onClick={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))} className="hover:text-destructive">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+
               </div>
             ) : (
               <div className="flex items-center justify-center h-[65vh] text-muted-foreground">
