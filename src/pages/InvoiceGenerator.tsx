@@ -1267,6 +1267,25 @@ const InvoiceGenerator = () => {
                   title: "Success",
                   description: isEditMode ? "Payslip updated successfully" : "Payslip saved successfully"
                 });
+
+                // Fire-and-forget payslip SMS on Save Only (new payslips only)
+                if (!isEditMode && selectedEmployee?.user_id) {
+                  try {
+                    const { data: prof } = await (supabase as any).from('profiles').select('full_name, phone').eq('id', selectedEmployee.user_id).maybeSingle();
+                    if (prof?.phone) {
+                      const monthName = ['January','February','March','April','May','June','July','August','September','October','November','December'][month - 1];
+                      supabase.functions.invoke('send-sms', {
+                        body: {
+                          to: prof.phone, user_id: selectedEmployee.user_id, template_key: 'payslip_generated',
+                          vars: {
+                            name: (prof.full_name || selectedEmployee.full_name || 'there').split(' ')[0],
+                            month: monthName, year, amount: Number(totals.netPayment || 0).toLocaleString(),
+                          },
+                        },
+                      }).catch(() => {});
+                    }
+                  } catch (e) { console.error('payslip sms (save only)', e); }
+                }
                 if (isEditMode) {
                   navigate('/invoices');
                 } else {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { InboxCompose } from '@/components/InboxCompose';
-import { Mail, MailOpen, Send, Reply, ArrowLeft, Plus, Clock, User } from 'lucide-react';
+import { Mail, MailOpen, Send, Reply, ArrowLeft, Plus, Clock, User, Paperclip, Smile, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface Message {
   id: string;
@@ -27,6 +29,8 @@ interface Message {
   recipient_name?: string;
 }
 
+interface MsgAttachment { id: string; message_id: string; file_url: string; file_name: string; mime_type?: string }
+
 const Inbox = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -34,12 +38,16 @@ const Inbox = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replies, setReplies] = useState<Message[]>([]);
+  const [attachmentsByMsg, setAttachmentsByMsg] = useState<Record<string, MsgAttachment[]>>({});
   const [replyText, setReplyText] = useState('');
   const [replyOpen, setReplyOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [composeOpen, setComposeOpen] = useState(false);
   const [tab, setTab] = useState<'inbox' | 'sent'>('inbox');
+  const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
+  const [replyEmojiOpen, setReplyEmojiOpen] = useState(false);
+  const replyFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -101,36 +109,63 @@ const Inbox = () => {
     // Fetch thread replies under the root
     const { data } = await (supabase as any).from('messages').select('*').eq('parent_message_id', root.id).order('created_at', { ascending: true });
 
+    let replyList: Message[] = [];
     if (data && data.length > 0) {
       const userIds = [...new Set(data.flatMap((m: any) => [m.sender_id, m.recipient_id]))];
       const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name').in('id', userIds);
       const nameMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || 'Unknown']));
-      setReplies(data.map((m: any) => ({ ...m, sender_name: nameMap.get(m.sender_id) || 'Unknown' })));
-    } else {
-      setReplies([]);
+      replyList = data.map((m: any) => ({ ...m, sender_name: nameMap.get(m.sender_id) || 'Unknown' }));
+    }
+    setReplies(replyList);
+
+    // Fetch attachments for the root + all replies in one go
+    const msgIds = [root.id, ...replyList.map((r) => r.id)];
+    const { data: atts } = await (supabase as any).from('message_attachments').select('*').in('message_id', msgIds);
+    const grouped: Record<string, MsgAttachment[]> = {};
+    (atts || []).forEach((a: MsgAttachment) => {
+      grouped[a.message_id] = grouped[a.message_id] || [];
+      grouped[a.message_id].push(a);
+    });
+    setAttachmentsByMsg(grouped);
+  };
+
+  const uploadReplyAttachments = async (messageId: string) => {
+    if (!user || replyAttachments.length === 0) return;
+    for (const file of replyAttachments) {
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${user.id}/${messageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('message-attachments').upload(path, file, { contentType: file.type });
+      if (upErr) { console.error(upErr); continue; }
+      const { data: pub } = supabase.storage.from('message-attachments').getPublicUrl(path);
+      await (supabase as any).from('message_attachments').insert({
+        message_id: messageId, file_url: pub.publicUrl, file_name: file.name, mime_type: file.type, size_bytes: file.size,
+      });
     }
   };
 
   const handleReply = async () => {
-    if (!user || !selectedMessage || !replyText.trim()) return;
+    if (!user || !selectedMessage || (!replyText.trim() && replyAttachments.length === 0)) return;
     setSending(true);
     const recipientId = selectedMessage.sender_id === user.id ? selectedMessage.recipient_id : selectedMessage.sender_id;
-    const { error } = await (supabase as any).from('messages').insert({
+    const { data, error } = await (supabase as any).from('messages').insert({
       sender_id: user.id,
       recipient_id: recipientId,
       subject: `Re: ${selectedMessage.subject}`,
       body: replyText,
       parent_message_id: selectedMessage.id,
-    });
+    }).select('id').single();
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      if (data?.id) await uploadReplyAttachments(data.id);
       setReplyText('');
+      setReplyAttachments([]);
       toast({ title: 'Reply sent' });
       selectMessage(selectedMessage);
     }
     setSending(false);
   };
+
 
   if (authLoading || loading) {
     return (
@@ -231,6 +266,16 @@ const Inbox = () => {
                   <div className="prose prose-sm max-w-none">
                     <p className="whitespace-pre-wrap text-foreground">{selectedMessage.body}</p>
                   </div>
+                  {(attachmentsByMsg[selectedMessage.id] || []).length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {attachmentsByMsg[selectedMessage.id].map((a) => (
+                        <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer"
+                          className="text-xs inline-flex items-center gap-1 px-2 py-1 border rounded-md bg-background hover:bg-accent">
+                          <FileText className="h-3 w-3" /> {a.file_name}
+                        </a>
+                      ))}
+                    </div>
+                  )}
 
                   {replies.length > 0 && (
                     <div className="mt-6 space-y-4">
@@ -243,6 +288,16 @@ const Inbox = () => {
                             <span>{format(new Date(reply.created_at), 'MMM d, p')}</span>
                           </div>
                           <p className="text-sm whitespace-pre-wrap">{reply.body}</p>
+                          {(attachmentsByMsg[reply.id] || []).length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {attachmentsByMsg[reply.id].map((a) => (
+                                <a key={a.id} href={a.file_url} target="_blank" rel="noreferrer"
+                                  className="text-xs inline-flex items-center gap-1 px-2 py-1 border rounded-md bg-background hover:bg-accent">
+                                  <FileText className="h-3 w-3" /> {a.file_name}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -255,26 +310,55 @@ const Inbox = () => {
                       <Reply className="h-3.5 w-3.5" /> Reply
                     </Button>
                   ) : (
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
                       <Textarea
                         value={replyText}
                         onChange={(e) => setReplyText(e.target.value)}
                         placeholder="Write a reply..."
                         rows={2}
-                        className="flex-1"
                         autoFocus
                       />
-                      <div className="flex flex-col gap-1 self-end">
-                        <Button onClick={handleReply} disabled={sending || !replyText.trim()} size="sm" className="gap-1">
-                          <Send className="h-3.5 w-3.5" /> Send
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button size="sm" variant="ghost" type="button" onClick={() => replyFileRef.current?.click()} className="gap-1">
+                          <Paperclip className="h-3.5 w-3.5" /> Attach
                         </Button>
-                        <Button onClick={() => { setReplyOpen(false); setReplyText(''); }} size="sm" variant="ghost">
-                          Cancel
-                        </Button>
+                        <input ref={replyFileRef} type="file" multiple className="hidden"
+                          onChange={(e) => { if (e.target.files) setReplyAttachments(prev => [...prev, ...Array.from(e.target.files!)]); e.target.value = ''; }} />
+                        <Popover open={replyEmojiOpen} onOpenChange={setReplyEmojiOpen}>
+                          <PopoverTrigger asChild>
+                            <Button size="sm" variant="ghost" type="button" className="gap-1">
+                              <Smile className="h-3.5 w-3.5" /> Emoji
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0 border-0" align="start">
+                            <EmojiPicker onEmojiClick={(e: EmojiClickData) => setReplyText(p => p + e.emoji)} width={300} height={350} />
+                          </PopoverContent>
+                        </Popover>
+                        <div className="ml-auto flex gap-2">
+                          <Button onClick={() => { setReplyOpen(false); setReplyText(''); setReplyAttachments([]); }} size="sm" variant="ghost">
+                            Cancel
+                          </Button>
+                          <Button onClick={handleReply} disabled={sending || (!replyText.trim() && replyAttachments.length === 0)} size="sm" className="gap-1">
+                            <Send className="h-3.5 w-3.5" /> Send
+                          </Button>
+                        </div>
                       </div>
+                      {replyAttachments.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {replyAttachments.map((f, i) => (
+                            <Badge key={i} variant="secondary" className="gap-1">
+                              {f.name}
+                              <button onClick={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))} className="hover:text-destructive">
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
+
               </div>
             ) : (
               <div className="flex items-center justify-center h-[65vh] text-muted-foreground">
