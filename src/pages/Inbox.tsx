@@ -109,36 +109,63 @@ const Inbox = () => {
     // Fetch thread replies under the root
     const { data } = await (supabase as any).from('messages').select('*').eq('parent_message_id', root.id).order('created_at', { ascending: true });
 
+    let replyList: Message[] = [];
     if (data && data.length > 0) {
       const userIds = [...new Set(data.flatMap((m: any) => [m.sender_id, m.recipient_id]))];
       const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name').in('id', userIds);
       const nameMap = new Map((profiles || []).map((p: any) => [p.id, p.full_name || 'Unknown']));
-      setReplies(data.map((m: any) => ({ ...m, sender_name: nameMap.get(m.sender_id) || 'Unknown' })));
-    } else {
-      setReplies([]);
+      replyList = data.map((m: any) => ({ ...m, sender_name: nameMap.get(m.sender_id) || 'Unknown' }));
+    }
+    setReplies(replyList);
+
+    // Fetch attachments for the root + all replies in one go
+    const msgIds = [root.id, ...replyList.map((r) => r.id)];
+    const { data: atts } = await (supabase as any).from('message_attachments').select('*').in('message_id', msgIds);
+    const grouped: Record<string, MsgAttachment[]> = {};
+    (atts || []).forEach((a: MsgAttachment) => {
+      grouped[a.message_id] = grouped[a.message_id] || [];
+      grouped[a.message_id].push(a);
+    });
+    setAttachmentsByMsg(grouped);
+  };
+
+  const uploadReplyAttachments = async (messageId: string) => {
+    if (!user || replyAttachments.length === 0) return;
+    for (const file of replyAttachments) {
+      const ext = file.name.split('.').pop() || 'bin';
+      const path = `${user.id}/${messageId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('message-attachments').upload(path, file, { contentType: file.type });
+      if (upErr) { console.error(upErr); continue; }
+      const { data: pub } = supabase.storage.from('message-attachments').getPublicUrl(path);
+      await (supabase as any).from('message_attachments').insert({
+        message_id: messageId, file_url: pub.publicUrl, file_name: file.name, mime_type: file.type, size_bytes: file.size,
+      });
     }
   };
 
   const handleReply = async () => {
-    if (!user || !selectedMessage || !replyText.trim()) return;
+    if (!user || !selectedMessage || (!replyText.trim() && replyAttachments.length === 0)) return;
     setSending(true);
     const recipientId = selectedMessage.sender_id === user.id ? selectedMessage.recipient_id : selectedMessage.sender_id;
-    const { error } = await (supabase as any).from('messages').insert({
+    const { data, error } = await (supabase as any).from('messages').insert({
       sender_id: user.id,
       recipient_id: recipientId,
       subject: `Re: ${selectedMessage.subject}`,
       body: replyText,
       parent_message_id: selectedMessage.id,
-    });
+    }).select('id').single();
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      if (data?.id) await uploadReplyAttachments(data.id);
       setReplyText('');
+      setReplyAttachments([]);
       toast({ title: 'Reply sent' });
       selectMessage(selectedMessage);
     }
     setSending(false);
   };
+
 
   if (authLoading || loading) {
     return (
