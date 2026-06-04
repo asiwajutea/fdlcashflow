@@ -273,7 +273,40 @@ const CMSSmsTemplates = () => {
 
         <TabsContent value="logs">
           <Card>
-            <CardHeader><CardTitle className="text-base">Last 50 messages</CardTitle></CardHeader>
+            <CardHeader className="space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <CardTitle className="text-base">Delivery logs</CardTitle>
+                <p className="text-xs text-muted-foreground">{logsTotal} total</p>
+              </div>
+              <div className="flex gap-2 flex-wrap items-center">
+                <Input
+                  className="max-w-xs h-9"
+                  placeholder="Search phone, body, template…"
+                  value={logsSearch}
+                  onChange={(e) => setLogsSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { setLogsPage(0); fetchLogs(); } }}
+                />
+                <select
+                  className="h-9 px-2 rounded-md border bg-background text-sm"
+                  value={logsStatus}
+                  onChange={(e) => { setLogsStatus(e.target.value as any); setLogsPage(0); }}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="sent">Sent</option>
+                  <option value="failed">Failed</option>
+                  <option value="error">Error</option>
+                </select>
+                <select
+                  className="h-9 px-2 rounded-md border bg-background text-sm"
+                  value={logsSort}
+                  onChange={(e) => setLogsSort(e.target.value as any)}
+                >
+                  <option value="desc">Newest first</option>
+                  <option value="asc">Oldest first</option>
+                </select>
+                <Button size="sm" variant="outline" onClick={() => { setLogsPage(0); fetchLogs(); }}>Apply</Button>
+              </div>
+            </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
@@ -282,7 +315,9 @@ const CMSSmsTemplates = () => {
                     <TableHead>Template</TableHead>
                     <TableHead>Phone</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Retries</TableHead>
                     <TableHead>Body</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -291,15 +326,37 @@ const CMSSmsTemplates = () => {
                       <TableCell className="text-xs whitespace-nowrap">{new Date(l.created_at).toLocaleString()}</TableCell>
                       <TableCell className="font-mono text-xs">{l.template_key || '—'}</TableCell>
                       <TableCell className="font-mono text-xs">{l.recipient_phone}</TableCell>
-                      <TableCell><Badge variant={l.status === 'sent' ? 'default' : 'destructive'}>{l.status}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant={l.status === 'sent' ? 'default' : 'destructive'}>{l.status}</Badge>
+                        {l.error && <p className="text-[10px] text-destructive mt-1 max-w-[180px] truncate" title={l.error}>{l.error}</p>}
+                      </TableCell>
+                      <TableCell className="text-xs">{l.retry_count ?? 0}</TableCell>
                       <TableCell className="text-xs max-w-md truncate">{l.body}</TableCell>
+                      <TableCell>
+                        {(l.status === 'failed' || l.status === 'error') && (
+                          <Button size="sm" variant="outline" disabled={retrying === l.id} onClick={() => retrySend(l.id)}>
+                            {retrying === l.id ? 'Retrying…' : 'Retry'}
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {logs.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground">No SMS sent yet.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">No SMS records.</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-xs text-muted-foreground">
+                  Page {logsPage + 1} of {Math.max(1, Math.ceil(logsTotal / logsPageSize))}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" disabled={logsPage === 0} onClick={() => setLogsPage(p => Math.max(0, p - 1))}>Prev</Button>
+                  <Button size="sm" variant="outline"
+                    disabled={(logsPage + 1) * logsPageSize >= logsTotal}
+                    onClick={() => setLogsPage(p => p + 1)}>Next</Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -307,5 +364,6 @@ const CMSSmsTemplates = () => {
     </DashboardLayout>
   );
 };
+
 
 export default CMSSmsTemplates;
