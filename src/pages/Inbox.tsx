@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,12 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { InboxCompose } from '@/components/InboxCompose';
-import { Mail, MailOpen, Send, Reply, ArrowLeft, Plus, Clock, User } from 'lucide-react';
+import { Mail, MailOpen, Send, Reply, ArrowLeft, Plus, Clock, User, Paperclip, Smile, X, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import EmojiPicker, { EmojiClickData } from 'emoji-picker-react';
 
 interface Message {
   id: string;
