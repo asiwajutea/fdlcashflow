@@ -133,9 +133,10 @@ export default function Finance() {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
               <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
+              <MetricCard label="Cash Advance YTD" value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
               <MetricCard label="Reimbursed YTD" value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
               <MetricCard label="Net Position" value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
@@ -166,16 +167,29 @@ export default function Finance() {
               <Card>
                 <CardHeader><CardTitle className="text-base">By category</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="w-full h-64">
+                  <div className="w-full h-72">
                     {categoryBreakdown.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No data yet</div>
                     ) : (
                       <ResponsiveContainer>
                         <PieChart>
-                          <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e: any) => e.name}>
+                          <Pie
+                            data={categoryBreakdown}
+                            dataKey="value"
+                            nameKey="name"
+                            outerRadius={70}
+                            innerRadius={0}
+                            labelLine={false}
+                            label={(e: any) => {
+                              const total = categoryBreakdown.reduce((s, x) => s + x.value, 0) || 1;
+                              const pct = Math.round((e.value / total) * 100);
+                              return pct >= 5 ? `${pct}%` : '';
+                            }}
+                          >
                             {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     )}
@@ -183,6 +197,7 @@ export default function Finance() {
                 </CardContent>
               </Card>
             </div>
+
 
             <Card>
               <CardHeader><CardTitle className="text-base">My budget limits (this month)</CardTitle></CardHeader>
