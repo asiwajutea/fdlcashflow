@@ -118,25 +118,22 @@ const OrgChart = () => {
 
   useEffect(() => {
     (async () => {
-      const [{ data: profiles }, { data: positions }, { data: roles }, { data: departments }] = await Promise.all([
-        db.from('profiles').select('id, full_name, avatar_url, department_id, position_id, manager_id, approval_status'),
-        db.from('positions').select('id, name'),
-        db.from('user_roles').select('user_id, role'),
-        db.from('departments').select('id, name'),
-      ]);
-      const posMap = new Map((positions || []).map((p: any) => [p.id, p.name]));
-      const deptMap = new Map((departments || []).map((d: any) => [d.id, d.name]));
-      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
-      const usable = (profiles || []).filter((p: any) => {
-        const r = roleMap.get(p.id);
-        return r === 'employee' || r === 'admin';
-      });
-      const validIds = new Set(usable.map((p: any) => p.id));
-      const mapped: PersonNode[] = usable.map((p: any) => ({
+      // Use security-definer RPC so every signed-in user (employee or admin)
+      // gets the full organisation chart regardless of RLS scoping.
+      const { data, error } = await db.rpc('get_org_chart');
+      if (error) {
+        console.error('get_org_chart failed', error);
+        setPeople([]);
+        setLoading(false);
+        return;
+      }
+      const rows = (data || []) as any[];
+      const validIds = new Set(rows.map((p) => p.id));
+      const mapped: PersonNode[] = rows.map((p) => ({
         id: p.id,
         fullName: p.full_name || 'Unknown',
-        position: posMap.get(p.position_id) || (roleMap.get(p.id) === 'admin' ? 'Admin' : 'Employee'),
-        department: deptMap.get(p.department_id) || '',
+        position: p.position_name || '—',
+        department: p.department_name || '',
         avatar: p.avatar_url || '',
         managerId: p.manager_id && validIds.has(p.manager_id) ? p.manager_id : null,
       }));
@@ -144,6 +141,7 @@ const OrgChart = () => {
       setLoading(false);
     })();
   }, []);
+
 
   const { nodes, edges } = useMemo(() => layoutTree(people), [people]);
 
