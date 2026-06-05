@@ -207,15 +207,19 @@ export default function Finance() {
                 ) : (
                   <div className="space-y-4">
                     {myBudgets.map(({ budget: b, used, remaining, pct }) => {
-                      const catName = categories.find((c: any) => c.id === b.category_id)?.name;
+                      const kinds: string[] = Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
+                      const catIds: string[] = Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
+                      const kindNames = kinds.map((k) => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ');
+                      const catNames = catIds.map((id) => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ');
                       const tone = pct >= 100 ? 'text-destructive' : pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
                       return (
                         <div key={b.id} className="space-y-1.5">
                           <div className="flex justify-between items-start gap-2 flex-wrap">
                             <div>
-                              <p className="text-sm font-medium capitalize">
-                                {b.kind.replace('_', ' ')}{catName ? ` · ${catName}` : ''}
+                              <p className="text-sm font-medium">
+                                {kindNames}{catNames ? ` · ${catNames}` : ''}
                               </p>
+
                               <p className="text-xs text-muted-foreground capitalize">
                                 {b.scope_type} budget · Limit {fmt(Number(b.monthly_limit))}
                               </p>
