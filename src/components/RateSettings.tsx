@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Settings, Save } from 'lucide-react';
+import { RateItemsManager } from './RateItemsManager';
+
 interface RateConfig {
   id: string;
   // Income rates (per name)
