@@ -920,9 +920,11 @@ export type Database = {
       finance_budgets: {
         Row: {
           category_id: string | null
+          category_ids: string[]
           created_at: string
           id: string
           kind: string
+          kinds: string[]
           monthly_limit: number
           scope_id: string
           scope_type: string
@@ -930,9 +932,11 @@ export type Database = {
         }
         Insert: {
           category_id?: string | null
+          category_ids?: string[]
           created_at?: string
           id?: string
           kind: string
+          kinds?: string[]
           monthly_limit?: number
           scope_id: string
           scope_type: string
@@ -940,9 +944,11 @@ export type Database = {
         }
         Update: {
           category_id?: string | null
+          category_ids?: string[]
           created_at?: string
           id?: string
           kind?: string
+          kinds?: string[]
           monthly_limit?: number
           scope_id?: string
           scope_type?: string
@@ -1821,6 +1827,42 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_items: {
+        Row: {
+          bucket: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          unit: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          unit?: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          unit?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: []
+      }
       screening_responses: {
         Row: {
           application_id: string
@@ -1905,8 +1947,13 @@ export type Database = {
           created_at: string
           error: string | null
           id: string
+          last_retry_at: string | null
+          original_template_key: string | null
+          original_to: string | null
+          original_vars: Json | null
           provider_msg_id: string | null
           recipient_phone: string
+          retry_count: number
           status: string
           template_key: string | null
           units: number | null
@@ -1918,8 +1965,13 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          last_retry_at?: string | null
+          original_template_key?: string | null
+          original_to?: string | null
+          original_vars?: Json | null
           provider_msg_id?: string | null
           recipient_phone: string
+          retry_count?: number
           status: string
           template_key?: string | null
           units?: number | null
@@ -1931,8 +1983,13 @@ export type Database = {
           created_at?: string
           error?: string | null
           id?: string
+          last_retry_at?: string | null
+          original_template_key?: string | null
+          original_to?: string | null
+          original_vars?: Json | null
           provider_msg_id?: string | null
           recipient_phone?: string
+          retry_count?: number
           status?: string
           template_key?: string | null
           units?: number | null
@@ -2245,6 +2302,18 @@ export type Database = {
         Args: never
         Returns: {
           user_id: string
+        }[]
+      }
+      get_org_chart: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          department_name: string
+          full_name: string
+          id: string
+          manager_id: string
+          position_name: string
+          role: string
         }[]
       }
       get_subordinate_user_ids: {

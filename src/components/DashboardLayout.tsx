@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt, Network, MessageSquare } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt, Network, MessageSquare, Sparkles } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,8 @@ const NAV_SECTIONS = [
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
       { path: '/cms/sms-templates', label: 'SMS Templates', icon: MessageSquare, capability: 'manage_users' },
       { path: '/admin/chat-policies', label: 'Messaging Policies', icon: MessageSquare, capability: 'manage_users' },
+      { path: '/admin/ai-assistant', label: 'AI Assistant', icon: Sparkles, capability: 'manage_users' },
+
     ],
   },
   {

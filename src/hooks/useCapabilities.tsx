@@ -45,6 +45,8 @@ export interface UseCapabilitiesReturn {
 
 export const useCapabilities = (userId: string | null): UseCapabilitiesReturn => {
   const [capabilities, setCapabilities] = useState<string[]>([]);
+  // Until a user id arrives we are still loading the auth context — keep loading=true
+  // so route guards don't redirect with a false "Access denied" while the fetch is pending.
   const [loading, setLoading] = useState(true);
 
   const fetchCapabilities = useCallback(async () => {
@@ -54,6 +56,7 @@ export const useCapabilities = (userId: string | null): UseCapabilitiesReturn =>
       return;
     }
 
+    setLoading(true);
     try {
       const { data, error } = await (supabase as any)
         .from('user_capabilities')
@@ -75,8 +78,11 @@ export const useCapabilities = (userId: string | null): UseCapabilitiesReturn =>
   }, [userId]);
 
   useEffect(() => {
+    // Reset loading immediately on userId change so guards wait for the new fetch.
+    setLoading(true);
     fetchCapabilities();
   }, [fetchCapabilities]);
+
 
   const hasCapability = useCallback((capability: string) => {
     return capabilities.includes(capability);

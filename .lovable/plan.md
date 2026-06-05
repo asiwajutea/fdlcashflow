@@ -1,79 +1,74 @@
-## Plan
 
-### 1. Fix Payslip Generator saving
-- Add the missing `ytd_taxable_income` and `ytd_tax_paid` fields to the `invoices` table so the current Payslip Generator can save without schema-cache errors.
-- Keep the existing PAYE/YTD calculation flow intact.
-- Validate the save path after the database migration is applied.
+## 1. Admin Dashboard — Custom Rate Labels
 
-### 2. Fix welcome inbox messages and backfill approved employees
-- Recreate the missing profile trigger so welcome inbox messages are sent when `approval_status` changes to `approved`.
-- Make the sender lookup more reliable by using the existing `welcome_sender_email` setting and a safe fallback.
-- Backfill welcome inbox messages for already-approved admin/employee users who have not received one yet.
-- Prevent duplicate welcome messages by checking for an existing welcome subject per recipient.
+Currently rates are hard-coded columns in `rate_configurations`. Add a flexible label system on top.
 
-### 3. Improve SMS Holiday Schedule page
-- Replace the raw JSON holiday editor with a simple form/table:
-  - Holiday date
-  - Holiday label/message title
-  - Add, edit, remove rows
-  - Save all holidays
-- Preserve storage in `app_settings.holidays`, but make the UI handle parsing/serialization behind the scenes.
-- Update the daily SMS job to robustly handle either a single object or an array, because the current stored value is a single JSON object.
+- **DB**: new `rate_items` table — `id`, `name`, `bucket` (`income` | `expense`), `unit` (`per_name` | `monthly_fixed` | `percent`), `value numeric`, `is_active`, `display_order`. Admin-only RLS, authenticated read. Seed it from current hard-coded fields so existing flows keep working.
+- **Rate Settings UI**: add a "Custom Rate Labels" section above the legacy grid. Inline add/edit/delete/reorder, with bucket + unit selectors. Legacy fields stay editable until fully migrated.
+- **Weekly entry + Payslip overview**: read `rate_items` and merge them into the income/expense calculations, grouped by bucket. Labels appear automatically wherever income/expense overviews render.
 
-### 4. Add AI-generated quarterly holidays/important days
-- Add a backend function to generate holiday/important-day suggestions for the current quarter using Lovable AI.
-- Add a button on the SMS Templates holiday page: “Generate this quarter”.
-- Insert the generated suggestions into the editable holiday form, not directly into the schedule until the user saves.
-- Allow users to edit or delete AI suggestions before saving.
+## 2. AI Assistant — Admin Analytics Copilot
 
-### 5. Add AI-generated employee About Me profile
-- Add profile fields for:
-  - Personal background
-  - Education
-  - Marital/family details
-  - Hobbies/interests
-  - Other details
-  - Public/private visibility settings
-  - Generated About Me writeup
-  - Short intro/excerpt
-- Update the Profile page with a new “About Me” section.
-- Mark core details as required for generation, while keeping sensitive details optional.
-- Add a “Generate About Me” action that uses Lovable AI to create both the full section and short intro from the employee’s submitted details.
-- Let employees edit the generated content before saving.
+New tab under the admin Finance/Dashboard sidebar: **AI Assistant** (admin-only).
 
-### 6. Add direct-manager introduction nag modal
-- Add profile state to track whether the employee has acknowledged their manager introduction.
-- Show a modal on the employee dashboard when:
-  - the employee has a direct manager,
-  - the manager has completed the required profile/About Me details,
-  - the employee has not acknowledged the introduction.
-- The modal remains until the employee acknowledges and closes it.
-- Backfill this for existing employees by defaulting acknowledgment to not completed, so they will see it once their manager has enough profile data.
+- **Page**: `src/pages/admin/AIAssistant.tsx` — chat UI using `useChat` + `DefaultChatTransport`, single conversation persisted in localStorage (per admin).
+- **Edge function**: `supabase/functions/ai-copilot/index.ts` — streams via AI SDK + Lovable Gateway (`google/gemini-3-flash-preview`). System prompt frames it as company analytics copilot. Tools (with `stopWhen: stepCountIs(50)`):
+  - `query_finance_summary` (period) → returns totals, advances, reimbursements
+  - `query_payslips` (filters) → aggregated payslip stats
+  - `query_recruitment` → pipeline counts by stage
+  - `query_attendance` → submission counts by form/period
+  - `list_top_spenders` / `list_overbudget_users`
+- Tools run service-role queries inside the function. Admin auth verified via JWT.
+- Renders markdown + simple inline tables for tool results.
 
-### 7. Enhance Employee Dashboard manager details
-- Show each employee’s department, designation, and direct manager name more prominently on the employee homepage.
-- Add “View manager” from the dashboard.
-- Display the manager’s public About Me and short intro in a dialog, respecting the manager’s public/private visibility choices.
+## 3. Payslip / SMS Fixes
 
-### 8. Add last login and online status to User Management
-- Update the `get-users` backend function to return each user’s last login time from the auth user record.
-- Add lightweight online tracking:
-  - record the current user’s recent activity timestamp while they use the app,
-  - treat users active within the last few minutes as online.
-- Add “Online/Offline” and “Last login” columns to User Management.
+Root cause of retry-not-updating: the `sms_logs` table is missing `retry_count`, `last_retry_at`, `original_to`, `original_template_key`, `original_vars` columns — the previous migration didn't reach the DB, so every update of those fields silently fails (PostgREST returns error, function ignores it). Fix this first.
 
-## Technical notes
-- Database changes will be done through a migration before code changes:
-  - alter `invoices`
-  - restore missing triggers
-  - add profile/About Me and manager-intro fields
-  - add a small user presence table with RLS and grants
-- Existing project rules will be preserved:
-  - use “Payslip” in UI text, not “Invoice”
-  - do not edit generated Lovable Cloud client/type files manually
-  - keep private data protected with authenticated-only access and owner/admin rules
-- Edge functions to update/create:
-  - `daily-sms-jobs`
-  - new AI holiday generator function
-  - new AI About Me generator function
-  - `get-users`
+- **Migration**: add the missing columns to `sms_logs`.
+- **Payslip SMS**: re-verify both `InvoiceGenerator` call sites (line 761 "Save Only" and 1277 "Save & Download"). Add a robust catch + console log + toast on failure, and ensure `to`/`user_id` are passed even when phone is missing (so we still get a "skipped: no phone" log). Add fallback fetch of phone from `profiles` in the edge function (already there).
+- **finance_decision SMS**: already wired in `useAdvanceRequests.decide`. Trace why it isn't firing — likely the same silent failure from missing log columns. After the migration, verify in `sms_logs`.
+- **Retry status**: `send-sms` already updates `status` on retry; once columns exist this will work. Add UI toast confirming new status after retry.
+- **Sweep other templates**: confirm `account_approved`, `candidate_stage`, `candidate_hire`, `birthday`, `holiday` all reach `send-sms` with valid `template_key` + recipient.
+
+## 4. Capability Guard False-Negatives (Daily Tracker, HR Recruitment)
+
+`adeolabunmi94@gmail.com` has the capabilities but `CapabilityGuard` shows "Access denied". Likely causes to investigate and fix:
+
+- `useCapabilities` returning stale/empty array on first render → guard fires the toast before the real fetch resolves. Fix: keep showing the loader until capabilities query has `data !== undefined` (not just `isLoading`); avoid firing the redirect toast on transient empty results.
+- Capability keys mismatch (e.g. role-template assigns `daily_tracker` but route requires `view_daily_tracker`, similarly `manage_recruitment` vs `hr_recruitment`). Audit `UserManagement`, `RoleManagement`, and route guard keys; align both sides to a single canonical key list.
+- Confirm `user_capabilities` rows actually exist for that user (the toast is also shown immediately after a role change before the realtime refresh).
+
+## 5. Budget Limits — Multi-select Kind & Category
+
+- **DB**: extend `finance_budgets` — replace single `kind` + `category_id` with `kinds text[]` and `category_ids uuid[]` (keep old cols for backward compat, dual-write during transition). Update `finance_budgets_kind_check`.
+- **BudgetEditor UI**: multi-select dropdowns for request types and categories. Show "Applies to: Reimbursement, Cash Advance · Travel, Meals".
+- **useMyBudgets / Finance enforcement**: when matching a request to a budget, treat it as applicable if `req.kind ∈ kinds` AND (`category_ids` empty OR `req.category_id ∈ category_ids`). Sum used across all matching approved requests for the month. Update overage warning + progress bar accordingly.
+
+## 6. Finance Page Fixes
+
+- **Cash Advance card**: add 5th metric card "Cash Advance YTD" (sum of approved `cash_advance`) on the overview grid (use a 2/3/5 responsive grid).
+- **Pie chart labels**: replace truncated inline labels with a proper Legend + percent-only labels on slices. Increase chart height and use `labelLine={false}` plus a horizontal `<Legend>` so "Cash Advance" / "Reimbursement" aren't clipped.
+
+## 7. Org Chart Visibility for Employees
+
+Employees currently see a partial/broken tree because RLS on `profiles` may scope or because `manager_id` chains break when intermediate managers are filtered out. Fix:
+
+- Create SECURITY DEFINER RPC `get_org_chart()` that returns `{id, full_name, avatar_url, position, department, manager_id}` for all approved employees/admins, regardless of caller role.
+- `OrgChart.tsx` switches from direct table reads to `db.rpc('get_org_chart')`. Same component renders for admins and employees; no role-based filtering of nodes.
+
+## 8. Verification
+
+- Manually trigger Save Only + Save & Download → confirm SMS row in `sms_logs` with `status='sent'`.
+- Approve a cash advance / reimbursement → confirm `finance_decision` SMS row.
+- Manually retry a failed log → confirm `status` flips to `sent` and `retry_count` increments.
+- Log in as `adeolabunmi94@gmail.com` → `/daily-tracker` and `/applications` load.
+- Create a budget covering `[reimbursement, cash_advance]` × `[travel, meals]` → submit two small requests → progress bar shows combined usage.
+- Employee `/org-chart` shows the full tree identical to admin view.
+
+## Technical Details
+
+- Migrations (single file): add `sms_logs` columns; create `rate_items`; alter `finance_budgets` to add array cols + drop old check; create `get_org_chart()` SECURITY DEFINER.
+- New files: `src/pages/admin/AIAssistant.tsx`, `supabase/functions/ai-copilot/index.ts`, `src/components/RateItemsManager.tsx`.
+- Edited files: `RateSettings.tsx`, `InvoiceGenerator.tsx` (better SMS error reporting), `useAdvanceRequests.ts`, `Finance.tsx` (5-metric grid, legend), `BudgetEditor` (in `Finance.tsx`), `useMyBudgets.ts`, `OrgChart.tsx`, `CapabilityGuard.tsx`, `useCapabilities.tsx`, `App.tsx` + `DashboardLayout.tsx` (AI Assistant route + nav item).
+- Tools/libs used: existing `@ai-sdk/react`, `ai`, `recharts`. No new deps beyond `@ai-sdk/openai-compatible` if not already installed for the copilot function.

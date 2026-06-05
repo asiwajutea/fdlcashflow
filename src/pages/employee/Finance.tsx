@@ -71,8 +71,12 @@ export default function Finance() {
     const reimbursedYtd = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'reimbursement')
       .reduce((s, r) => s + Number(r.amount), 0);
-    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, net: salaryPaid - totalDeductions };
+    const cashAdvanceYtd = myRequests
+      .filter(r => r.status === 'approved' && r.kind === 'cash_advance')
+      .reduce((s, r) => s + Number(r.amount), 0);
+    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, cashAdvanceYtd, net: salaryPaid - totalDeductions };
   }, [ledger, myRequests]);
+
 
   const monthly = ledger?.monthly || [];
 
@@ -129,9 +133,10 @@ export default function Finance() {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
               <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
+              <MetricCard label="Cash Advance YTD" value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
               <MetricCard label="Reimbursed YTD" value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
               <MetricCard label="Net Position" value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
@@ -162,16 +167,29 @@ export default function Finance() {
               <Card>
                 <CardHeader><CardTitle className="text-base">By category</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="w-full h-64">
+                  <div className="w-full h-72">
                     {categoryBreakdown.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-sm text-muted-foreground">No data yet</div>
                     ) : (
                       <ResponsiveContainer>
                         <PieChart>
-                          <Pie data={categoryBreakdown} dataKey="value" nameKey="name" outerRadius={80} label={(e: any) => e.name}>
+                          <Pie
+                            data={categoryBreakdown}
+                            dataKey="value"
+                            nameKey="name"
+                            outerRadius={70}
+                            innerRadius={0}
+                            labelLine={false}
+                            label={(e: any) => {
+                              const total = categoryBreakdown.reduce((s, x) => s + x.value, 0) || 1;
+                              const pct = Math.round((e.value / total) * 100);
+                              return pct >= 5 ? `${pct}%` : '';
+                            }}
+                          >
                             {categoryBreakdown.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                           </Pie>
                           <Tooltip formatter={(v: any) => fmt(Number(v))} />
+                          <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                         </PieChart>
                       </ResponsiveContainer>
                     )}
@@ -179,6 +197,7 @@ export default function Finance() {
                 </CardContent>
               </Card>
             </div>
+
 
             <Card>
               <CardHeader><CardTitle className="text-base">My budget limits (this month)</CardTitle></CardHeader>
@@ -188,15 +207,19 @@ export default function Finance() {
                 ) : (
                   <div className="space-y-4">
                     {myBudgets.map(({ budget: b, used, remaining, pct }) => {
-                      const catName = categories.find((c: any) => c.id === b.category_id)?.name;
+                      const kinds: string[] = Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
+                      const catIds: string[] = Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
+                      const kindNames = kinds.map((k) => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ');
+                      const catNames = catIds.map((id) => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ');
                       const tone = pct >= 100 ? 'text-destructive' : pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
                       return (
                         <div key={b.id} className="space-y-1.5">
                           <div className="flex justify-between items-start gap-2 flex-wrap">
                             <div>
-                              <p className="text-sm font-medium capitalize">
-                                {b.kind.replace('_', ' ')}{catName ? ` · ${catName}` : ''}
+                              <p className="text-sm font-medium">
+                                {kindNames}{catNames ? ` · ${catNames}` : ''}
                               </p>
+
                               <p className="text-xs text-muted-foreground capitalize">
                                 {b.scope_type} budget · Limit {fmt(Number(b.monthly_limit))}
                               </p>
@@ -291,8 +314,17 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
   const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const applicableBudget = useMemo(() => {
-    return myBudgets.find((b: any) => b.budget.kind === form.kind && (!b.budget.category_id || b.budget.category_id === form.category_id));
+    return myBudgets.find((b: any) => {
+      const kinds: string[] = Array.isArray(b.budget.kinds) && b.budget.kinds.length > 0
+        ? b.budget.kinds : (b.budget.kind ? [b.budget.kind] : []);
+      const catIds: string[] = Array.isArray(b.budget.category_ids) && b.budget.category_ids.length > 0
+        ? b.budget.category_ids : (b.budget.category_id ? [b.budget.category_id] : []);
+      if (!kinds.includes(form.kind)) return false;
+      if (catIds.length === 0) return true;
+      return form.category_id ? catIds.includes(form.category_id) : false;
+    });
   }, [myBudgets, form]);
+
 
   const amount = Number(form.amount || 0);
   const limit = applicableBudget ? Number(applicableBudget.budget.monthly_limit) : 0;
@@ -628,9 +660,14 @@ function BudgetEditor() {
   const { categories } = useFinanceCategories();
   const { budgets, upsert, remove } = useFinanceBudgets();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState<any>({ scope_type: 'user', scope_id: '', kind: 'reimbursement', category_id: null, monthly_limit: '' });
+  const [form, setForm] = useState<any>({
+    scope_type: 'user',
+    scope_id: '',
+    kinds: ['reimbursement'] as string[],
+    category_ids: [] as string[],
+    monthly_limit: '',
+  });
 
-  // Load users/roles/departments for scope picker
   const { data: users = [] } = useQuery({
     queryKey: ['budget_users'],
     queryFn: async () => {
@@ -646,16 +683,34 @@ function BudgetEditor() {
     },
   });
 
+  const toggleKind = (k: string) => setForm((f: any) => ({
+    ...f,
+    kinds: f.kinds.includes(k) ? f.kinds.filter((x: string) => x !== k) : [...f.kinds, k],
+    // strip categories that no longer match the selected kinds
+    category_ids: f.category_ids.filter((id: string) => {
+      const c = categories.find((cat: any) => cat.id === id);
+      return c && (f.kinds.includes(k) ? true : c.kind !== k) && [...f.kinds, k].includes(c.kind);
+    }),
+  }));
+  const toggleCat = (id: string) => setForm((f: any) => ({
+    ...f,
+    category_ids: f.category_ids.includes(id) ? f.category_ids.filter((x: string) => x !== id) : [...f.category_ids, id],
+  }));
+
   const save = () => {
-    if (!form.scope_id || !form.monthly_limit) return;
+    if (!form.scope_id || !form.monthly_limit || form.kinds.length === 0) return;
     upsert.mutate({
       scope_type: form.scope_type,
       scope_id: form.scope_id,
-      kind: form.kind,
-      category_id: form.kind === 'salary_advance' ? null : form.category_id,
+      // keep legacy single columns populated with the first selection for backward compat
+      kind: form.kinds[0],
+      category_id: form.category_ids[0] ?? null,
+      kinds: form.kinds,
+      category_ids: form.category_ids,
       monthly_limit: Number(form.monthly_limit),
     });
     setOpen(false);
+    setForm({ scope_type: 'user', scope_id: '', kinds: ['reimbursement'], category_ids: [], monthly_limit: '' });
   };
 
   const scopeLabel = (b: any) => {
@@ -663,6 +718,12 @@ function BudgetEditor() {
     if (b.scope_type === 'department') return departments.find((d: any) => d.id === b.scope_id)?.name || b.scope_id;
     return b.scope_id;
   };
+  const kindsOf = (b: any): string[] =>
+    Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
+  const catIdsOf = (b: any): string[] =>
+    Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
+
+  const eligibleCategories = categories.filter((c: any) => form.kinds.includes(c.kind));
 
   return (
     <Card>
@@ -672,26 +733,33 @@ function BudgetEditor() {
       </CardHeader>
       <CardContent className="overflow-x-auto p-0">
         <Table>
-          <TableHeader><TableRow><TableHead>Scope</TableHead><TableHead>Type</TableHead><TableHead>Category</TableHead><TableHead>Monthly limit</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Scope</TableHead><TableHead>Request types</TableHead><TableHead>Categories</TableHead><TableHead>Monthly limit</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {budgets.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-6">No budgets defined</TableCell></TableRow>}
-            {budgets.map((b: any) => (
-              <TableRow key={b.id}>
-                <TableCell className="text-xs"><Badge variant="outline" className="mr-2 capitalize">{b.scope_type}</Badge>{scopeLabel(b)}</TableCell>
-                <TableCell className="capitalize">{b.kind.replace('_', ' ')}</TableCell>
-                <TableCell>{categories.find((c: any) => c.id === b.category_id)?.name ?? '—'}</TableCell>
-                <TableCell>{fmt(Number(b.monthly_limit))}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
-              </TableRow>
-            ))}
+            {budgets.map((b: any) => {
+              const ks = kindsOf(b);
+              const cs = catIdsOf(b);
+              return (
+                <TableRow key={b.id}>
+                  <TableCell className="text-xs"><Badge variant="outline" className="mr-2 capitalize">{b.scope_type}</Badge>{scopeLabel(b)}</TableCell>
+                  <TableCell>{ks.map(k => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ')}</TableCell>
+                  <TableCell className="text-xs">{cs.length === 0 ? <span className="text-muted-foreground">All</span> : cs.map(id => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ')}</TableCell>
+                  <TableCell>{fmt(Number(b.monthly_limit))}</TableCell>
+                  <TableCell><Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add budget limit</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <DialogHeader>
+            <DialogTitle>Add budget limit</DialogTitle>
+            <DialogDescription>Pick one or more request types and (optionally) categories. The monthly limit is shared across all selections.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
             <div>
               <Label>Scope</Label>
               <Select value={form.scope_type} onValueChange={(v) => setForm({ ...form, scope_type: v, scope_id: '' })}>
@@ -720,28 +788,35 @@ function BudgetEditor() {
               )}
             </div>
             <div>
-              <Label>Request type</Label>
-              <Select value={form.kind} onValueChange={(v) => setForm({ ...form, kind: v, category_id: null })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="salary_advance">Salary advance</SelectItem>
-                  <SelectItem value="reimbursement">Reimbursement</SelectItem>
-                  <SelectItem value="cash_advance">Cash advance</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>Request types (select one or more)</Label>
+              <div className="grid grid-cols-1 gap-1.5 mt-1">
+                {(['salary_advance', 'reimbursement', 'cash_advance'] as const).map(k => (
+                  <label key={k} className="flex items-center gap-2 rounded border px-2 py-1.5 cursor-pointer hover:bg-muted/40">
+                    <Checkbox checked={form.kinds.includes(k)} onCheckedChange={() => toggleKind(k)} />
+                    <span className="text-sm">{kindLabel[k]}</span>
+                  </label>
+                ))}
+              </div>
             </div>
-            {form.kind !== 'salary_advance' && (
+            {eligibleCategories.length > 0 && (
               <div>
-                <Label>Category (optional)</Label>
-                <Select value={form.category_id ?? ''} onValueChange={(v) => setForm({ ...form, category_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="All categories" /></SelectTrigger>
-                  <SelectContent>{categories.filter((c: any) => c.kind === form.kind).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Categories (optional — leave empty to apply to all)</Label>
+                <div className="grid grid-cols-1 gap-1.5 mt-1 max-h-40 overflow-y-auto">
+                  {eligibleCategories.map((c: any) => (
+                    <label key={c.id} className="flex items-center gap-2 rounded border px-2 py-1.5 cursor-pointer hover:bg-muted/40">
+                      <Checkbox checked={form.category_ids.includes(c.id)} onCheckedChange={() => toggleCat(c.id)} />
+                      <span className="text-sm">{c.name} <span className="text-xs text-muted-foreground">({c.kind.replace('_', ' ')})</span></span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
             <div>
-              <Label>Monthly limit (NGN)</Label>
+              <Label>Combined monthly limit (NGN)</Label>
               <Input type="number" value={form.monthly_limit} onChange={(e) => setForm({ ...form, monthly_limit: e.target.value })} />
+              <p className="text-xs text-muted-foreground mt-1">
+                Example: ₦50,000 for Reimbursement + Cash advance across Travel + Meals = a single shared cap.
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -749,6 +824,7 @@ function BudgetEditor() {
             <Button onClick={save}>Save</Button>
           </DialogFooter>
         </DialogContent>
+
       </Dialog>
     </Card>
   );

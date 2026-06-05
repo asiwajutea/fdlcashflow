@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Settings, Save } from 'lucide-react';
+import { RateItemsManager } from './RateItemsManager';
+
 interface RateConfig {
   id: string;
   // Income rates (per name)
@@ -181,7 +183,12 @@ export const RateSettings = () => {
       </div>
 
       <div className="space-y-8">
-        {/* Income Rates Per Name */}
+        {/* Admin-managed custom rate labels */}
+        <RateItemsManager />
+
+        <Separator />
+
+
         <section>
           <h3 className="text-lg font-semibold mb-4 text-gray-600">Income - Pay Per Name</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
