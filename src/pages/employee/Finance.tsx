@@ -71,8 +71,12 @@ export default function Finance() {
     const reimbursedYtd = myRequests
       .filter(r => r.status === 'approved' && r.kind === 'reimbursement')
       .reduce((s, r) => s + Number(r.amount), 0);
-    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, net: salaryPaid - totalDeductions };
+    const cashAdvanceYtd = myRequests
+      .filter(r => r.status === 'approved' && r.kind === 'cash_advance')
+      .reduce((s, r) => s + Number(r.amount), 0);
+    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, cashAdvanceYtd, net: salaryPaid - totalDeductions };
   }, [ledger, myRequests]);
+
 
   const monthly = ledger?.monthly || [];
 
