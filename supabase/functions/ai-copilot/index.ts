@@ -105,7 +105,7 @@ const TOOLS = [
   { type: "function", function: { name: "query_payslips", description: "Returns payslip stats grouped by month", parameters: { type: "object", properties: { months: { type: "number" } } } } },
   { type: "function", function: { name: "query_recruitment", description: "Counts of applications by status", parameters: { type: "object", properties: {} } } },
   { type: "function", function: { name: "list_top_spenders", description: "Top approved-spend users", parameters: { type: "object", properties: { limit: { type: "number" } } } } },
-  { type: "function", function: { name: "list_overbudget_users", description: "Budgets that are >=80% used this month", parameters: { type: "object", properties: {} } } } },
+  { type: "function", function: { name: "list_overbudget_users", description: "Budgets that are >=80% used this month", parameters: { type: "object", properties: {} } } },
 ];
 
 async function runTool(admin: any, name: string, args: any) {
