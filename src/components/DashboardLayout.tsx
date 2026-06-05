@@ -62,6 +62,8 @@ const NAV_SECTIONS = [
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
       { path: '/cms/sms-templates', label: 'SMS Templates', icon: MessageSquare, capability: 'manage_users' },
       { path: '/admin/chat-policies', label: 'Messaging Policies', icon: MessageSquare, capability: 'manage_users' },
+      { path: '/admin/ai-assistant', label: 'AI Assistant', icon: Sparkles, capability: 'manage_users' },
+
     ],
   },
   {

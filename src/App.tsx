@@ -88,6 +88,8 @@ const TeamReports = lazy(() => import("./pages/TeamReports"));
 const OrgChart = lazy(() => import("./pages/OrgChart"));
 const CMSSmsTemplates = lazy(() => import("./pages/cms/CMSSmsTemplates"));
 const ChatPolicies = lazy(() => import("./pages/admin/ChatPolicies"));
+const AIAssistant = lazy(() => import("./pages/admin/AIAssistant"));
+
 import { CapabilityGuard } from "@/components/CapabilityGuard";
 
 // Prefetch high-traffic pages after initial render
@@ -232,6 +234,9 @@ const AppRoutes = () =>
       <Route path="/org-chart" element={<AvatarGuard><OrgChart /></AvatarGuard>} />
       <Route path="/cms/sms-templates" element={<AvatarGuard><CapabilityGuard adminOnly><CMSSmsTemplates /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/chat-policies" element={<AvatarGuard><CapabilityGuard adminOnly><ChatPolicies /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/admin/ai-assistant" element={<AvatarGuard><CapabilityGuard adminOnly><AIAssistant /></CapabilityGuard></AvatarGuard>} />
+
+
 
       <Route path="*" element={<NotFound />} />
     </Routes>
