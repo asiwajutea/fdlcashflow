@@ -45,9 +45,15 @@ export function useMyBudgets(userId: string | null) {
         .gte('created_at', start.toISOString());
 
       return applicable.map((b) => {
+        // Multi-select: kinds[] + category_ids[]. Fallback to legacy single columns.
+        const kinds: string[] = Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
+        const catIds: string[] = Array.isArray(b.category_ids) && b.category_ids.length > 0
+          ? b.category_ids
+          : (b.category_id ? [b.category_id] : []);
+
         const used = (reqs || [])
           .filter((r: any) =>
-            r.kind === b.kind && (!b.category_id || r.category_id === b.category_id)
+            kinds.includes(r.kind) && (catIds.length === 0 || (r.category_id && catIds.includes(r.category_id)))
           )
           .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
         const limit = Number(b.monthly_limit || 0);
@@ -55,6 +61,7 @@ export function useMyBudgets(userId: string | null) {
         const pct = limit > 0 ? Math.min(100, Math.round((used / limit) * 100)) : 0;
         return { budget: b, used, remaining, pct };
       });
+
     },
   });
 }
