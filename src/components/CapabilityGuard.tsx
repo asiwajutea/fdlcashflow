@@ -17,7 +17,9 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
   const { user, role, loading } = useAuth();
   const { capabilities, loading: capsLoading } = useCapabilities(user?.id ?? null);
 
-  if (loading || capsLoading) {
+  // Show loader while ANY of: auth resolving, user present but capabilities still loading,
+  // or role hasn't arrived yet for a signed-in user (prevents false "Access denied").
+  if (loading || (user && capsLoading) || (user && !role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
