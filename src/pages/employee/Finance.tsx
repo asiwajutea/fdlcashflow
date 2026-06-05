@@ -310,8 +310,17 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
   const [timelineId, setTimelineId] = useState<string | null>(null);
 
   const applicableBudget = useMemo(() => {
-    return myBudgets.find((b: any) => b.budget.kind === form.kind && (!b.budget.category_id || b.budget.category_id === form.category_id));
+    return myBudgets.find((b: any) => {
+      const kinds: string[] = Array.isArray(b.budget.kinds) && b.budget.kinds.length > 0
+        ? b.budget.kinds : (b.budget.kind ? [b.budget.kind] : []);
+      const catIds: string[] = Array.isArray(b.budget.category_ids) && b.budget.category_ids.length > 0
+        ? b.budget.category_ids : (b.budget.category_id ? [b.budget.category_id] : []);
+      if (!kinds.includes(form.kind)) return false;
+      if (catIds.length === 0) return true;
+      return form.category_id ? catIds.includes(form.category_id) : false;
+    });
   }, [myBudgets, form]);
+
 
   const amount = Number(form.amount || 0);
   const limit = applicableBudget ? Number(applicableBudget.budget.monthly_limit) : 0;
