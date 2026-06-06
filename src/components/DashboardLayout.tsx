@@ -31,6 +31,7 @@ const NAV_SECTIONS = [
     items: [
       { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, capability: null },
       { path: '/profile', label: 'My Profile', icon: User, capability: null },
+      { path: '/my-contract', label: 'My Contract', icon: FileText, capability: null },
     ],
   },
   {
