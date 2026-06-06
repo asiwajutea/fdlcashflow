@@ -58,7 +58,30 @@ serve(async (req) => {
   );
 
   try {
-    const payload = await req.json();
+    const rawPayload = await req.json();
+    let payload = { ...rawPayload };
+
+    // FIX: Auto-unwrap payload if triggered natively via a Supabase Database Webhook on the payslips table
+    if (payload.record && (payload.table === "payslips" || payload.record.net_payment !== undefined || payload.record.net_pay !== undefined)) {
+      const rec = payload.record;
+      
+      // Determine the net payment amount with variable fallbacks
+      const computedAmount = rec.net_payment ?? rec.net_pay ?? rec.net_amount ?? rec.amount ?? 0;
+      const formattedAmount = new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(computedAmount);
+
+      payload = {
+        user_id: rec.user_id,
+        template_key: "payslip", // IMPORTANT: Ensure this matches the exact key in your sms_templates table!
+        vars: {
+          amount: formattedAmount,
+          month: rec.month || "",
+          year: rec.year || "",
+          ...payload.vars
+        },
+        ...payload
+      };
+    }
+
     const { to, template_key, vars = {}, user_id, body: rawBody, retry_log_id } = payload;
 
     // Retry mode: re-send an existing failed log
@@ -99,7 +122,7 @@ serve(async (req) => {
       if (!vars.name && prof?.full_name) vars.name = prof.full_name.split(" ")[0];
     }
     if (!phone) {
-      return new Response(JSON.stringify({ skipped: true, reason: "no phone" }), {
+      return new Response(JSON.stringify({ skipped: true, reason: "no phone verified for target recipient record" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
