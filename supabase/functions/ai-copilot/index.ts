@@ -8,9 +8,7 @@ const corsHeaders = {
 
 const MODEL = "google/gemini-2.5-flash";
 
-interface Msg { role: "user" | "assistant" | "system" | "tool"; content: string; tool_call_id?: string; name?: string; tool_calls?: any[] }
-
-// ----- Analytics tool implementations ----------------------------------------
+interface Msg { role: "user" | "assistant" | "system" | "tool"; content: any; tool_call_id?: string; tool_calls?: any[] }
 
 function startOfMonth(d: Date) { const x = new Date(d); x.setDate(1); x.setHours(0,0,0,0); return x; }
 
@@ -109,13 +107,17 @@ const TOOLS = [
 ];
 
 async function runTool(admin: any, name: string, args: any) {
-  switch (name) {
-    case "query_finance_summary": return tool_query_finance_summary(admin, args);
-    case "query_payslips": return tool_query_payslips(admin, args);
-    case "query_recruitment": return tool_query_recruitment(admin);
-    case "list_top_spenders": return tool_top_spenders(admin, args);
-    case "list_overbudget_users": return tool_overbudget_users(admin);
-    default: return { error: `Unknown tool ${name}` };
+  try {
+    switch (name) {
+      case "query_finance_summary": return await tool_query_finance_summary(admin, args);
+      case "query_payslips": return await tool_query_payslips(admin, args);
+      case "query_recruitment": return await tool_query_recruitment(admin);
+      case "list_top_spenders": return await tool_top_spenders(admin, args);
+      case "list_overbudget_users": return await tool_overbudget_users(admin);
+      default: return { error: `Unknown tool ${name}` };
+    }
+  } catch (e: any) {
+    return { error: e?.message || 'tool execution failed' };
   }
 }
 
@@ -124,7 +126,9 @@ serve(async (req) => {
 
   try {
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY not configured" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -142,16 +146,21 @@ serve(async (req) => {
 
     const { messages = [] } = await req.json() as { messages: Msg[] };
 
-    const systemMsg: Msg = {
-      role: "system",
+    // Sanitize incoming messages to plain role+content
+    const cleanIncoming = (Array.isArray(messages) ? messages : []).map((m: any) => ({
+      role: m.role === 'user' || m.role === 'assistant' || m.role === 'system' ? m.role : 'user',
+      content: typeof m.content === 'string' ? m.content : String(m.content ?? ''),
+    })).filter((m) => m.content.trim().length > 0);
+
+    const systemMsg = {
+      role: "system" as const,
       content: `You are the FDL Workforce analytics copilot for the admin team of Footprints Dynasty Limited.
 You can answer questions about company finance, payroll, recruitment pipeline, and budget usage by calling the provided tools.
 Always call a tool when the user asks for numbers, lists, or status. Never invent figures.
-After tools return, summarize the result clearly with bullet points, markdown tables when helpful, and currency in NGN (₦).
-If a question is outside your data (e.g., individual chats, PII outside what tools expose), say so.`,
+After tools return, summarize the result clearly with bullet points, markdown tables when helpful, and currency in NGN (₦).`,
     };
 
-    let convo: Msg[] = [systemMsg, ...messages];
+    let convo: any[] = [systemMsg, ...cleanIncoming];
 
     // Agent loop with up to 6 tool steps
     for (let step = 0; step < 6; step++) {
@@ -163,15 +172,22 @@ If a question is outside your data (e.g., individual chats, PII outside what too
 
       if (!resp.ok) {
         const text = await resp.text();
+        console.error('ai gateway error', resp.status, text);
         if (resp.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (resp.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits in workspace settings." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-        return new Response(JSON.stringify({ error: `AI gateway error: ${resp.status}`, detail: text }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        return new Response(JSON.stringify({ error: `AI gateway error ${resp.status}`, detail: text.slice(0, 500) }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       const data = await resp.json();
       const choice = data?.choices?.[0]?.message;
       if (!choice) break;
-      convo.push(choice);
+
+      // Push assistant message with only the fields the gateway accepts
+      const assistantMsg: any = { role: 'assistant', content: choice.content ?? '' };
+      if (choice.tool_calls && Array.isArray(choice.tool_calls) && choice.tool_calls.length > 0) {
+        assistantMsg.tool_calls = choice.tool_calls;
+      }
+      convo.push(assistantMsg);
 
       const calls = choice.tool_calls || [];
       if (calls.length === 0) {
@@ -181,7 +197,7 @@ If a question is outside your data (e.g., individual chats, PII outside what too
         let args: any = {};
         try { args = JSON.parse(call.function?.arguments || "{}"); } catch { args = {}; }
         const result = await runTool(admin, call.function?.name, args);
-        convo.push({ role: "tool", tool_call_id: call.id, name: call.function?.name, content: JSON.stringify(result) });
+        convo.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
       }
     }
 
