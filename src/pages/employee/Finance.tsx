@@ -745,12 +745,26 @@ function BudgetEditor() {
     category_ids: f.category_ids.includes(id) ? f.category_ids.filter((x: string) => x !== id) : [...f.category_ids, id],
   }));
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const openEdit = (b: any) => {
+    setEditingId(b.id);
+    setForm({
+      scope_type: b.scope_type,
+      scope_id: b.scope_id,
+      kinds: Array.isArray(b.kinds) && b.kinds.length ? b.kinds : (b.kind ? [b.kind] : ['reimbursement']),
+      category_ids: Array.isArray(b.category_ids) && b.category_ids.length ? b.category_ids : (b.category_id ? [b.category_id] : []),
+      monthly_limit: String(b.monthly_limit ?? ''),
+    });
+    setOpen(true);
+  };
+
   const save = () => {
     if (!form.scope_id || !form.monthly_limit || form.kinds.length === 0) return;
     upsert.mutate({
+      ...(editingId ? { id: editingId } : {}),
       scope_type: form.scope_type,
       scope_id: form.scope_id,
-      // keep legacy single columns populated with the first selection for backward compat
       kind: form.kinds[0],
       category_id: form.category_ids[0] ?? null,
       kinds: form.kinds,
@@ -758,6 +772,7 @@ function BudgetEditor() {
       monthly_limit: Number(form.monthly_limit),
     });
     setOpen(false);
+    setEditingId(null);
     setForm({ scope_type: 'user', scope_id: '', kinds: ['reimbursement'], category_ids: [], monthly_limit: '' });
   };
 
