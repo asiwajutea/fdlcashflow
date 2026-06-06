@@ -808,7 +808,12 @@ function BudgetEditor() {
                   <TableCell>{ks.map(k => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ')}</TableCell>
                   <TableCell className="text-xs">{cs.length === 0 ? <span className="text-muted-foreground">All</span> : cs.map(id => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ')}</TableCell>
                   <TableCell>{fmt(Number(b.monthly_limit))}</TableCell>
-                  <TableCell><Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(b)} title="Edit"><Edit className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
