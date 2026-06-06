@@ -182,6 +182,9 @@ export default function Finance() {
               </CardContent>
             </Card>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
+              <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
+              <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
+              <MetricCard label="Cash Advance YTD" value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
               <MetricCard label="Reimbursed YTD" value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
               <MetricCard label="Net Position" value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
