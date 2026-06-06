@@ -67,11 +67,14 @@ export default function Finance() {
     enabled: isSystemAdmin,
   });
 
-  // Direct global fetch for all user payslips when user is an admin
+  // Direct global fetch for ALL employees' salary invoices when user is an admin / super admin.
+  // Salary data lives in the `invoices` table (net_payment, total_deductions, etc.), not `payslips`.
+  // Admins can read every employee's invoices via RLS, so this aggregates platform-wide totals
+  // rather than the admin's own personal salary.
   const { data: allPayslipsAdmin = [] } = useQuery({
-    queryKey: ['global_platform_payslips'],
+    queryKey: ['global_platform_invoices'],
     queryFn: async () => {
-      const { data, error } = await db.from('payslips').select('*');
+      const { data, error } = await db.from('invoices').select('*');
       if (error) throw error;
       return data || [];
     },
