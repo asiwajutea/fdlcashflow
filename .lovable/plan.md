@@ -1,74 +1,65 @@
+# Implementation Plan
 
-## 1. Admin Dashboard — Custom Rate Labels
+## 1. Profile Setup — Escape hatches
 
-Currently rates are hard-coded columns in `rate_configurations`. Add a flexible label system on top.
+`src/pages/ProfileSetup.tsx`: add header row with two buttons — **"Back to Home"** (`/`) and **"Skip to Dashboard"** (`/dashboard`). They navigate via `useNavigate` so users never get stuck if `AvatarGuard` mis-routes them. `AvatarGuard` already allows `/profile-setup` and `/`; the dashboard button works once an avatar exists or as a manual escape.
 
-- **DB**: new `rate_items` table — `id`, `name`, `bucket` (`income` | `expense`), `unit` (`per_name` | `monthly_fixed` | `percent`), `value numeric`, `is_active`, `display_order`. Admin-only RLS, authenticated read. Seed it from current hard-coded fields so existing flows keep working.
-- **Rate Settings UI**: add a "Custom Rate Labels" section above the legacy grid. Inline add/edit/delete/reorder, with bucket + unit selectors. Legacy fields stay editable until fully migrated.
-- **Weekly entry + Payslip overview**: read `rate_items` and merge them into the income/expense calculations, grouped by bucket. Labels appear automatically wherever income/expense overviews render.
+## 2. Finance Page — Period filter + admin-editable budgets
 
-## 2. AI Assistant — Admin Analytics Copilot
+`src/pages/employee/Finance.tsx`:
 
-New tab under the admin Finance/Dashboard sidebar: **AI Assistant** (admin-only).
+- Add a **period filter** above the summary cards: `This Week / This Month / This Quarter / This Year / Lifetime / Custom range` (custom uses two date inputs via `Popover + Calendar`). Filter applies to `myRequests`, `allRequests`, ledger payslips, and chart data via a `useMemo` `dateFilter` predicate.
+- Admin budgets: add an **Edit** pencil on each `Budget Limits` card row visible when `isAdmin || canManageBudgets` is true → opens existing `BudgetEditor` dialog pre-filled with the budget row (already supports create; add `editing` state and PATCH path against `finance_budgets`).
 
-- **Page**: `src/pages/admin/AIAssistant.tsx` — chat UI using `useChat` + `DefaultChatTransport`, single conversation persisted in localStorage (per admin).
-- **Edge function**: `supabase/functions/ai-copilot/index.ts` — streams via AI SDK + Lovable Gateway (`google/gemini-3-flash-preview`). System prompt frames it as company analytics copilot. Tools (with `stopWhen: stepCountIs(50)`):
-  - `query_finance_summary` (period) → returns totals, advances, reimbursements
-  - `query_payslips` (filters) → aggregated payslip stats
-  - `query_recruitment` → pipeline counts by stage
-  - `query_attendance` → submission counts by form/period
-  - `list_top_spenders` / `list_overbudget_users`
-- Tools run service-role queries inside the function. Admin auth verified via JWT.
-- Renders markdown + simple inline tables for tool results.
+## 3. AI Assistant — Embed in admin dashboard + fix Edge function
 
-## 3. Payslip / SMS Fixes
+**Frontend**: `src/pages/Index.tsx` — replace the placeholder "coming soon" card inside `TabsContent value="ai-assistant"` with the chat UI extracted from `src/pages/admin/AIAssistant.tsx`. Move the chat into a reusable `src/components/AIAssistantPanel.tsx` so both the standalone page and the dashboard tab share one component.
 
-Root cause of retry-not-updating: the `sms_logs` table is missing `retry_count`, `last_retry_at`, `original_to`, `original_template_key`, `original_vars` columns — the previous migration didn't reach the DB, so every update of those fields silently fails (PostgREST returns error, function ignores it). Fix this first.
+**Edge function fix** — error is "Failed to send a request to the Edge Function". Two likely causes; fix both:
 
-- **Migration**: add the missing columns to `sms_logs`.
-- **Payslip SMS**: re-verify both `InvoiceGenerator` call sites (line 761 "Save Only" and 1277 "Save & Download"). Add a robust catch + console log + toast on failure, and ensure `to`/`user_id` are passed even when phone is missing (so we still get a "skipped: no phone" log). Add fallback fetch of phone from `profiles` in the edge function (already there).
-- **finance_decision SMS**: already wired in `useAdvanceRequests.decide`. Trace why it isn't firing — likely the same silent failure from missing log columns. After the migration, verify in `sms_logs`.
-- **Retry status**: `send-sms` already updates `status` on retry; once columns exist this will work. Add UI toast confirming new status after retry.
-- **Sweep other templates**: confirm `account_approved`, `candidate_stage`, `candidate_hire`, `birthday`, `holiday` all reach `send-sms` with valid `template_key` + recipient.
+1. Function not deployed yet → redeploy `ai-copilot`.
+2. CORS / OPTIONS works but POST falls over because `convo` includes `assistant` tool_call messages that aren't valid for Gemini OpenAI-compat. Tighten the request: ensure every `assistant` message pushed back into `convo` is `{ role:'assistant', content: string|null, tool_calls? }`, and tool responses use `{ role:'tool', tool_call_id, content }` only — drop extra fields. Also catch tool-runner exceptions and return them as tool content so the loop continues.
 
-## 4. Capability Guard False-Negatives (Daily Tracker, HR Recruitment)
+## 4. Messaging Policy — Create missing tables
 
-`adeolabunmi94@gmail.com` has the capabilities but `CapabilityGuard` shows "Access denied". Likely causes to investigate and fix:
+Error: `Could not find the table 'public.chat_global_policy'`. Migration adds:
 
-- `useCapabilities` returning stale/empty array on first render → guard fires the toast before the real fetch resolves. Fix: keep showing the loader until capabilities query has `data !== undefined` (not just `isLoading`); avoid firing the redirect toast on transient empty results.
-- Capability keys mismatch (e.g. role-template assigns `daily_tracker` but route requires `view_daily_tracker`, similarly `manage_recruitment` vs `hr_recruitment`). Audit `UserManagement`, `RoleManagement`, and route guard keys; align both sides to a single canonical key list.
-- Confirm `user_capabilities` rows actually exist for that user (the toast is also shown immediately after a role change before the realtime refresh).
+- `chat_global_policy` (`id smallint pk default 1`, `all_users_mode text`, `allow_same_department bool`, `allow_same_team bool`, `allow_managers bool`) — singleton row id=1 seeded.
+- `chat_user_blocks` (`blocked_user_id uuid pk`, `except_user_ids uuid[] default '{}'`).
+- GRANTs + RLS: read for `authenticated`, write only `has_role(auth.uid(),'admin')`.
+- Helper RPC `can_message(_from uuid, _to uuid) returns boolean` that admins/messages-to-admin always pass, then applies global policy + block table.
+- `InboxCompose.tsx` recipient query already filters server-side via existing query; have it additionally call `can_message` per candidate recipient (or rely on RLS on `messages` insert).
 
-## 5. Budget Limits — Multi-select Kind & Category
+## 5. HR Recruitment — Contract templates & signing
 
-- **DB**: extend `finance_budgets` — replace single `kind` + `category_id` with `kinds text[]` and `category_ids uuid[]` (keep old cols for backward compat, dual-write during transition). Update `finance_budgets_kind_check`.
-- **BudgetEditor UI**: multi-select dropdowns for request types and categories. Show "Applies to: Reimbursement, Cash Advance · Travel, Meals".
-- **useMyBudgets / Finance enforcement**: when matching a request to a budget, treat it as applicable if `req.kind ∈ kinds` AND (`category_ids` empty OR `req.category_id ∈ category_ids`). Sum used across all matching approved requests for the month. Update overage warning + progress bar accordingly.
+Migration:
 
-## 6. Finance Page Fixes
+- `contract_templates` (`id`, `title`, `position_id` nullable, `role text` nullable, `body_html text`, `file_url text` nullable, `is_active bool`, `created_by`).
+- Extend `contracts` with `template_id uuid` and `signed_full_name text`.
+- GRANTs + RLS: admins manage templates; candidates/employees read templates assigned to their offered application.
 
-- **Cash Advance card**: add 5th metric card "Cash Advance YTD" (sum of approved `cash_advance`) on the overview grid (use a 2/3/5 responsive grid).
-- **Pie chart labels**: replace truncated inline labels with a proper Legend + percent-only labels on slices. Increase chart height and use `labelLine={false}` plus a horizontal `<Legend>` so "Cash Advance" / "Reimbursement" aren't clipped.
+UI:
 
-## 7. Org Chart Visibility for Employees
+- `src/pages/admin/ContractTemplates.tsx` (admin) — CRUD list, rich textarea body, optional PDF upload to `documents` bucket, scope by position/role.
+- `src/components/hr/ContractUploadDialog.tsx` — add a **"Use template"** picker that auto-fills the contract from a template when assigning to an `offered` candidate.
+- Candidate flow already has signing page; extend `SignatureCanvas` dialog with a **"Sign by typing full name"** tab that writes `signed_full_name` instead of `signature_data`.
+- Employee action plan: in `EmployeeDashboard.tsx`, query `contracts` joined to the user's `applications`; if any `signed_at IS NULL`, add an `ActionItem` "Sign your employment contract" linking to `/my-contract`. New lightweight page `src/pages/employee/MyContract.tsx` renders the template body + signature canvas / typed-name option.
 
-Employees currently see a partial/broken tree because RLS on `profiles` may scope or because `manager_id` chains break when intermediate managers are filtered out. Fix:
+## 6. SMS Templates & Delivery logs
 
-- Create SECURITY DEFINER RPC `get_org_chart()` that returns `{id, full_name, avatar_url, position, department, manager_id}` for all approved employees/admins, regardless of caller role.
-- `OrgChart.tsx` switches from direct table reads to `db.rpc('get_org_chart')`. Same component renders for admins and employees; no role-based filtering of nodes.
+- Seed/upsert missing template rows (migration `INSERT … ON CONFLICT (key) DO NOTHING`): `payslip_generated` (re-confirm body & vars), `candidate_offer`, `birthday`, `finance_decision`, `candidate_stage`, `candidate_hire` so they all appear active.
+- `supabase/functions/send-sms/index.ts`: ensure **every** branch logs to `sms_logs` (success and failure) with `template_key` populated, even when MultiTexter returns non-200 — currently some early returns skip the insert.
+- `InvoiceGenerator.tsx` "Save Only": confirm SMS invocation runs after insert (it does for `payslip_generated`), and surface any thrown error via toast so future regressions are visible.
+- Add new template `**candidate_offer**` with vars `{name, position, link}`. Wire it from `Offers.tsx` when an offer is created/sent (alongside the existing email).
 
-## 8. Verification
+## 7. Daily Tracker access for Adeola
 
-- Manually trigger Save Only + Save & Download → confirm SMS row in `sms_logs` with `status='sent'`.
-- Approve a cash advance / reimbursement → confirm `finance_decision` SMS row.
-- Manually retry a failed log → confirm `status` flips to `sent` and `retry_count` increments.
-- Log in as `adeolabunmi94@gmail.com` → `/daily-tracker` and `/applications` load.
-- Create a budget covering `[reimbursement, cash_advance]` × `[travel, meals]` → submit two small requests → progress bar shows combined usage.
-- Employee `/org-chart` shows the full tree identical to admin view.
+DB confirms she has `view_daily_tracker`. Likely cause: sidebar in `DashboardLayout.tsx` hides the link unless an admin-only flag matches. Audit `DashboardLayout.tsx` nav config so the **Daily Tracker** item shows whenever `capabilities.includes('view_daily_tracker') || role==='admin'`. Also verify `EmployeeDashboard` quick-link card respects the same capability.  
+  
+She can see the daily tracker on the nav menu but once clicked, she would be told that she doesn't have access to use the page.
 
-## Technical Details
+## Files
 
-- Migrations (single file): add `sms_logs` columns; create `rate_items`; alter `finance_budgets` to add array cols + drop old check; create `get_org_chart()` SECURITY DEFINER.
-- New files: `src/pages/admin/AIAssistant.tsx`, `supabase/functions/ai-copilot/index.ts`, `src/components/RateItemsManager.tsx`.
-- Edited files: `RateSettings.tsx`, `InvoiceGenerator.tsx` (better SMS error reporting), `useAdvanceRequests.ts`, `Finance.tsx` (5-metric grid, legend), `BudgetEditor` (in `Finance.tsx`), `useMyBudgets.ts`, `OrgChart.tsx`, `CapabilityGuard.tsx`, `useCapabilities.tsx`, `App.tsx` + `DashboardLayout.tsx` (AI Assistant route + nav item).
-- Tools/libs used: existing `@ai-sdk/react`, `ai`, `recharts`. No new deps beyond `@ai-sdk/openai-compatible` if not already installed for the copilot function.
+**New**: `src/components/AIAssistantPanel.tsx`, `src/pages/admin/ContractTemplates.tsx`, `src/pages/employee/MyContract.tsx`, migration for `chat_global_policy` / `chat_user_blocks` / `contract_templates` / `can_message` RPC / SMS template seed.
+
+**Edited**: `ProfileSetup.tsx`, `Finance.tsx`, `Index.tsx`, `admin/AIAssistant.tsx`, `ai-copilot/index.ts`, `ChatPolicies.tsx`, `InboxCompose.tsx`, `hr/ContractUploadDialog.tsx`, `SignatureCanvas.tsx`, `EmployeeDashboard.tsx`, `send-sms/index.ts`, `InvoiceGenerator.tsx`, `Offers.tsx`, `DashboardLayout.tsx`, `App.tsx` (new routes).
