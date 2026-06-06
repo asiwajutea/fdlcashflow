@@ -164,10 +164,24 @@ export default function Finance() {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardContent className="p-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground mr-1">Period:</span>
+                {(['week','month','quarter','year','lifetime','custom'] as const).map(p => (
+                  <Button key={p} size="sm" variant={period === p ? 'default' : 'outline'} className="h-7 px-2 text-xs capitalize" onClick={() => setPeriod(p)}>
+                    {p === 'week' ? 'Past Week' : p === 'month' ? 'This Month' : p === 'quarter' ? 'This Quarter' : p === 'year' ? 'This Year' : p === 'lifetime' ? 'Lifetime' : 'Custom'}
+                  </Button>
+                ))}
+                {period === 'custom' && (
+                  <div className="flex items-center gap-1 ml-2">
+                    <Popover><PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1"><CalendarIcon className="h-3 w-3" />{customFrom ? format(customFrom,'MMM d') : 'From'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} /></PopoverContent></Popover>
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Popover><PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1"><CalendarIcon className="h-3 w-3" />{customTo ? format(customTo,'MMM d') : 'To'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={customTo} onSelect={setCustomTo} /></PopoverContent></Popover>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-              <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
-              <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
-              <MetricCard label="Cash Advance YTD" value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
               <MetricCard label="Reimbursed YTD" value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
               <MetricCard label="Net Position" value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
