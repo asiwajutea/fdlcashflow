@@ -255,7 +255,15 @@ const EmployeeDashboard: React.FC = () => {
                 <Badge
                   variant="outline"
                   className="bg-background/60 flex items-center gap-1.5 py-1 cursor-pointer hover:bg-background"
-                  onClick={() => manager && setManagerDialogOpen(true)}
+                  title="View your manager's introduction"
+                  onClick={() => {
+                    if (!manager) return;
+                    const managerHasIntro = !!(manager.about_me || manager.about_me_excerpt);
+                    // Retrigger the manager introduction nag modal when an intro exists,
+                    // otherwise fall back to the full About Me dialog.
+                    if (managerHasIntro) setIntroNagOpen(true);
+                    else setManagerDialogOpen(true);
+                  }}
                 >
                   <UserCircle2 className="h-3.5 w-3.5 text-primary" />
                   Manager: {managerName}
