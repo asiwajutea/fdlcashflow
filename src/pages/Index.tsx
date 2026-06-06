@@ -11,6 +11,7 @@ import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
 import { BudgetCalculator } from '@/components/BudgetCalculator';
 import { RateSettings } from '@/components/RateSettings';
+import AIAssistantPanel from '@/components/AIAssistantPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
