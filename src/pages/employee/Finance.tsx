@@ -824,7 +824,7 @@ function BudgetEditor() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add budget limit</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit budget limit' : 'Add budget limit'}</DialogTitle>
             <DialogDescription>Pick one or more request types and (optionally) categories. The monthly limit is shared across all selections.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
