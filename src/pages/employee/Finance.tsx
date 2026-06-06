@@ -47,19 +47,29 @@ export default function Finance() {
   const canApprove = isSystemAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isSystemAdmin || capabilities.includes('manage_finance_budgets');
 
-  // Personal queries
+  // Personal user-scoped queries
   const { data: ledger } = useMyFinanceLedger(user?.id ?? null, user?.email ?? null);
   const { data: myBudgets = [] } = useMyBudgets(user?.id ?? null);
-  const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
+  const { requests: myRequests, create, remove, decide } = useAdvanceRequests({ userId: user?.id ?? null });
   
-  // Platform wide queries
-  const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
+  // Platform settings configurations
   const { categories } = useFinanceCategories();
   const { budgets } = useFinanceBudgets();
 
-  // Server-side global payslip acquisition for system admins
-  const { data: allPayslips = [] } = useQuery({
-    queryKey: ['all_payslips_accumulation'],
+  // Fix: Direct global fetch for all advance requests when user is an admin
+  const { data: allRequestsAdmin = [] } = useQuery({
+    queryKey: ['global_platform_advance_requests'],
+    queryFn: async () => {
+      const { data, error } = await db.from('advance_requests').select('*').order('created_at', { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSystemAdmin,
+  });
+
+  // Direct global fetch for all user payslips when user is an admin
+  const { data: allPayslipsAdmin = [] } = useQuery({
+    queryKey: ['global_platform_payslips'],
     queryFn: async () => {
       const { data, error } = await db.from('payslips').select('*');
       if (error) throw error;
@@ -68,7 +78,7 @@ export default function Finance() {
     enabled: isSystemAdmin,
   });
 
-  // Subordinate scope
+  // Subordinate mapping
   const { data: subordinateIds = [] } = useQuery({
     queryKey: ['subordinate_ids', user?.id],
     queryFn: async () => {
@@ -80,7 +90,7 @@ export default function Finance() {
   });
   const isLeader = subordinateIds.length > 0;
 
-  // Period filter range logic
+  // Time period filter configuration
   type Period = 'week' | 'month' | 'quarter' | 'year' | 'lifetime' | 'custom';
   const [period, setPeriod] = useState<Period>('lifetime');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
@@ -106,9 +116,9 @@ export default function Finance() {
     return true;
   };
 
-  // Determine active data context (Personal vs Accumulated Global Platform Context)
-  const requestsToProcess = isSystemAdmin ? allRequests : myRequests;
-  const payslipsToProcess = isSystemAdmin ? allPayslips : (ledger?.payslips || []);
+  // Bind accurate target source variables depending on context role
+  const requestsToProcess = isSystemAdmin ? allRequestsAdmin : myRequests;
+  const payslipsToProcess = isSystemAdmin ? allPayslipsAdmin : (ledger?.payslips || []);
 
   const filteredRequests = useMemo(() => requestsToProcess.filter((r: any) => inRange(r.created_at)), [requestsToProcess, periodRange]);
   const filteredPayslips = useMemo(() => payslipsToProcess.filter((p: any) => {
@@ -116,23 +126,34 @@ export default function Finance() {
     return inRange(iso);
   }), [payslipsToProcess, periodRange]);
 
-  // Comprehensive Metric Accumulator Summary
+  // Robust field metric computation using clean generic fallbacks
   const summary = useMemo(() => {
-    const salaryPaid = filteredPayslips.reduce((s: number, p: any) => s + Number(p.net_payment || 0), 0);
-    const totalDeductions = filteredPayslips.reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
+    const salaryPaid = filteredPayslips.reduce((s: number, p: any) => s + Number(p.net_payment ?? p.net_pay ?? p.net_amount ?? p.amount ?? 0), 0);
+    const totalDeductions = filteredPayslips.reduce((s: number, p: any) => s + Number(p.total_deductions ?? p.deductions ?? 0), 0);
+    
     const outstandingAdvances = filteredRequests
-      .filter((r: any) => r.status === 'approved' && r.kind === 'salary_advance')
-      .reduce((s: number, r: any) => s + Number(r.amount), 0);
+      .filter((r: any) => (r.status === 'approved' || r.status === 'pending') && (r.kind === 'salary_advance' || r.kind === 'cash_advance'))
+      .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      
     const reimbursedYtd = filteredRequests
       .filter((r: any) => r.status === 'approved' && r.kind === 'reimbursement')
-      .reduce((s: number, r: any) => s + Number(r.amount), 0);
+      .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      
     const cashAdvanceYtd = filteredRequests
       .filter((r: any) => r.status === 'approved' && r.kind === 'cash_advance')
-      .reduce((s: number, r: any) => s + Number(r.amount), 0);
-    return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, cashAdvanceYtd, net: salaryPaid - totalDeductions };
+      .reduce((s: number, r: any) => s + Number(r.amount || 0), 0);
+      
+    return { 
+      salaryPaid, 
+      expensesTotal: totalDeductions, 
+      outstandingAdvances, 
+      reimbursedYtd, 
+      cashAdvanceYtd, 
+      net: salaryPaid - totalDeductions 
+    };
   }, [filteredPayslips, filteredRequests]);
 
-  // Accumulated Dynamic Monthly Breakdown for Charts
+  // Dynamic monthly aggregation logic
   const monthlyData = useMemo(() => {
     if (!isSystemAdmin) return ledger?.monthly || [];
     
@@ -147,7 +168,7 @@ export default function Finance() {
       }
       if (!monthStr) return;
       if (!monthsMap[monthStr]) monthsMap[monthStr] = { month: monthStr, income: 0, expense: 0 };
-      monthsMap[monthStr].income += Number(p.net_payment || 0);
+      monthsMap[monthStr].income += Number(p.net_payment ?? p.net_pay ?? p.net_amount ?? p.amount ?? 0);
     });
 
     filteredRequests.forEach((r: any) => {
@@ -160,17 +181,18 @@ export default function Finance() {
     return Object.values(monthsMap).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
   }, [isSystemAdmin, ledger, filteredPayslips, filteredRequests]);
 
-  // Accumulated Category Distribution
   const categoryBreakdown = useMemo(() => {
     const byKind: Record<string, number> = { 'Salary Payment': 0, 'Salary Advance': 0, 'Reimbursement': 0, 'Cash Advance': 0 };
     byKind['Salary Payment'] = summary.salaryPaid;
     filteredRequests.filter((r: any) => r.status === 'approved').forEach((r: any) => {
-      byKind[kindLabel[r.kind as AdvanceKind]] += Number(r.amount);
+      if (kindLabel[r.kind as AdvanceKind]) {
+        byKind[kindLabel[r.kind as AdvanceKind]] += Number(r.amount || 0);
+      }
     });
     return Object.entries(byKind).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
   }, [filteredRequests, summary]);
 
-  // Combined Active Budget Consumption Processing
+  // Comprehensive active platform budget analysis limits
   const compiledBudgetsToDisplay = useMemo(() => {
     if (!isSystemAdmin) {
       return myBudgets.map(mb => ({
@@ -190,7 +212,7 @@ export default function Finance() {
       const catIds = Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
       
       const now = new Date();
-      const thisMonthRequests = allRequests.filter((r: any) => {
+      const thisMonthRequests = allRequestsAdmin.filter((r: any) => {
         if (r.status !== 'approved') return false;
         const rDate = new Date(r.created_at);
         if (rDate.getFullYear() !== now.getFullYear() || rDate.getMonth() !== now.getMonth()) return false;
@@ -218,9 +240,9 @@ export default function Finance() {
         metaText: `${b.scope_type} limit Spec (${b.scope_id || 'Global'})`
       };
     });
-  }, [isSystemAdmin, myBudgets, budgets, allRequests, categories]);
+  }, [isSystemAdmin, myBudgets, budgets, allRequestsAdmin, categories]);
 
-  const pendingCount = allRequests.filter(r => r.status === 'pending').length;
+  const pendingCount = allRequestsAdmin.filter(r => r.status === 'pending').length;
 
   if (authLoading || !user) {
     return (
@@ -264,7 +286,7 @@ export default function Finance() {
             {canManageBudgets && <TabsTrigger value="settings">Settings</TabsTrigger>}
           </TabsList>
 
-          {/* OVERVIEW */}
+          {/* OVERVIEW SECTION */}
           <TabsContent value="overview" className="space-y-4">
             <Card>
               <CardContent className="p-3 flex flex-wrap items-center gap-2">
@@ -288,7 +310,7 @@ export default function Finance() {
               <MetricCard label={isSystemAdmin ? "Outstanding Advances (Platform)" : "Outstanding Advance"} value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
               <MetricCard label={isSystemAdmin ? "Cash Advances YTD (Platform)" : "Cash Advance YTD"} value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
               <MetricCard label={isSystemAdmin ? "Reimbursed YTD (Platform)" : "Reimbursed YTD"} value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
-              <MetricCard label={isSystemAdmin ? "Net Financial Position" : "Net Position"} value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
+              <MetricCard label={isSystemAdmin ? "Net Financial Position (Platform)" : "Net Position"} value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -382,7 +404,7 @@ export default function Finance() {
             </Card>
           </TabsContent>
 
-          {/* MY REQUESTS */}
+          {/* MY REQUESTS SECTION */}
           <TabsContent value="requests" className="space-y-4">
             <RequestsList
               requests={myRequests}
@@ -395,11 +417,11 @@ export default function Finance() {
             />
           </TabsContent>
 
-          {/* APPROVALS */}
+          {/* APPROVALS MANAGEMENT */}
           {canApprove && (
             <TabsContent value="approvals" className="space-y-4">
               <ApprovalsList
-                requests={allRequests}
+                requests={allRequestsAdmin}
                 categories={categories}
                 budgets={budgets}
                 onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user.id })}
@@ -407,14 +429,14 @@ export default function Finance() {
             </TabsContent>
           )}
 
-          {/* TEAM */}
+          {/* TEAM MEMBERS SECTION */}
           {isLeader && (
             <TabsContent value="team" className="space-y-4">
               <TeamView subordinateIds={subordinateIds} />
             </TabsContent>
           )}
 
-          {/* SETTINGS */}
+          {/* SETTINGS PANEL */}
           {canManageBudgets && (
             <TabsContent value="settings" className="space-y-6">
               <CategoryManager />
@@ -427,7 +449,7 @@ export default function Finance() {
   );
 }
 
-/* ---------- Subcomponents ---------- */
+/* ---------- Reusable Subcomponents ---------- */
 
 function MetricCard({ label, value, icon: Icon, tone }: any) {
   const tones: Record<string, string> = {
