@@ -15,6 +15,8 @@ import { useAdvanceRequests, useFinanceCategories, useFinanceBudgets, AdvanceKin
 import { useMyFinanceLedger } from '@/hooks/useMyFinanceLedger';
 import { useMyBudgets } from '@/hooks/useMyBudgets';
 import { db } from '@/lib/supabase-db';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,6 +39,18 @@ const kindLabel: Record<AdvanceKind, string> = {
 };
 const statusVariant = (s: string): any =>
   s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : s === 'repaid' ? 'secondary' : 'outline';
+
+// Opens a private "documents" bucket file in a new tab via a short-lived signed URL.
+const openReceipt = async (path: string) => {
+  if (!path) return;
+  if (/^https?:\/\//.test(path)) { window.open(path, '_blank', 'noopener'); return; }
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 60);
+  if (error || !data?.signedUrl) {
+    toast({ title: 'Could not open document', description: error?.message ?? 'File unavailable', variant: 'destructive' });
+    return;
+  }
+  window.open(data.signedUrl, '_blank', 'noopener');
+};
 
 export default function Finance() {
   const { user, role, capabilities, loading: authLoading } = useAuth();
@@ -481,6 +495,8 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
   const [form, setForm] = useState<any>({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
   const [ack, setAck] = useState(false);
   const [timelineId, setTimelineId] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const applicableBudget = useMemo(() => {
     return myBudgets.find((b: any) => {
@@ -501,9 +517,33 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
   const overBudget = !!applicableBudget && projected > limit;
   const overBy = overBudget ? projected - limit : 0;
 
-  const submit = () => {
+  const submit = async () => {
     if (!form.amount || amount <= 0) return;
     if (overBudget && !ack) return;
+
+    let receiptUrl = '';
+    if (form.kind === 'reimbursement' && file) {
+      setUploading(true);
+      try {
+        const safeName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+        const path = `${userId}/reimbursements/${safeName}`;
+        const { error: uploadError } = await supabase.storage
+          .from('documents')
+          .upload(path, file, { upsert: true });
+        if (uploadError) {
+          toast({ title: 'Upload failed', description: uploadError.message, variant: 'destructive' });
+          setUploading(false);
+          return;
+        }
+        receiptUrl = path;
+      } catch (e: any) {
+        toast({ title: 'Upload failed', description: e?.message ?? 'Could not upload document', variant: 'destructive' });
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+
     onCreate({
       user_id: userId,
       kind: form.kind,
@@ -511,10 +551,12 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
       amount,
       reason: form.reason,
       repayment_plan: form.kind === 'salary_advance' ? form.repayment_plan : null,
+      receipt_url: receiptUrl,
     });
     setOpen(false);
     setForm({ kind: 'salary_advance', amount: '', reason: '', category_id: null, repayment_plan: 'one' });
     setAck(false);
+    setFile(null);
   };
 
   const timelineReq = requests.find((r: any) => r.id === timelineId);
@@ -555,6 +597,11 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
                       <Button size="icon" variant="ghost" onClick={() => setTimelineId(r.id)} title="View timeline">
                         <Clock className="h-3.5 w-3.5" />
                       </Button>
+                      {r.receipt_url && (
+                        <Button size="icon" variant="ghost" onClick={() => openReceipt(r.receipt_url)} title="View supporting document">
+                          <Receipt className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                       {r.status === 'pending' && (
                         <Button size="icon" variant="ghost" onClick={() => onDelete(r.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                       )}
@@ -574,7 +621,7 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
         request={timelineReq}
       />
 
-      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setAck(false); }}>
+      <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setAck(false); setFile(null); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>New finance request</DialogTitle>
@@ -644,10 +691,36 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
               <Label>Reason</Label>
               <Textarea rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
             </div>
+            {form.kind === 'reimbursement' && (
+              <div>
+                <Label>Supporting document <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+                {file ? (
+                  <div className="flex items-center justify-between gap-2 mt-1.5 text-xs">
+                    <span className="flex items-center gap-1 text-muted-foreground truncate">
+                      <Receipt className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{file.name}</span>
+                    </span>
+                    <button type="button" className="text-destructive hover:underline shrink-0" onClick={() => setFile(null)}>
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1">Attach a receipt or invoice (image or PDF) to support your reimbursement.</p>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={submit} disabled={isCreating || !form.amount || (overBudget && !ack)}>Submit</Button>
+            <Button variant="outline" onClick={() => { setOpen(false); setFile(null); setAck(false); }}>Cancel</Button>
+            <Button onClick={submit} disabled={isCreating || uploading || !form.amount || (overBudget && !ack)}>
+              {uploading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              {uploading ? 'Uploading…' : 'Submit'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -686,6 +759,11 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
                   </div>
                   <div className="flex items-center gap-1">
                     <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
+                    {r.receipt_url && (
+                      <Button size="icon" variant="ghost" onClick={() => openReceipt(r.receipt_url)} title="View supporting document">
+                        <Receipt className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <Button size="icon" variant="ghost" onClick={() => setTimelineId(r.id)} title="View timeline">
                       <Clock className="h-3.5 w-3.5" />
                     </Button>
