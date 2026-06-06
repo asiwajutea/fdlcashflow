@@ -22,7 +22,7 @@ import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircl
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
-import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ExportMenu } from '@/components/finance/ExportMenu';
 import { RequestTimeline } from '@/components/finance/RequestTimeline';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,15 +41,32 @@ const statusVariant = (s: string): any =>
 export default function Finance() {
   const { user, role, capabilities, loading: authLoading } = useAuth();
   const isAdmin = role === 'admin';
-  const canApprove = isAdmin || capabilities.includes('approve_finance_requests');
-  const canManageBudgets = isAdmin || capabilities.includes('manage_finance_budgets');
+  const isSuperAdmin = role === 'super_admin';
+  const isSystemAdmin = isAdmin || isSuperAdmin;
+  
+  const canApprove = isSystemAdmin || capabilities.includes('approve_finance_requests');
+  const canManageBudgets = isSystemAdmin || capabilities.includes('manage_finance_budgets');
 
+  // Personal queries
   const { data: ledger } = useMyFinanceLedger(user?.id ?? null, user?.email ?? null);
   const { data: myBudgets = [] } = useMyBudgets(user?.id ?? null);
   const { requests: myRequests, create, remove } = useAdvanceRequests({ userId: user?.id ?? null });
+  
+  // Platform wide queries
   const { requests: allRequests, decide } = useAdvanceRequests(canApprove ? {} : { userId: user?.id ?? null });
   const { categories } = useFinanceCategories();
   const { budgets } = useFinanceBudgets();
+
+  // Server-side global payslip acquisition for system admins
+  const { data: allPayslips = [] } = useQuery({
+    queryKey: ['all_payslips_accumulation'],
+    queryFn: async () => {
+      const { data, error } = await db.from('payslips').select('*');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isSystemAdmin,
+  });
 
   // Subordinate scope
   const { data: subordinateIds = [] } = useQuery({
@@ -63,11 +80,12 @@ export default function Finance() {
   });
   const isLeader = subordinateIds.length > 0;
 
-  // Period filter
+  // Period filter range logic
   type Period = 'week' | 'month' | 'quarter' | 'year' | 'lifetime' | 'custom';
   const [period, setPeriod] = useState<Period>('lifetime');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+  
   const periodRange = useMemo<{ from: Date | null; to: Date | null }>(() => {
     const now = new Date();
     const start = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
@@ -78,6 +96,7 @@ export default function Finance() {
     if (period === 'custom') return { from: customFrom ? start(customFrom) : null, to: customTo ?? null };
     return { from: null, to: null };
   }, [period, customFrom, customTo]);
+
   const inRange = (iso?: string | null) => {
     if (!periodRange.from && !periodRange.to) return true;
     if (!iso) return false;
@@ -86,13 +105,18 @@ export default function Finance() {
     if (periodRange.to && d > periodRange.to) return false;
     return true;
   };
-  const filteredRequests = useMemo(() => myRequests.filter((r: any) => inRange(r.created_at)), [myRequests, periodRange]);
-  const filteredPayslips = useMemo(() => (ledger?.payslips || []).filter((p: any) => {
+
+  // Determine active data context (Personal vs Accumulated Global Platform Context)
+  const requestsToProcess = isSystemAdmin ? allRequests : myRequests;
+  const payslipsToProcess = isSystemAdmin ? allPayslips : (ledger?.payslips || []);
+
+  const filteredRequests = useMemo(() => requestsToProcess.filter((r: any) => inRange(r.created_at)), [requestsToProcess, periodRange]);
+  const filteredPayslips = useMemo(() => payslipsToProcess.filter((p: any) => {
     const iso = p.date_issued || (p.year && p.month ? `${p.year}-${String(p.month).padStart(2,'0')}-01` : null);
     return inRange(iso);
-  }), [ledger, periodRange]);
+  }), [payslipsToProcess, periodRange]);
 
-  // Personal summary derived from linked payslips + my advances
+  // Comprehensive Metric Accumulator Summary
   const summary = useMemo(() => {
     const salaryPaid = filteredPayslips.reduce((s: number, p: any) => s + Number(p.net_payment || 0), 0);
     const totalDeductions = filteredPayslips.reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
@@ -108,9 +132,35 @@ export default function Finance() {
     return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, cashAdvanceYtd, net: salaryPaid - totalDeductions };
   }, [filteredPayslips, filteredRequests]);
 
+  // Accumulated Dynamic Monthly Breakdown for Charts
+  const monthlyData = useMemo(() => {
+    if (!isSystemAdmin) return ledger?.monthly || [];
+    
+    const monthsMap: Record<string, { month: string, income: number, expense: number }> = {};
+    
+    filteredPayslips.forEach((p: any) => {
+      let monthStr = '';
+      if (p.date_issued) {
+        monthStr = format(new Date(p.date_issued), 'MMM yyyy');
+      } else if (p.year && p.month) {
+        monthStr = format(new Date(p.year, p.month - 1, 1), 'MMM yyyy');
+      }
+      if (!monthStr) return;
+      if (!monthsMap[monthStr]) monthsMap[monthStr] = { month: monthStr, income: 0, expense: 0 };
+      monthsMap[monthStr].income += Number(p.net_payment || 0);
+    });
 
-  const monthly = ledger?.monthly || [];
+    filteredRequests.forEach((r: any) => {
+      if (r.status !== 'approved') return;
+      const monthStr = format(new Date(r.created_at), 'MMM yyyy');
+      if (!monthsMap[monthStr]) monthsMap[monthStr] = { month: monthStr, income: 0, expense: 0 };
+      monthsMap[monthStr].expense += Number(r.amount || 0);
+    });
 
+    return Object.values(monthsMap).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
+  }, [isSystemAdmin, ledger, filteredPayslips, filteredRequests]);
+
+  // Accumulated Category Distribution
   const categoryBreakdown = useMemo(() => {
     const byKind: Record<string, number> = { 'Salary Payment': 0, 'Salary Advance': 0, 'Reimbursement': 0, 'Cash Advance': 0 };
     byKind['Salary Payment'] = summary.salaryPaid;
@@ -119,6 +169,56 @@ export default function Finance() {
     });
     return Object.entries(byKind).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
   }, [filteredRequests, summary]);
+
+  // Combined Active Budget Consumption Processing
+  const compiledBudgetsToDisplay = useMemo(() => {
+    if (!isSystemAdmin) {
+      return myBudgets.map(mb => ({
+        id: mb.budget.id,
+        kindNames: (Array.isArray(mb.budget.kinds) ? mb.budget.kinds : [mb.budget.kind]).map((k: any) => kindLabel[k as AdvanceKind] || k).join(', '),
+        catNames: (Array.isArray(mb.budget.category_ids) ? mb.budget.category_ids : [mb.budget.category_id]).map((id: any) => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', '),
+        limit: Number(mb.budget.monthly_limit),
+        used: mb.used,
+        remaining: mb.remaining,
+        pct: mb.pct,
+        metaText: `${mb.budget.scope_type} budget`
+      }));
+    }
+
+    return budgets.map((b: any) => {
+      const kinds = Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
+      const catIds = Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
+      
+      const now = new Date();
+      const thisMonthRequests = allRequests.filter((r: any) => {
+        if (r.status !== 'approved') return false;
+        const rDate = new Date(r.created_at);
+        if (rDate.getFullYear() !== now.getFullYear() || rDate.getMonth() !== now.getMonth()) return false;
+        if (b.scope_type === 'user' && r.user_id !== b.scope_id) return false;
+        if (!kinds.includes(r.kind)) return false;
+        if (catIds.length > 0 && !catIds.includes(r.category_id)) return false;
+        return true;
+      });
+
+      const used = thisMonthRequests.reduce((sum: number, r: any) => sum + Number(r.amount || 0), 0);
+      const limit = Number(b.monthly_limit || 0);
+      const remaining = Math.max(0, limit - used);
+      const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+      const kindNames = kinds.map((k: any) => kindLabel[k as AdvanceKind] || k).join(', ');
+      const catNames = catIds.map((id: any) => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ');
+
+      return {
+        id: b.id,
+        kindNames,
+        catNames: catNames ? ` · ${catNames}` : '',
+        limit,
+        used,
+        remaining,
+        pct,
+        metaText: `${b.scope_type} limit Spec (${b.scope_id || 'Global'})`
+      };
+    });
+  }, [isSystemAdmin, myBudgets, budgets, allRequests, categories]);
 
   const pendingCount = allRequests.filter(r => r.status === 'pending').length;
 
@@ -138,15 +238,17 @@ export default function Finance() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Finance</h1>
-            <p className="text-sm text-muted-foreground">Track your payments, advances and reimbursements</p>
+            <p className="text-sm text-muted-foreground">
+              {isSystemAdmin ? "System Dashboard (All Platform Users Accumulated Summary)" : "Track your payments, advances and reimbursements"}
+            </p>
           </div>
           <ExportMenu
             build={() => ({
-              title: 'Finance Report',
+              title: isSystemAdmin ? 'System Wide Accumulated Finance Report' : 'Finance Report',
               userName: user.email || user.id,
-              payslips: ledger?.payslips || [],
-              requests: myRequests,
-              budgets: myBudgets,
+              payslips: payslipsToProcess,
+              requests: requestsToProcess,
+              budgets: isSystemAdmin ? budgets : myBudgets,
               summary,
               categories,
             })}
@@ -182,20 +284,20 @@ export default function Finance() {
               </CardContent>
             </Card>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-              <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
-              <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
-              <MetricCard label="Cash Advance YTD" value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
-              <MetricCard label="Reimbursed YTD" value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
-              <MetricCard label="Net Position" value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
+              <MetricCard label={isSystemAdmin ? "Total Salary Paid (Platform)" : "Total Salary Paid"} value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
+              <MetricCard label={isSystemAdmin ? "Outstanding Advances (Platform)" : "Outstanding Advance"} value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
+              <MetricCard label={isSystemAdmin ? "Cash Advances YTD (Platform)" : "Cash Advance YTD"} value={fmt(summary.cashAdvanceYtd)} icon={HandCoins} tone="info" />
+              <MetricCard label={isSystemAdmin ? "Reimbursed YTD (Platform)" : "Reimbursed YTD"} value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
+              <MetricCard label={isSystemAdmin ? "Net Financial Position" : "Net Position"} value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="lg:col-span-2">
-                <CardHeader><CardTitle className="text-base">Monthly cashflow</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-base">{isSystemAdmin ? "Platform Monthly Cashflow Accumulation" : "Monthly cashflow"}</CardTitle></CardHeader>
                 <CardContent>
                   <div className="w-full h-64">
                     <ResponsiveContainer>
-                      <AreaChart data={monthly}>
+                      <AreaChart data={monthlyData}>
                         <defs>
                           <linearGradient id="in" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
                           <linearGradient id="ex" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#ef4444" stopOpacity={0.8}/><stop offset="95%" stopColor="#ef4444" stopOpacity={0}/></linearGradient>
@@ -205,8 +307,8 @@ export default function Finance() {
                         <YAxis fontSize={11} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(v: any) => fmt(Number(v))} />
                         <Legend />
-                        <Area type="monotone" dataKey="income" stroke="#10b981" fill="url(#in)" />
-                        <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="url(#ex)" />
+                        <Area type="monotone" dataKey="income" stroke="#10b981" fill="url(#in)" name={isSystemAdmin ? "Total Payments / Outflow" : "Income"} />
+                        <Area type="monotone" dataKey="expense" stroke="#ef4444" fill="url(#ex)" name={isSystemAdmin ? "Approved Requests Value" : "Expense"} />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -246,37 +348,31 @@ export default function Finance() {
               </Card>
             </div>
 
-
             <Card>
-              <CardHeader><CardTitle className="text-base">My budget limits (this month)</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base">{isSystemAdmin ? "Platform Budget Limit Allocations Overview (This Month)" : "My budget limits (this month)"}</CardTitle></CardHeader>
               <CardContent>
-                {myBudgets.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No budgets have been assigned to you.</p>
+                {compiledBudgetsToDisplay.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No active budget bounds configured.</p>
                 ) : (
                   <div className="space-y-4">
-                    {myBudgets.map(({ budget: b, used, remaining, pct }) => {
-                      const kinds: string[] = Array.isArray(b.kinds) && b.kinds.length > 0 ? b.kinds : (b.kind ? [b.kind] : []);
-                      const catIds: string[] = Array.isArray(b.category_ids) && b.category_ids.length > 0 ? b.category_ids : (b.category_id ? [b.category_id] : []);
-                      const kindNames = kinds.map((k) => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ');
-                      const catNames = catIds.map((id) => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ');
-                      const tone = pct >= 100 ? 'text-destructive' : pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
+                    {compiledBudgetsToDisplay.map((b) => {
+                      const tone = b.pct >= 100 ? 'text-destructive' : b.pct >= 70 ? 'text-orange-600' : 'text-emerald-600';
                       return (
                         <div key={b.id} className="space-y-1.5">
                           <div className="flex justify-between items-start gap-2 flex-wrap">
                             <div>
                               <p className="text-sm font-medium">
-                                {kindNames}{catNames ? ` · ${catNames}` : ''}
+                                {b.kindNames}{b.catNames}
                               </p>
-
                               <p className="text-xs text-muted-foreground capitalize">
-                                {b.scope_type} budget · Limit {fmt(Number(b.monthly_limit))}
+                                {b.metaText} · Limit {fmt(b.limit)}
                               </p>
                             </div>
                             <p className={`text-sm font-semibold ${tone}`}>
-                              {fmt(used)} used · {fmt(remaining)} left
+                              {fmt(b.used)} used · {fmt(b.remaining)} left
                             </p>
                           </div>
-                          <Progress value={pct} className="h-2" />
+                          <Progress value={b.pct} className="h-2" />
                         </div>
                       );
                     })}
@@ -372,7 +468,6 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
       return form.category_id ? catIds.includes(form.category_id) : false;
     });
   }, [myBudgets, form]);
-
 
   const amount = Number(form.amount || 0);
   const limit = applicableBudget ? Number(applicableBudget.budget.monthly_limit) : 0;
@@ -734,10 +829,9 @@ function BudgetEditor() {
   const toggleKind = (k: string) => setForm((f: any) => ({
     ...f,
     kinds: f.kinds.includes(k) ? f.kinds.filter((x: string) => x !== k) : [...f.kinds, k],
-    // strip categories that no longer match the selected kinds
     category_ids: f.category_ids.filter((id: string) => {
       const c = categories.find((cat: any) => cat.id === id);
-      return c && (f.kinds.includes(k) ? true : c.kind !== k) && [...f.kinds, k].includes(c.kind);
+      return c && [...f.kinds, k].includes(c.kind);
     }),
   }));
   const toggleCat = (id: string) => setForm((f: any) => ({
@@ -892,7 +986,6 @@ function BudgetEditor() {
             <Button onClick={save}>Save</Button>
           </DialogFooter>
         </DialogContent>
-
       </Dialog>
     </Card>
   );
