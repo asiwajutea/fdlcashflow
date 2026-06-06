@@ -58,6 +58,8 @@ const Suggestions = lazy(() => import("./pages/employee/Suggestions"));
 const KnowledgeBase = lazy(() => import("./pages/employee/KnowledgeBase"));
 const KBArticle = lazy(() => import("./pages/employee/KnowledgeBaseArticle"));
 const EmployeeSupport = lazy(() => import("./pages/employee/EmployeeSupport"));
+const MyContract = lazy(() => import("./pages/employee/MyContract"));
+const ContractTemplates = lazy(() => import("./pages/admin/ContractTemplates"));
 
 // CMS pages
 const CMSDashboard = lazy(() => import("./pages/cms/CMSDashboard"));
@@ -235,6 +237,8 @@ const AppRoutes = () =>
       <Route path="/cms/sms-templates" element={<AvatarGuard><CapabilityGuard adminOnly><CMSSmsTemplates /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/chat-policies" element={<AvatarGuard><CapabilityGuard adminOnly><ChatPolicies /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/ai-assistant" element={<AvatarGuard><CapabilityGuard adminOnly><AIAssistant /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/admin/contract-templates" element={<AvatarGuard><CapabilityGuard adminOnly><ContractTemplates /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/my-contract" element={<AvatarGuard><MyContract /></AvatarGuard>} />
 
 
 
