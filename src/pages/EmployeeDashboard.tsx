@@ -210,7 +210,7 @@ const EmployeeDashboard: React.FC = () => {
               label: `${unsigned} contract${unsigned > 1 ? 's' : ''} awaiting signature`,
               detail: 'Sign to complete onboarding',
               cta: 'Sign',
-              path: '/inbox',
+              path: '/my-contract',
               severity: 'high',
             });
           }

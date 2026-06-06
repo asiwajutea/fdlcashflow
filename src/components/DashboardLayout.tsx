@@ -59,6 +59,7 @@ const NAV_SECTIONS = [
       { path: '/user-management', label: 'User Management', icon: Users, capability: 'manage_users' },
       { path: '/applications', label: 'HR Recruitment', icon: Briefcase, capability: 'manage_recruitment' },
       { path: '/jobs', label: 'Manage Job Positions', icon: Briefcase, capability: 'add_job_position' },
+      { path: '/admin/contract-templates', label: 'Contract Templates', icon: FileText, capability: 'manage_recruitment' },
       { path: '/cms', label: 'Website CMS', icon: Globe, capability: 'manage_website_content' },
       { path: '/cms/sms-templates', label: 'SMS Templates', icon: MessageSquare, capability: 'manage_users' },
       { path: '/admin/chat-policies', label: 'Messaging Policies', icon: MessageSquare, capability: 'manage_users' },

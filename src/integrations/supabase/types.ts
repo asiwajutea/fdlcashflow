@@ -594,6 +594,51 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_global_policy: {
+        Row: {
+          all_users_mode: string
+          allow_managers: boolean
+          allow_same_department: boolean
+          allow_same_team: boolean
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          all_users_mode?: string
+          allow_managers?: boolean
+          allow_same_department?: boolean
+          allow_same_team?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          all_users_mode?: string
+          allow_managers?: boolean
+          allow_same_department?: boolean
+          allow_same_team?: boolean
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chat_user_blocks: {
+        Row: {
+          blocked_user_id: string
+          created_at: string
+          except_user_ids: string[]
+        }
+        Insert: {
+          blocked_user_id: string
+          created_at?: string
+          except_user_ids?: string[]
+        }
+        Update: {
+          blocked_user_id?: string
+          created_at?: string
+          except_user_ids?: string[]
+        }
+        Relationships: []
+      }
       company_settings: {
         Row: {
           company_address: string
@@ -684,33 +729,92 @@ export type Database = {
         }
         Relationships: []
       }
+      contract_templates: {
+        Row: {
+          body_html: string
+          created_at: string
+          created_by: string | null
+          file_url: string
+          id: string
+          is_active: boolean
+          position_id: string | null
+          role_name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body_html?: string
+          created_at?: string
+          created_by?: string | null
+          file_url?: string
+          id?: string
+          is_active?: boolean
+          position_id?: string | null
+          role_name?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body_html?: string
+          created_at?: string
+          created_by?: string | null
+          file_url?: string
+          id?: string
+          is_active?: boolean
+          position_id?: string | null
+          role_name?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_templates_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contracts: {
         Row: {
           application_id: string
+          body_html: string | null
           contract_url: string | null
           created_at: string
           id: string
           signature_data: string | null
           signature_url: string | null
           signed_at: string | null
+          signed_full_name: string | null
+          status: string
+          template_id: string | null
         }
         Insert: {
           application_id: string
+          body_html?: string | null
           contract_url?: string | null
           created_at?: string
           id?: string
           signature_data?: string | null
           signature_url?: string | null
           signed_at?: string | null
+          signed_full_name?: string | null
+          status?: string
+          template_id?: string | null
         }
         Update: {
           application_id?: string
+          body_html?: string | null
           contract_url?: string | null
           created_at?: string
           id?: string
           signature_data?: string | null
           signature_url?: string | null
           signed_at?: string | null
+          signed_full_name?: string | null
+          status?: string
+          template_id?: string | null
         }
         Relationships: [
           {
@@ -718,6 +822,13 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "contract_templates"
             referencedColumns: ["id"]
           },
         ]
@@ -2297,6 +2408,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_message: { Args: { _from: string; _to: string }; Returns: boolean }
       generate_employee_id: { Args: never; Returns: string }
       get_my_subordinates: {
         Args: never

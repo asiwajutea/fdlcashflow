@@ -18,7 +18,9 @@ import { db } from '@/lib/supabase-db';
 import { useQuery } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2, Clock } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2, Clock, Calendar as CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { ExportMenu } from '@/components/finance/ExportMenu';
@@ -61,21 +63,50 @@ export default function Finance() {
   });
   const isLeader = subordinateIds.length > 0;
 
+  // Period filter
+  type Period = 'week' | 'month' | 'quarter' | 'year' | 'lifetime' | 'custom';
+  const [period, setPeriod] = useState<Period>('lifetime');
+  const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
+  const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+  const periodRange = useMemo<{ from: Date | null; to: Date | null }>(() => {
+    const now = new Date();
+    const start = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    if (period === 'week') { const d = new Date(now); d.setDate(d.getDate() - 7); return { from: start(d), to: now }; }
+    if (period === 'month') { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: start(d), to: now }; }
+    if (period === 'quarter') { const q = Math.floor(now.getMonth() / 3); const d = new Date(now.getFullYear(), q * 3, 1); return { from: start(d), to: now }; }
+    if (period === 'year') { const d = new Date(now.getFullYear(), 0, 1); return { from: start(d), to: now }; }
+    if (period === 'custom') return { from: customFrom ? start(customFrom) : null, to: customTo ?? null };
+    return { from: null, to: null };
+  }, [period, customFrom, customTo]);
+  const inRange = (iso?: string | null) => {
+    if (!periodRange.from && !periodRange.to) return true;
+    if (!iso) return false;
+    const d = new Date(iso);
+    if (periodRange.from && d < periodRange.from) return false;
+    if (periodRange.to && d > periodRange.to) return false;
+    return true;
+  };
+  const filteredRequests = useMemo(() => myRequests.filter((r: any) => inRange(r.created_at)), [myRequests, periodRange]);
+  const filteredPayslips = useMemo(() => (ledger?.payslips || []).filter((p: any) => {
+    const iso = p.date_issued || (p.year && p.month ? `${p.year}-${String(p.month).padStart(2,'0')}-01` : null);
+    return inRange(iso);
+  }), [ledger, periodRange]);
+
   // Personal summary derived from linked payslips + my advances
   const summary = useMemo(() => {
-    const salaryPaid = ledger?.salaryPaid || 0;
-    const totalDeductions = (ledger?.payslips || []).reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
-    const outstandingAdvances = myRequests
-      .filter(r => r.status === 'approved' && r.kind === 'salary_advance')
-      .reduce((s, r) => s + Number(r.amount), 0);
-    const reimbursedYtd = myRequests
-      .filter(r => r.status === 'approved' && r.kind === 'reimbursement')
-      .reduce((s, r) => s + Number(r.amount), 0);
-    const cashAdvanceYtd = myRequests
-      .filter(r => r.status === 'approved' && r.kind === 'cash_advance')
-      .reduce((s, r) => s + Number(r.amount), 0);
+    const salaryPaid = filteredPayslips.reduce((s: number, p: any) => s + Number(p.net_payment || 0), 0);
+    const totalDeductions = filteredPayslips.reduce((s: number, p: any) => s + Number(p.total_deductions || 0), 0);
+    const outstandingAdvances = filteredRequests
+      .filter((r: any) => r.status === 'approved' && r.kind === 'salary_advance')
+      .reduce((s: number, r: any) => s + Number(r.amount), 0);
+    const reimbursedYtd = filteredRequests
+      .filter((r: any) => r.status === 'approved' && r.kind === 'reimbursement')
+      .reduce((s: number, r: any) => s + Number(r.amount), 0);
+    const cashAdvanceYtd = filteredRequests
+      .filter((r: any) => r.status === 'approved' && r.kind === 'cash_advance')
+      .reduce((s: number, r: any) => s + Number(r.amount), 0);
     return { salaryPaid, expensesTotal: totalDeductions, outstandingAdvances, reimbursedYtd, cashAdvanceYtd, net: salaryPaid - totalDeductions };
-  }, [ledger, myRequests]);
+  }, [filteredPayslips, filteredRequests]);
 
 
   const monthly = ledger?.monthly || [];
@@ -83,11 +114,11 @@ export default function Finance() {
   const categoryBreakdown = useMemo(() => {
     const byKind: Record<string, number> = { 'Salary Payment': 0, 'Salary Advance': 0, 'Reimbursement': 0, 'Cash Advance': 0 };
     byKind['Salary Payment'] = summary.salaryPaid;
-    myRequests.filter(r => r.status === 'approved').forEach(r => {
-      byKind[kindLabel[r.kind]] += Number(r.amount);
+    filteredRequests.filter((r: any) => r.status === 'approved').forEach((r: any) => {
+      byKind[kindLabel[r.kind as AdvanceKind]] += Number(r.amount);
     });
     return Object.entries(byKind).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }));
-  }, [myRequests, summary]);
+  }, [filteredRequests, summary]);
 
   const pendingCount = allRequests.filter(r => r.status === 'pending').length;
 
@@ -133,6 +164,23 @@ export default function Finance() {
 
           {/* OVERVIEW */}
           <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardContent className="p-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs text-muted-foreground mr-1">Period:</span>
+                {(['week','month','quarter','year','lifetime','custom'] as const).map(p => (
+                  <Button key={p} size="sm" variant={period === p ? 'default' : 'outline'} className="h-7 px-2 text-xs capitalize" onClick={() => setPeriod(p)}>
+                    {p === 'week' ? 'Past Week' : p === 'month' ? 'This Month' : p === 'quarter' ? 'This Quarter' : p === 'year' ? 'This Year' : p === 'lifetime' ? 'Lifetime' : 'Custom'}
+                  </Button>
+                ))}
+                {period === 'custom' && (
+                  <div className="flex items-center gap-1 ml-2">
+                    <Popover><PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1"><CalendarIcon className="h-3 w-3" />{customFrom ? format(customFrom,'MMM d') : 'From'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={customFrom} onSelect={setCustomFrom} /></PopoverContent></Popover>
+                    <span className="text-xs text-muted-foreground">→</span>
+                    <Popover><PopoverTrigger asChild><Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1"><CalendarIcon className="h-3 w-3" />{customTo ? format(customTo,'MMM d') : 'To'}</Button></PopoverTrigger><PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={customTo} onSelect={setCustomTo} /></PopoverContent></Popover>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
               <MetricCard label="Total Salary Paid" value={fmt(summary.salaryPaid)} icon={Wallet} tone="success" />
               <MetricCard label="Outstanding Advance" value={fmt(summary.outstandingAdvances)} icon={HandCoins} tone="warning" />
@@ -697,12 +745,26 @@ function BudgetEditor() {
     category_ids: f.category_ids.includes(id) ? f.category_ids.filter((x: string) => x !== id) : [...f.category_ids, id],
   }));
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  const openEdit = (b: any) => {
+    setEditingId(b.id);
+    setForm({
+      scope_type: b.scope_type,
+      scope_id: b.scope_id,
+      kinds: Array.isArray(b.kinds) && b.kinds.length ? b.kinds : (b.kind ? [b.kind] : ['reimbursement']),
+      category_ids: Array.isArray(b.category_ids) && b.category_ids.length ? b.category_ids : (b.category_id ? [b.category_id] : []),
+      monthly_limit: String(b.monthly_limit ?? ''),
+    });
+    setOpen(true);
+  };
+
   const save = () => {
     if (!form.scope_id || !form.monthly_limit || form.kinds.length === 0) return;
     upsert.mutate({
+      ...(editingId ? { id: editingId } : {}),
       scope_type: form.scope_type,
       scope_id: form.scope_id,
-      // keep legacy single columns populated with the first selection for backward compat
       kind: form.kinds[0],
       category_id: form.category_ids[0] ?? null,
       kinds: form.kinds,
@@ -710,6 +772,7 @@ function BudgetEditor() {
       monthly_limit: Number(form.monthly_limit),
     });
     setOpen(false);
+    setEditingId(null);
     setForm({ scope_type: 'user', scope_id: '', kinds: ['reimbursement'], category_ids: [], monthly_limit: '' });
   };
 
@@ -745,7 +808,12 @@ function BudgetEditor() {
                   <TableCell>{ks.map(k => kindLabel[k as AdvanceKind] || k.replace('_', ' ')).join(', ')}</TableCell>
                   <TableCell className="text-xs">{cs.length === 0 ? <span className="text-muted-foreground">All</span> : cs.map(id => categories.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ')}</TableCell>
                   <TableCell>{fmt(Number(b.monthly_limit))}</TableCell>
-                  <TableCell><Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" onClick={() => openEdit(b)} title="Edit"><Edit className="h-3.5 w-3.5" /></Button>
+                      <Button size="icon" variant="ghost" onClick={() => remove.mutate(b.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                    </div>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -756,7 +824,7 @@ function BudgetEditor() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add budget limit</DialogTitle>
+            <DialogTitle>{editingId ? 'Edit budget limit' : 'Add budget limit'}</DialogTitle>
             <DialogDescription>Pick one or more request types and (optionally) categories. The monthly limit is shared across all selections.</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">

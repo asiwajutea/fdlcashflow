@@ -11,6 +11,7 @@ import { MonthlySummary } from '@/components/MonthlySummary';
 import { HistoryView } from '@/components/HistoryView';
 import { BudgetCalculator } from '@/components/BudgetCalculator';
 import { RateSettings } from '@/components/RateSettings';
+import AIAssistantPanel from '@/components/AIAssistantPanel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -647,15 +648,7 @@ const Index = () => {
 
           <TabsContent value="ai-assistant" className="space-y-6">
             {role === 'admin' ? (
-              <Card className="financial-card p-8 text-center">
-                <div className="max-w-md mx-auto space-y-4">
-                  <div className="bg-primary/10 p-3 rounded-full w-16 h-16 mx-auto flex items-center justify-center">
-                    <MessageSquare className="h-8 w-8 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-foreground">AI Financial Assistant</h3>
-                  <p className="text-muted-foreground">AI assistant feature coming soon.</p>
-                </div>
-              </Card>
+              <AIAssistantPanel storageKey="fdl_ai_copilot_history_dashboard" heightClass="h-[65vh]" />
             ) : (
               <Card className="financial-card p-8 text-center"><p className="text-muted-foreground">Access restricted to administrators</p></Card>
             )}
