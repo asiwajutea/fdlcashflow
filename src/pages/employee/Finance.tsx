@@ -17,7 +17,7 @@ import { useMyBudgets } from '@/hooks/useMyBudgets';
 import { db } from '@/lib/supabase-db';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Wallet, TrendingUp, TrendingDown, HandCoins, Plus, Check, X, AlertCircle, Edit, Trash2, Receipt, Loader2, Clock, Calendar as CalendarIcon } from 'lucide-react';
@@ -55,20 +55,28 @@ const payStatusTone: Record<AdvancePayStatus, string> = {
   fully_paid: 'text-emerald-600',
 };
 
-// Derives how much of a salary advance has been repaid. The repayment engine
-// (InvoiceGenerator) deducts one equal installment at a time and bumps repaid_count,
-// flipping status to 'repaid' once every installment is settled.
-const deriveAdvancePayment = (r: any) => {
+// Derives how much of a salary advance has been repaid. Prefers the real sum of
+// `advance_repayments` rows (which the InvoiceGenerator also writes when auto-deducting,
+// and which admins can adjust manually). Falls back to the installment estimate from
+// `repaid_count` when no repayment rows exist for the advance.
+const deriveAdvancePayment = (r: any, paidFromRepayments?: number) => {
   const installments = r.repayment_plan === 'two' ? 2 : 1;
-  const repaid = Math.min(Number(r.repaid_count || 0), installments);
   const total = Number(r.amount || 0);
-  const paidAmount = installments > 0 ? (total * repaid) / installments : 0;
+  let paidAmount: number;
+  if (paidFromRepayments !== undefined && paidFromRepayments !== null) {
+    paidAmount = paidFromRepayments;
+  } else {
+    const repaid = Math.min(Number(r.repaid_count || 0), installments);
+    paidAmount = installments > 0 ? (total * repaid) / installments : 0;
+  }
+  paidAmount = Math.max(0, Math.min(total, paidAmount));
   const outstanding = Math.max(0, total - paidAmount);
+  const eps = 0.005;
   let payStatus: AdvancePayStatus;
-  if (repaid >= installments && (r.status === 'repaid' || r.status === 'approved')) payStatus = 'fully_paid';
-  else if (repaid > 0) payStatus = 'partially_paid';
+  if (r.status === 'repaid' || (total > 0 && paidAmount >= total - eps)) payStatus = 'fully_paid';
+  else if (paidAmount > eps) payStatus = 'partially_paid';
   else payStatus = 'not_paid';
-  return { installments, repaid, total, paidAmount, outstanding, payStatus };
+  return { installments, total, paidAmount, outstanding, payStatus };
 };
 
 // Opens a private "documents" bucket file in a new tab via a short-lived signed URL.
@@ -91,6 +99,8 @@ export default function Finance() {
   
   const canApprove = isSystemAdmin || capabilities.includes('approve_finance_requests');
   const canManageBudgets = isSystemAdmin || capabilities.includes('manage_finance_budgets');
+
+  const qc = useQueryClient();
 
   // Personal user-scoped queries
   const { data: ledger } = useMyFinanceLedger(user?.id ?? null, user?.email ?? null);
@@ -138,6 +148,68 @@ export default function Finance() {
       return map;
     },
     enabled: isSystemAdmin,
+  });
+
+  // Actual amounts repaid per advance, summed from `advance_repayments`. RLS scopes this
+  // automatically: employees only get their own advances' repayments, admins get all.
+  const { data: repaymentRows = [] } = useQuery({
+    queryKey: ['advance_repayments_overview'],
+    queryFn: async () => {
+      const { data, error } = await db.from('advance_repayments').select('advance_id, amount');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user,
+  });
+  const repaidByAdvance = useMemo(() => {
+    const m: Record<string, number> = {};
+    (repaymentRows as any[]).forEach((r) => { m[r.advance_id] = (m[r.advance_id] || 0) + Number(r.amount || 0); });
+    return m;
+  }, [repaymentRows]);
+
+  // Admin-only: update a salary advance's payment status / amount repaid.
+  // The amount repaid is the source of truth (recorded as an adjusting advance_repayments
+  // row); status + repaid_count are kept in sync so the rest of the app stays consistent.
+  const [editAdvance, setEditAdvance] = useState<any>(null);
+  const [editStatus, setEditStatus] = useState<AdvancePayStatus>('not_paid');
+  const [editPaid, setEditPaid] = useState('');
+
+  const updateAdvancePayment = useMutation({
+    mutationFn: async ({ advance, status, paidInput }: { advance: any; status: AdvancePayStatus; paidInput: string }) => {
+      const total = Number(advance.total || 0);
+      const installments = advance.installments || 1;
+      const currentPaid = Number(advance.paidAmount || 0);
+
+      let target: number;
+      if (status === 'fully_paid') target = total;
+      else if (status === 'not_paid') target = 0;
+      else target = Number(paidInput || 0);
+
+      if (!Number.isFinite(target) || target < 0) throw new Error('Enter a valid amount');
+      target = Math.max(0, Math.min(total, target));
+
+      // Normalise status to match the resulting amount.
+      const finalStatus: AdvancePayStatus = target >= total - 0.005 ? 'fully_paid' : target <= 0.005 ? 'not_paid' : 'partially_paid';
+
+      const delta = Math.round((target - currentPaid) * 100) / 100;
+      if (Math.abs(delta) > 0.005) {
+        const { error: insErr } = await db.from('advance_repayments').insert({ advance_id: advance.id, invoice_id: null, amount: delta });
+        if (insErr) throw insErr;
+      }
+
+      const repaid_count = finalStatus === 'fully_paid' ? installments : finalStatus === 'not_paid' ? 0 : (installments === 2 ? 1 : 0);
+      const newStatus = finalStatus === 'fully_paid' ? 'repaid' : 'approved';
+      const { error: updErr } = await db.from('advance_requests').update({ repaid_count, status: newStatus }).eq('id', advance.id);
+      if (updErr) throw updErr;
+    },
+    onSuccess: () => {
+      toast({ title: 'Payment status updated' });
+      qc.invalidateQueries({ queryKey: ['advance_repayments_overview'] });
+      qc.invalidateQueries({ queryKey: ['global_platform_advance_requests'] });
+      qc.invalidateQueries({ queryKey: ['advance_requests'] });
+      setEditAdvance(null);
+    },
+    onError: (e: any) => toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
   // Subordinate mapping
@@ -224,9 +296,9 @@ export default function Finance() {
   const salaryAdvances = useMemo(() => {
     return filteredRequests
       .filter((r: any) => r.kind === 'salary_advance' && r.status !== 'rejected')
-      .map((r: any) => ({ ...r, ...deriveAdvancePayment(r) }))
+      .map((r: any) => ({ ...r, ...deriveAdvancePayment(r, repaidByAdvance[r.id]) }))
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [filteredRequests]);
+  }, [filteredRequests, repaidByAdvance]);
 
   const advanceStatusSummary = useMemo(() => {
     const base: Record<AdvancePayStatus | 'all', { count: number; amount: number; paid: number; outstanding: number }> = {
@@ -414,111 +486,6 @@ export default function Finance() {
               <MetricCard label={isSystemAdmin ? "Net Financial Position (Platform)" : "Net Position"} value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
 
-            {/* SALARY ADVANCE TRACKING */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <HandCoins className="h-4 w-4" />
-                      {isSystemAdmin ? 'Salary Advance Tracking (Platform Accumulation)' : 'My Salary Advance Tracking'}
-                    </CardTitle>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {isSystemAdmin
-                        ? 'Repayment status across all employees for the selected period'
-                        : 'Repayment status of your salary advances for the selected period'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {(['all', 'not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={advanceStatusFilter === s ? 'default' : 'outline'}
-                        className="h-7 px-2 text-xs"
-                        onClick={() => setAdvanceStatusFilter(s)}
-                      >
-                        {s === 'all' ? 'All' : payStatusLabel[s]}
-                        <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
-                          {s === 'all' ? advanceStatusSummary.all.count : advanceStatusSummary[s].count}
-                        </Badge>
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Status summary tiles */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  {(['not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
-                    <div key={s} className="rounded-lg border p-3">
-                      <p className={`text-xs font-medium ${payStatusTone[s]}`}>{payStatusLabel[s]}</p>
-                      <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary[s].amount)}</p>
-                      <p className="text-[11px] text-muted-foreground">
-                        {advanceStatusSummary[s].count} request{advanceStatusSummary[s].count === 1 ? '' : 's'}
-                        {s !== 'fully_paid' && advanceStatusSummary[s].outstanding > 0
-                          ? ` · ${fmt(advanceStatusSummary[s].outstanding)} outstanding`
-                          : ''}
-                      </p>
-                    </div>
-                  ))}
-                  <div className="rounded-lg border p-3 bg-muted/30">
-                    <p className="text-xs font-medium text-muted-foreground">Total Outstanding</p>
-                    <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary.all.outstanding)}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {fmt(advanceStatusSummary.all.paid)} repaid of {fmt(advanceStatusSummary.all.amount)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Detail table */}
-                {visibleAdvances.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4 text-center">
-                    No salary advances{advanceStatusFilter !== 'all' ? ` matching “${payStatusLabel[advanceStatusFilter]}”` : ''} for this period.
-                  </p>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {isSystemAdmin && <TableHead>Employee</TableHead>}
-                          <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Amount</TableHead>
-                          <TableHead className="text-right">Repaid</TableHead>
-                          <TableHead className="text-right">Outstanding</TableHead>
-                          <TableHead>Plan</TableHead>
-                          <TableHead>Payment Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {visibleAdvances.map((r: any) => (
-                          <TableRow key={r.id}>
-                            {isSystemAdmin && (
-                              <TableCell className="font-medium">
-                                {profileNameMap[r.user_id] || `${String(r.user_id).slice(0, 8)}…`}
-                              </TableCell>
-                            )}
-                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                              {format(new Date(r.created_at), 'MMM d, yyyy')}
-                            </TableCell>
-                            <TableCell className="text-right font-medium">{fmt(r.total)}</TableCell>
-                            <TableCell className="text-right text-emerald-600">{fmt(r.paidAmount)}</TableCell>
-                            <TableCell className="text-right text-orange-600">{fmt(r.outstanding)}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
-                              {r.repaid}/{r.installments}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={payStatusVariant(r.payStatus)}>{payStatusLabel[r.payStatus]}</Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="lg:col-span-2">
                 <CardHeader><CardTitle className="text-base">{isSystemAdmin ? "Platform Monthly Cashflow Accumulation" : "Monthly cashflow"}</CardTitle></CardHeader>
@@ -608,6 +575,200 @@ export default function Finance() {
                 )}
               </CardContent>
             </Card>
+
+            {/* SALARY ADVANCE TRACKING */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <HandCoins className="h-4 w-4" />
+                      {isSystemAdmin ? 'Salary Advance Tracking (Platform Accumulation)' : 'My Salary Advance Tracking'}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {isSystemAdmin
+                        ? 'Repayment status across all employees for the selected period'
+                        : 'Repayment status of your salary advances for the selected period'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(['all', 'not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={advanceStatusFilter === s ? 'default' : 'outline'}
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setAdvanceStatusFilter(s)}
+                      >
+                        {s === 'all' ? 'All' : payStatusLabel[s]}
+                        <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
+                          {s === 'all' ? advanceStatusSummary.all.count : advanceStatusSummary[s].count}
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Status summary tiles */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {(['not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
+                    <div key={s} className="rounded-lg border p-3">
+                      <p className={`text-xs font-medium ${payStatusTone[s]}`}>{payStatusLabel[s]}</p>
+                      <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary[s].amount)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {advanceStatusSummary[s].count} request{advanceStatusSummary[s].count === 1 ? '' : 's'}
+                        {s !== 'fully_paid' && advanceStatusSummary[s].outstanding > 0
+                          ? ` · ${fmt(advanceStatusSummary[s].outstanding)} outstanding`
+                          : ''}
+                      </p>
+                    </div>
+                  ))}
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium text-muted-foreground">Total Outstanding</p>
+                    <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary.all.outstanding)}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fmt(advanceStatusSummary.all.paid)} repaid of {fmt(advanceStatusSummary.all.amount)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Detail table */}
+                {visibleAdvances.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    No salary advances{advanceStatusFilter !== 'all' ? ` matching “${payStatusLabel[advanceStatusFilter]}”` : ''} for this period.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {isSystemAdmin && <TableHead>Employee</TableHead>}
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead className="text-right">Repaid</TableHead>
+                          <TableHead className="text-right">Outstanding</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Payment Status</TableHead>
+                          {isSystemAdmin && <TableHead className="text-right">Actions</TableHead>}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visibleAdvances.map((r: any) => (
+                          <TableRow key={r.id}>
+                            {isSystemAdmin && (
+                              <TableCell className="font-medium">
+                                {profileNameMap[r.user_id] || `${String(r.user_id).slice(0, 8)}…`}
+                              </TableCell>
+                            )}
+                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                              {format(new Date(r.created_at), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{fmt(r.total)}</TableCell>
+                            <TableCell className="text-right text-emerald-600">{fmt(r.paidAmount)}</TableCell>
+                            <TableCell className="text-right text-orange-600">{fmt(r.outstanding)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              {r.installments === 2 ? '2 installments' : '1 installment'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={payStatusVariant(r.payStatus)}>{payStatusLabel[r.payStatus]}</Badge>
+                            </TableCell>
+                            {isSystemAdmin && (
+                              <TableCell className="text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2 text-xs gap-1"
+                                  onClick={() => {
+                                    setEditAdvance(r);
+                                    setEditStatus(r.payStatus);
+                                    setEditPaid(String(Math.round(r.paidAmount)));
+                                  }}
+                                >
+                                  <Edit className="h-3 w-3" /> Update
+                                </Button>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Admin: update salary advance payment status */}
+            <Dialog open={!!editAdvance} onOpenChange={(o) => { if (!o) setEditAdvance(null); }}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Update payment status</DialogTitle>
+                  <DialogDescription>
+                    {editAdvance && (
+                      <>
+                        {profileNameMap[editAdvance.user_id] || 'Employee'} · {fmt(editAdvance.total)} salary advance
+                      </>
+                    )}
+                  </DialogDescription>
+                </DialogHeader>
+                {editAdvance && (
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label>Payment status</Label>
+                      <Select value={editStatus} onValueChange={(v) => setEditStatus(v as AdvancePayStatus)}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="not_paid">Not Paid</SelectItem>
+                          <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                          <SelectItem value="fully_paid">Fully Paid</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {editStatus === 'partially_paid' && (
+                      <div className="space-y-1.5">
+                        <Label>Amount paid back</Label>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={editAdvance.total}
+                          step="0.01"
+                          value={editPaid}
+                          onChange={(e) => setEditPaid(e.target.value)}
+                          placeholder="0"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Of {fmt(editAdvance.total)} total · currently {fmt(editAdvance.paidAmount)} repaid
+                        </p>
+                        {Number(editPaid || 0) > editAdvance.total && (
+                          <p className="text-xs text-destructive">Amount cannot exceed the advance total.</p>
+                        )}
+                      </div>
+                    )}
+
+                    {editStatus === 'fully_paid' && (
+                      <p className="text-xs text-muted-foreground">Marks the full {fmt(editAdvance.total)} as repaid.</p>
+                    )}
+                    {editStatus === 'not_paid' && (
+                      <p className="text-xs text-muted-foreground">Resets the repaid amount to {fmt(0)}.</p>
+                    )}
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setEditAdvance(null)}>Cancel</Button>
+                  <Button
+                    onClick={() => editAdvance && updateAdvancePayment.mutate({ advance: editAdvance, status: editStatus, paidInput: editPaid })}
+                    disabled={
+                      updateAdvancePayment.isPending ||
+                      (editStatus === 'partially_paid' && (Number(editPaid || 0) <= 0 || Number(editPaid || 0) > (editAdvance?.total ?? 0)))
+                    }
+                  >
+                    {updateAdvancePayment.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+                    Save
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* MY REQUESTS SECTION */}
