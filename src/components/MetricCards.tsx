@@ -3,19 +3,18 @@ import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from 'lucide-reac
 import { Card } from '@/components/ui/card';
 
 interface MetricData {
-  weeklyIncome: number;
-  weeklyExpenses: number;
-  monthlyIncome: number;
-  monthlyExpenses: number;
-  weeklyNetCashflow: number;
-  monthlyNetCashflow: number;
+  income: number;
+  expenses: number;
+  netCashflow: number;
 }
 
 interface MetricCardsProps {
   data: MetricData;
+  /** Label for the active stat range, e.g. "This Month". Shown as a caption on each card. */
+  periodLabel?: string;
 }
 
-export const MetricCards: React.FC<MetricCardsProps> = ({ data }) => {
+export const MetricCards: React.FC<MetricCardsProps> = ({ data, periodLabel }) => {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
       style: 'currency',
@@ -26,33 +25,27 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ data }) => {
 
   const metrics = [
     {
-      title: 'Weekly Income',
-      value: data.weeklyIncome,
+      title: 'Income',
+      value: data.income,
       icon: DollarSign,
       type: 'income' as const,
     },
     {
-      title: 'Weekly Expenses',
-      value: data.weeklyExpenses,
+      title: 'Expenses',
+      value: data.expenses,
       icon: TrendingDown,
       type: 'expense' as const,
     },
     {
-      title: 'Weekly Net Cashflow',
-      value: data.weeklyNetCashflow,
-      icon: data.weeklyNetCashflow >= 0 ? TrendingUp : AlertTriangle,
-      type: data.weeklyNetCashflow >= 0 ? 'positive' : 'negative' as const,
-    },
-    {
-      title: 'Monthly Net Cashflow',
-      value: data.monthlyNetCashflow,
-      icon: data.monthlyNetCashflow >= 0 ? TrendingUp : AlertTriangle,
-      type: data.monthlyNetCashflow >= 0 ? 'positive' : 'negative' as const,
+      title: 'Net Cashflow',
+      value: data.netCashflow,
+      icon: data.netCashflow >= 0 ? TrendingUp : AlertTriangle,
+      type: data.netCashflow >= 0 ? 'positive' : 'negative' as const,
     },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
       {metrics.map((metric, index) => {
         const Icon = metric.icon;
         const isNegative = metric.type === 'negative';
@@ -63,6 +56,11 @@ export const MetricCards: React.FC<MetricCardsProps> = ({ data }) => {
           <Card key={index} className="financial-card p-6 hover:shadow-financial-md transition-all duration-300">
             <div className="flex items-center justify-between">
               <div className="flex-1">
+                {periodLabel && (
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/70 mb-0.5">
+                    {periodLabel}
+                  </p>
+                )}
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   {metric.title}
                 </p>

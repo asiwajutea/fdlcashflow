@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import EmployeeDashboard from './EmployeeDashboard';
 import { AccessCodeModal } from '@/components/AccessCodeModal';
@@ -16,11 +16,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, FileText, Plus, AlertCircle, LogOut, Receipt, Users, Settings, ShieldCheck, Briefcase, Globe, Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, Eye, ClipboardCheck, PenTool } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { MessageSquare, FileText, Plus, AlertCircle, LogOut, Receipt, Users, Settings, ShieldCheck, Briefcase, Globe, Facebook, Twitter, Instagram, Linkedin, Youtube, Mail, Eye, ClipboardCheck, PenTool, Calendar as CalendarIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { getISOWeek, getCurrentWeekRange } from '@/utils/weekUtils';
+import { getISOWeek, getCurrentWeekRange, getDateOfISOWeek } from '@/utils/weekUtils';
 
 // Candidate Dashboard Component
 const CandidateDashboard = () => {
@@ -282,6 +285,59 @@ const Index = () => {
   const [currentRateConfig, setCurrentRateConfig] = useState<any>(null);
   const [monthlyFinancials, setMonthlyFinancials] = useState<{ income: number; expenses: number }>({ income: 0, expenses: 0 });
 
+  // Stat-cards-only date range filter. Affects ONLY the metric cards at the top of
+  // the admin dashboard - the charts, expense breakdown, data entry and cashflow
+  // alert below continue to use the current-week figures.
+  type CardPeriod = 'week' | 'month' | 'quarter' | 'lifetime' | 'custom';
+  const [allWeeklyRecords, setAllWeeklyRecords] = useState<any[]>([]);
+  const [cardPeriod, setCardPeriod] = useState<CardPeriod>('week');
+  const [cardFrom, setCardFrom] = useState<Date | undefined>(undefined);
+  const [cardTo, setCardTo] = useState<Date | undefined>(undefined);
+
+  const fetchAllWeeklyRecords = useCallback(async () => {
+    if (!user || role === 'employee' || role === 'candidate') return;
+    const { data, error } = await (supabase as any)
+      .from('weekly_records')
+      .select('year, week_number, total_income, total_expenses, net_cashflow');
+    if (!error && data) setAllWeeklyRecords(data);
+  }, [user, role]);
+
+  useEffect(() => {
+    fetchAllWeeklyRecords();
+  }, [fetchAllWeeklyRecords]);
+
+  const cardPeriodRange = useMemo<{ from: Date | null; to: Date | null }>(() => {
+    const now = new Date();
+    const start = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+    if (cardPeriod === 'week') { const d = new Date(now); d.setDate(d.getDate() - 7); return { from: start(d), to: now }; }
+    if (cardPeriod === 'month') { const d = new Date(now.getFullYear(), now.getMonth(), 1); return { from: start(d), to: now }; }
+    if (cardPeriod === 'quarter') { const q = Math.floor(now.getMonth() / 3); const d = new Date(now.getFullYear(), q * 3, 1); return { from: start(d), to: now }; }
+    if (cardPeriod === 'custom') return { from: cardFrom ? start(cardFrom) : null, to: cardTo ?? null };
+    return { from: null, to: null }; // lifetime
+  }, [cardPeriod, cardFrom, cardTo]);
+
+  const cardMetrics = useMemo(() => {
+    const { from, to } = cardPeriodRange;
+    const inRange = (d: Date) => {
+      if (!from && !to) return true;
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    };
+    const filtered = allWeeklyRecords.filter((r: any) =>
+      inRange(getDateOfISOWeek(Number(r.week_number), Number(r.year)))
+    );
+    const income = filtered.reduce((s: number, r: any) => s + Number(r.total_income || 0), 0);
+    const expenses = filtered.reduce((s: number, r: any) => s + Number(r.total_expenses || 0), 0);
+    return { income, expenses, netCashflow: income - expenses };
+  }, [allWeeklyRecords, cardPeriodRange]);
+
+  const cardPeriodLabel = cardPeriod === 'week' ? 'Past Week'
+    : cardPeriod === 'month' ? 'This Month'
+    : cardPeriod === 'quarter' ? 'This Quarter'
+    : cardPeriod === 'lifetime' ? 'Lifetime'
+    : 'Selected Range';
+
   useEffect(() => {
     const fetchInitialData = async () => {
       const { data: rateData, error: rateError } = await (supabase as any)
@@ -430,6 +486,7 @@ const Index = () => {
       toast({ title: "Error", description: error.message || "Failed to save data to history", variant: "destructive" });
     }
     setCustomExpenses(null);
+    fetchAllWeeklyRecords();
     const metrics = calculateMetrics();
     if (metrics.weeklyNetCashflow < 0) {
       toast({ title: "Cashflow Alert", description: "This week shows negative cashflow. Review expenses immediately.", variant: "destructive" });
@@ -521,7 +578,45 @@ const Index = () => {
           </div>
         </Card>
 
-        <MetricCards data={metrics} />
+        <div className="space-y-3">
+          <Card className="p-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground mr-1">Stat range:</span>
+            {(['week', 'month', 'quarter', 'lifetime', 'custom'] as const).map(p => (
+              <Button
+                key={p}
+                size="sm"
+                variant={cardPeriod === p ? 'default' : 'outline'}
+                className="h-7 px-2 text-xs"
+                onClick={() => setCardPeriod(p)}
+              >
+                {p === 'week' ? 'Weekly' : p === 'month' ? 'Monthly' : p === 'quarter' ? 'Quarterly' : p === 'lifetime' ? 'Lifetime' : 'Custom'}
+              </Button>
+            ))}
+            {cardPeriod === 'custom' && (
+              <div className="flex items-center gap-1 ml-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
+                      <CalendarIcon className="h-3 w-3" />{cardFrom ? format(cardFrom, 'MMM d, yyyy') : 'From'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={cardFrom} onSelect={setCardFrom} /></PopoverContent>
+                </Popover>
+                <span className="text-xs text-muted-foreground">→</span>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1">
+                      <CalendarIcon className="h-3 w-3" />{cardTo ? format(cardTo, 'MMM d, yyyy') : 'To'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="p-0 w-auto"><Calendar mode="single" selected={cardTo} onSelect={setCardTo} /></PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </Card>
+
+          <MetricCards data={cardMetrics} periodLabel={cardPeriodLabel} />
+        </div>
 
         {metrics.weeklyNetCashflow < 0 && <Card className="border-danger bg-danger-background p-4">
             <div className="flex items-center space-x-3">
