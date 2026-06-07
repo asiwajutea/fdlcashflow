@@ -40,6 +40,37 @@ const kindLabel: Record<AdvanceKind, string> = {
 const statusVariant = (s: string): any =>
   s === 'approved' ? 'default' : s === 'rejected' ? 'destructive' : s === 'repaid' ? 'secondary' : 'outline';
 
+// Payment progress of a salary advance request, derived from repaid installments.
+type AdvancePayStatus = 'not_paid' | 'partially_paid' | 'fully_paid';
+const payStatusLabel: Record<AdvancePayStatus, string> = {
+  not_paid: 'Not Paid',
+  partially_paid: 'Partially Paid',
+  fully_paid: 'Fully Paid',
+};
+const payStatusVariant = (s: AdvancePayStatus): any =>
+  s === 'fully_paid' ? 'default' : s === 'partially_paid' ? 'secondary' : 'outline';
+const payStatusTone: Record<AdvancePayStatus, string> = {
+  not_paid: 'text-destructive',
+  partially_paid: 'text-orange-600',
+  fully_paid: 'text-emerald-600',
+};
+
+// Derives how much of a salary advance has been repaid. The repayment engine
+// (InvoiceGenerator) deducts one equal installment at a time and bumps repaid_count,
+// flipping status to 'repaid' once every installment is settled.
+const deriveAdvancePayment = (r: any) => {
+  const installments = r.repayment_plan === 'two' ? 2 : 1;
+  const repaid = Math.min(Number(r.repaid_count || 0), installments);
+  const total = Number(r.amount || 0);
+  const paidAmount = installments > 0 ? (total * repaid) / installments : 0;
+  const outstanding = Math.max(0, total - paidAmount);
+  let payStatus: AdvancePayStatus;
+  if (repaid >= installments && (r.status === 'repaid' || r.status === 'approved')) payStatus = 'fully_paid';
+  else if (repaid > 0) payStatus = 'partially_paid';
+  else payStatus = 'not_paid';
+  return { installments, repaid, total, paidAmount, outstanding, payStatus };
+};
+
 // Opens a private "documents" bucket file in a new tab via a short-lived signed URL.
 const openReceipt = async (path: string) => {
   if (!path) return;
@@ -95,6 +126,20 @@ export default function Finance() {
     enabled: isSystemAdmin,
   });
 
+  // Map of user_id -> display name, used to label whose salary advance is whose in the
+  // platform-wide admin accumulation view. Employees never need this (they only see self).
+  const { data: profileNameMap = {} } = useQuery({
+    queryKey: ['finance_profile_names'],
+    queryFn: async () => {
+      const { data, error } = await db.from('profiles').select('id, full_name');
+      if (error) throw error;
+      const map: Record<string, string> = {};
+      (data || []).forEach((p: any) => { map[p.id] = p.full_name || ''; });
+      return map;
+    },
+    enabled: isSystemAdmin,
+  });
+
   // Subordinate mapping
   const { data: subordinateIds = [] } = useQuery({
     queryKey: ['subordinate_ids', user?.id],
@@ -112,6 +157,9 @@ export default function Finance() {
   const [period, setPeriod] = useState<Period>('lifetime');
   const [customFrom, setCustomFrom] = useState<Date | undefined>(undefined);
   const [customTo, setCustomTo] = useState<Date | undefined>(undefined);
+
+  // Salary advance payment-status filter (works alongside the period filter)
+  const [advanceStatusFilter, setAdvanceStatusFilter] = useState<'all' | AdvancePayStatus>('all');
   
   const periodRange = useMemo<{ from: Date | null; to: Date | null }>(() => {
     const now = new Date();
@@ -169,6 +217,42 @@ export default function Finance() {
       net: salaryPaid - totalDeductions 
     };
   }, [filteredPayslips, filteredRequests]);
+
+  // Salary advance tracking: classify each (non-rejected) salary advance by how much
+  // of it has been repaid. Respects the active period filter and the admin/employee
+  // scope automatically because it consumes `filteredRequests`.
+  const salaryAdvances = useMemo(() => {
+    return filteredRequests
+      .filter((r: any) => r.kind === 'salary_advance' && r.status !== 'rejected')
+      .map((r: any) => ({ ...r, ...deriveAdvancePayment(r) }))
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [filteredRequests]);
+
+  const advanceStatusSummary = useMemo(() => {
+    const base: Record<AdvancePayStatus | 'all', { count: number; amount: number; paid: number; outstanding: number }> = {
+      not_paid: { count: 0, amount: 0, paid: 0, outstanding: 0 },
+      partially_paid: { count: 0, amount: 0, paid: 0, outstanding: 0 },
+      fully_paid: { count: 0, amount: 0, paid: 0, outstanding: 0 },
+      all: { count: 0, amount: 0, paid: 0, outstanding: 0 },
+    };
+    salaryAdvances.forEach((r: any) => {
+      const bucket = base[r.payStatus as AdvancePayStatus];
+      bucket.count += 1;
+      bucket.amount += r.total;
+      bucket.paid += r.paidAmount;
+      bucket.outstanding += r.outstanding;
+      base.all.count += 1;
+      base.all.amount += r.total;
+      base.all.paid += r.paidAmount;
+      base.all.outstanding += r.outstanding;
+    });
+    return base;
+  }, [salaryAdvances]);
+
+  const visibleAdvances = useMemo(
+    () => (advanceStatusFilter === 'all' ? salaryAdvances : salaryAdvances.filter((r: any) => r.payStatus === advanceStatusFilter)),
+    [salaryAdvances, advanceStatusFilter]
+  );
 
   // Dynamic monthly aggregation logic
   const monthlyData = useMemo(() => {
@@ -329,6 +413,111 @@ export default function Finance() {
               <MetricCard label={isSystemAdmin ? "Reimbursed YTD (Platform)" : "Reimbursed YTD"} value={fmt(summary.reimbursedYtd)} icon={Receipt} tone="info" />
               <MetricCard label={isSystemAdmin ? "Net Financial Position (Platform)" : "Net Position"} value={fmt(summary.net)} icon={summary.net >= 0 ? TrendingUp : TrendingDown} tone={summary.net >= 0 ? 'success' : 'danger'} />
             </div>
+
+            {/* SALARY ADVANCE TRACKING */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <HandCoins className="h-4 w-4" />
+                      {isSystemAdmin ? 'Salary Advance Tracking (Platform Accumulation)' : 'My Salary Advance Tracking'}
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {isSystemAdmin
+                        ? 'Repayment status across all employees for the selected period'
+                        : 'Repayment status of your salary advances for the selected period'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(['all', 'not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
+                      <Button
+                        key={s}
+                        size="sm"
+                        variant={advanceStatusFilter === s ? 'default' : 'outline'}
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setAdvanceStatusFilter(s)}
+                      >
+                        {s === 'all' ? 'All' : payStatusLabel[s]}
+                        <Badge variant="secondary" className="ml-1.5 px-1.5 py-0 text-[10px]">
+                          {s === 'all' ? advanceStatusSummary.all.count : advanceStatusSummary[s].count}
+                        </Badge>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Status summary tiles */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  {(['not_paid', 'partially_paid', 'fully_paid'] as const).map((s) => (
+                    <div key={s} className="rounded-lg border p-3">
+                      <p className={`text-xs font-medium ${payStatusTone[s]}`}>{payStatusLabel[s]}</p>
+                      <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary[s].amount)}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {advanceStatusSummary[s].count} request{advanceStatusSummary[s].count === 1 ? '' : 's'}
+                        {s !== 'fully_paid' && advanceStatusSummary[s].outstanding > 0
+                          ? ` · ${fmt(advanceStatusSummary[s].outstanding)} outstanding`
+                          : ''}
+                      </p>
+                    </div>
+                  ))}
+                  <div className="rounded-lg border p-3 bg-muted/30">
+                    <p className="text-xs font-medium text-muted-foreground">Total Outstanding</p>
+                    <p className="text-lg font-bold truncate">{fmt(advanceStatusSummary.all.outstanding)}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fmt(advanceStatusSummary.all.paid)} repaid of {fmt(advanceStatusSummary.all.amount)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Detail table */}
+                {visibleAdvances.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4 text-center">
+                    No salary advances{advanceStatusFilter !== 'all' ? ` matching “${payStatusLabel[advanceStatusFilter]}”` : ''} for this period.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {isSystemAdmin && <TableHead>Employee</TableHead>}
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead className="text-right">Repaid</TableHead>
+                          <TableHead className="text-right">Outstanding</TableHead>
+                          <TableHead>Plan</TableHead>
+                          <TableHead>Payment Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {visibleAdvances.map((r: any) => (
+                          <TableRow key={r.id}>
+                            {isSystemAdmin && (
+                              <TableCell className="font-medium">
+                                {profileNameMap[r.user_id] || `${String(r.user_id).slice(0, 8)}…`}
+                              </TableCell>
+                            )}
+                            <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
+                              {format(new Date(r.created_at), 'MMM d, yyyy')}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">{fmt(r.total)}</TableCell>
+                            <TableCell className="text-right text-emerald-600">{fmt(r.paidAmount)}</TableCell>
+                            <TableCell className="text-right text-orange-600">{fmt(r.outstanding)}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                              {r.repaid}/{r.installments}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={payStatusVariant(r.payStatus)}>{payStatusLabel[r.payStatus]}</Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="lg:col-span-2">
