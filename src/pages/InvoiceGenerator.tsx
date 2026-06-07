@@ -31,6 +31,9 @@ interface LineItem {
   description: string;
   amount: string;
   isTaxable?: boolean;
+  // Auto-generated salary advance repayment line (read-only in the UI).
+  auto?: boolean;
+  advanceId?: string;
 }
 const InvoiceGenerator = () => {
   const {
@@ -135,6 +138,15 @@ const InvoiceGenerator = () => {
       fetchYTDTaxData();
     }
   }, [selectedEmployee, month, year]);
+
+  // Surface the employee's outstanding salary advance repayments as deduction lines
+  // so they appear on the payslip. Create mode only — in edit mode the existing
+  // line items are loaded as-is to avoid re-deducting / double counting.
+  useEffect(() => {
+    if (isEditMode) return;
+    applyAdvanceDeductions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedEmployee, isEditMode]);
 
   // Recalculate EGF and Tax when includeEgf checkbox or earnings change
   useEffect(() => {
@@ -290,11 +302,84 @@ const InvoiceGenerator = () => {
       setPreviousTotalSavings(0);
     }
   };
+
+  // Pull the employee's approved salary advances that still have outstanding
+  // installments and turn the next installment of each (based on the repayment
+  // plan) into a read-only deduction line, so it shows on the payslip preview,
+  // the generated PDF and the totals.
+  const applyAdvanceDeductions = async () => {
+    if (!selectedEmployee?.user_id) {
+      setDeductions(prev => prev.filter(d => !d.auto));
+      return;
+    }
+    try {
+      const sdb = supabase as any;
+      const { data: advances, error } = await sdb
+        .from('advance_requests')
+        .select('id, amount, repayment_plan, repaid_count, status, kind')
+        .eq('user_id', selectedEmployee.user_id)
+        .eq('kind', 'salary_advance')
+        .eq('status', 'approved');
+      if (error) throw error;
+      const autoItems: LineItem[] = (advances ?? [])
+        .map((adv: any): LineItem | null => {
+          const installments = adv.repayment_plan === 'two' ? 2 : 1;
+          const alreadyPaid = adv.repaid_count || 0;
+          const remaining = installments - alreadyPaid;
+          if (remaining <= 0) return null;
+          const perInstallment = Number(adv.amount) / installments;
+          const installmentNo = alreadyPaid + 1;
+          return {
+            id: `advance-${adv.id}`,
+            description: `Salary Advance Repayment (${installmentNo}/${installments})`,
+            amount: perInstallment.toFixed(2),
+            auto: true,
+            advanceId: adv.id,
+          };
+        })
+        .filter((x): x is LineItem => x !== null);
+      // Replace any previously-applied auto items with the freshly computed set.
+      setDeductions(prev => [...prev.filter(d => !d.auto), ...autoItems]);
+    } catch (e) {
+      console.error('Failed to load salary advances for deduction:', e);
+    }
+  };
+
+  // Persist the salary advance repayments captured on this payslip: log each in
+  // advance_repayments (linked to the invoice) and advance the request's
+  // repaid_count / status. Invoked on save in create mode only.
+  const recordAdvanceRepayments = async (invoiceId: string) => {
+    const sdb = supabase as any;
+    const autoItems = deductions.filter(d => d.auto && d.advanceId && parseFloat(d.amount) > 0);
+    for (const item of autoItems) {
+      try {
+        const { data: adv } = await sdb
+          .from('advance_requests')
+          .select('repaid_count, repayment_plan')
+          .eq('id', item.advanceId)
+          .maybeSingle();
+        if (!adv) continue;
+        const installments = adv.repayment_plan === 'two' ? 2 : 1;
+        const newCount = Math.min(installments, (adv.repaid_count || 0) + 1);
+        await sdb.from('advance_repayments').insert({
+          advance_id: item.advanceId,
+          invoice_id: invoiceId,
+          amount: parseFloat(item.amount),
+        });
+        await sdb.from('advance_requests').update({
+          repaid_count: newCount,
+          status: newCount >= installments ? 'repaid' : 'approved',
+        }).eq('id', item.advanceId);
+      } catch (e) {
+        console.error('Failed to record advance repayment:', e);
+      }
+    }
+  };
   const fetchEmployees = async () => {
     const {
       data,
       error
-    } = await supabase.from('employees').select('id, employee_id, full_name, designation, email').order('full_name');
+    } = await supabase.from('employees').select('id, employee_id, full_name, designation, email, user_id').order('full_name');
     if (error) {
       toast({
         title: "Error",
@@ -317,7 +402,9 @@ const InvoiceGenerator = () => {
             id,
             employee_id,
             full_name,
-            designation
+            designation,
+            email,
+            user_id
           )
         `).eq('id', invoiceId).single();
       if (invoiceError) throw invoiceError;
@@ -591,51 +678,12 @@ const InvoiceGenerator = () => {
         if (itemsError) throw itemsError;
       }
 
-      // Auto-deduct approved salary advances for this employee
-      try {
-        const sdb = supabase as any;
-        if ((selectedEmployee as any).user_id) {
-          const { data: advances } = await sdb
-            .from('advance_requests')
-            .select('*')
-            .eq('user_id', (selectedEmployee as any).user_id)
-            .eq('kind', 'salary_advance')
-            .eq('status', 'approved');
-          let addedDeductions = 0;
-          for (const adv of (advances ?? [])) {
-            const installments = adv.repayment_plan === 'two' ? 2 : 1;
-            const perInstallment = Number(adv.amount) / installments;
-            const remaining = installments - (adv.repaid_count || 0);
-            if (remaining <= 0) continue;
-            const deductAmount = perInstallment;
-            await sdb.from('invoice_line_items').insert({
-              invoice_id: invoiceData.id,
-              item_type: 'deduction',
-              description: `Salary advance repayment ${(adv.repaid_count || 0) + 1}/${installments}`,
-              amount: deductAmount,
-              is_taxable: false,
-            });
-            await sdb.from('advance_repayments').insert({
-              advance_id: adv.id,
-              invoice_id: invoiceData.id,
-              amount: deductAmount,
-            });
-            const newCount = (adv.repaid_count || 0) + 1;
-            await sdb.from('advance_requests').update({
-              repaid_count: newCount,
-              status: newCount >= installments ? 'repaid' : 'approved',
-            }).eq('id', adv.id);
-            addedDeductions += deductAmount;
-          }
-          if (addedDeductions > 0) {
-            await sdb.from('invoices').update({
-              total_deductions: totals.totalDeductions + addedDeductions,
-              net_payment: totals.netPayment - addedDeductions,
-            }).eq('id', invoiceData.id);
-          }
-        }
-      } catch (e) {
-        console.error('Advance auto-deduction failed:', e);
+      // Record salary advance repayments captured on this payslip. The repayment
+      // installments are already part of `deductions` (so they're reflected in the
+      // saved totals and line items above); here we just log them against each
+      // advance and advance its repaid_count / status. Create mode only.
+      if (!isEditMode) {
+        await recordAdvanceRepayments(invoiceData.id);
       }
 
       // Auto-create daily expense entry for payslip (net payment including savings)
@@ -1078,17 +1126,38 @@ const InvoiceGenerator = () => {
                 </Button>
               </div>
               
-              {deductions.map(item => <div key={item.id} className="flex gap-2">
+              {deductions.map(item => item.auto ? (
+                <div key={item.id} className="flex gap-2 items-center">
+                  <div className="flex-1">
+                    <div className="flex h-10 w-full items-center gap-2 rounded-md border border-dashed bg-muted px-3 text-sm text-foreground">
+                      <span className="truncate">{item.description}</span>
+                      <span className="ml-auto shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">Auto</span>
+                    </div>
+                  </div>
+                  <div className="w-32">
+                    <Input type="number" value={item.amount} readOnly className="bg-muted text-foreground" />
+                  </div>
+                  <div className="w-10"></div>
+                </div>
+              ) : (
+                <div key={item.id} className="flex gap-2">
                   <div className="flex-1">
                     <Input placeholder="Description" value={item.description} onChange={e => updateLineItem('deductions', item.id, 'description', e.target.value)} />
                   </div>
                   <div className="w-32">
                     <Input type="number" placeholder="Amount" value={item.amount} onChange={e => updateLineItem('deductions', item.id, 'amount', e.target.value)} />
                   </div>
-                  {deductions.length > 1 && <Button type="button" size="icon" variant="ghost" onClick={() => removeLineItem('deductions', item.id)}>
+                  {deductions.filter(d => !d.auto).length > 1 && <Button type="button" size="icon" variant="ghost" onClick={() => removeLineItem('deductions', item.id)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>}
-                </div>)}
+                </div>
+              ))}
+
+              {deductions.some(d => d.auto) && (
+                <p className="text-xs text-muted-foreground">
+                  Auto items are outstanding salary advance repayments. They are added based on the repayment plan and recorded against the advance when the payslip is saved.
+                </p>
+              )}
               
               <div className="text-right space-y-1">
                 <div>Total Deductions: ₦{totals.totalDeductions.toLocaleString('en-NG', {
@@ -1266,6 +1335,12 @@ const InvoiceGenerator = () => {
                   } = await supabase.from('invoice_line_items').insert(lineItems);
                   if (itemsError) throw itemsError;
                 }
+
+                // Record salary advance repayments captured on this payslip (create mode only).
+                if (!isEditMode) {
+                  await recordAdvanceRepayments(invoiceData.id);
+                }
+
                 toast({
                   title: "Success",
                   description: isEditMode ? "Payslip updated successfully" : "Payslip saved successfully"
