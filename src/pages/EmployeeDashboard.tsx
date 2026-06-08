@@ -497,13 +497,11 @@ const ManagerAboutDialog: React.FC<{
   manager: ManagerInfo | null;
 }> = ({ open, onOpenChange, manager }) => {
   if (!manager) return null;
-  const visibility = manager.about_visibility || {};
-  const details = manager.about_details || {};
-  const visibleEntries = Object.entries(details).filter(([key, val]) => {
-    if (!val) return false;
-    // Default to public if visibility not set explicitly
-    return visibility[key] !== false;
-  });
+  // Show only the AI-summarised "About" narrative. The structured About Me
+  // answers (about_details) are intentionally omitted - the AI summary already
+  // captures that information. Fall back to the short excerpt if no full
+  // summary has been generated yet.
+  const aboutText = manager.about_me || manager.about_me_excerpt || '';
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -521,24 +519,13 @@ const ManagerAboutDialog: React.FC<{
             </div>
           </div>
         </DialogHeader>
-        {manager.about_me && (
+        {aboutText ? (
           <div>
             <h4 className="text-sm font-semibold text-foreground mb-1">About</h4>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{manager.about_me}</p>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aboutText}</p>
           </div>
-        )}
-        {visibleEntries.length > 0 && (
-          <div className="space-y-3 mt-2">
-            {visibleEntries.map(([key, val]) => (
-              <div key={key}>
-                <h4 className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">{key.replace(/_/g, ' ')}</h4>
-                <p className="text-sm text-foreground whitespace-pre-wrap">{String(val)}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        {!manager.about_me && visibleEntries.length === 0 && (
-          <p className="text-sm text-muted-foreground">Your manager hasn't shared any public details yet.</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">Your manager hasn't shared an About summary yet.</p>
         )}
       </DialogContent>
     </Dialog>
