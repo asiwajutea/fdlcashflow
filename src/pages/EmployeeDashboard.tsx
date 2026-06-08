@@ -11,7 +11,7 @@ import { db } from '@/lib/supabase-db';
 import {
   User, CalendarClock, Briefcase, Mail, Receipt, BarChart3,
   Wallet, MessageSquare, BookOpen, LifeBuoy, ArrowRight,
-  AlertCircle, CheckCircle2, FileSignature, UserCircle2, Users
+  AlertCircle, CheckCircle2, FileSignature, UserCircle2, Users, Phone
 } from 'lucide-react';
 import { useIsLeader } from '@/hooks/useIsLeader';
 
@@ -24,6 +24,9 @@ interface ManagerInfo {
   about_details: Record<string, any> | null;
   about_visibility: Record<string, boolean> | null;
   position_name?: string | null;
+  designation?: string | null;
+  email?: string | null;
+  phone?: string | null;
 }
 
 // Returns the manager's public structured "About Me" answers (key/value pairs),
@@ -462,8 +465,8 @@ const ManagerIntroModal: React.FC<{
           </Avatar>
           <div className="flex-1 min-w-0">
             <p className="font-semibold text-foreground">{manager.full_name}</p>
-            {manager.position_name && (
-              <p className="text-xs text-muted-foreground">{manager.position_name}</p>
+            {(manager.designation || manager.position_name) && (
+              <p className="text-xs text-muted-foreground">{manager.designation || manager.position_name}</p>
             )}
             {introText ? (
               <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{introText}</p>
@@ -513,8 +516,8 @@ const ManagerAboutDialog: React.FC<{
             </Avatar>
             <div>
               <DialogTitle>{manager.full_name}</DialogTitle>
-              {manager.position_name && (
-                <DialogDescription>{manager.position_name}</DialogDescription>
+              {(manager.designation || manager.position_name) && (
+                <DialogDescription>{manager.designation || manager.position_name}</DialogDescription>
               )}
             </div>
           </div>
@@ -526,6 +529,23 @@ const ManagerAboutDialog: React.FC<{
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">Your manager hasn't shared an About summary yet.</p>
+        )}
+        {(manager.email || manager.phone) && (
+          <div className="mt-2 space-y-1.5 border-t pt-3">
+            <h4 className="text-sm font-semibold text-foreground">Contact</h4>
+            {manager.email && (
+              <a href={`mailto:${manager.email}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                <Mail className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate">{manager.email}</span>
+              </a>
+            )}
+            {manager.phone && (
+              <a href={`tel:${manager.phone}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
+                <Phone className="h-4 w-4 shrink-0 text-primary" />
+                <span>{manager.phone}</span>
+              </a>
+            )}
+          </div>
         )}
       </DialogContent>
     </Dialog>
