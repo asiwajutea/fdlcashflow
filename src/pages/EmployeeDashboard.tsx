@@ -26,6 +26,28 @@ interface ManagerInfo {
   position_name?: string | null;
 }
 
+// Returns the manager's public structured "About Me" answers (key/value pairs),
+// honouring per-field visibility (defaults to public when not explicitly hidden).
+const getVisibleAboutEntries = (manager: ManagerInfo | null): [string, string][] => {
+  if (!manager) return [];
+  const visibility = manager.about_visibility || {};
+  const details = manager.about_details || {};
+  return Object.entries(details).filter(
+    ([key, val]) => !!val && visibility[key] !== false,
+  ) as [string, string][];
+};
+
+// A manager has set up an introduction if they have any narrative text OR any
+// visible structured About Me answer. The previous logic only checked the
+// free-text about_me / about_me_excerpt fields, so managers who completed only
+// the structured About Me questions never triggered the intro modal for their
+// reports (e.g. the intro nag never opened and clicking the manager opened the
+// wrong dialog).
+const managerHasIntro = (manager: ManagerInfo | null): boolean => {
+  if (!manager) return false;
+  return !!(manager.about_me || manager.about_me_excerpt) || getVisibleAboutEntries(manager).length > 0;
+};
+
 const periodKey = (frequency: string): string => {
   const now = new Date();
   if (frequency === 'daily') return now.toISOString().slice(0, 10);
@@ -138,9 +160,9 @@ const EmployeeDashboard: React.FC = () => {
           const mgrInfo: ManagerInfo = { ...mgrRow, position_name: mgrRow.position_name ?? null };
           setManager(mgrInfo);
 
-          // Nag modal: manager has filled About Me and employee hasn't acknowledged
-          const managerHasIntro = !!(mgrRow.about_me || mgrRow.about_me_excerpt);
-          if (managerHasIntro && profile.manager_intro_acknowledged !== true) {
+          // Nag modal: manager has set up an intro (narrative or structured) and
+          // the employee hasn't acknowledged it yet.
+          if (managerHasIntro(mgrInfo) && profile.manager_intro_acknowledged !== true) {
             setIntroNagOpen(true);
           }
         }
@@ -258,10 +280,9 @@ const EmployeeDashboard: React.FC = () => {
                   title="View your manager's introduction"
                   onClick={() => {
                     if (!manager) return;
-                    const managerHasIntro = !!(manager.about_me || manager.about_me_excerpt);
-                    // Retrigger the manager introduction nag modal when an intro exists,
-                    // otherwise fall back to the full About Me dialog.
-                    if (managerHasIntro) setIntroNagOpen(true);
+                    // Retrigger the manager introduction nag modal when an intro exists
+                    // (narrative or structured), otherwise fall back to the full About Me dialog.
+                    if (managerHasIntro(manager)) setIntroNagOpen(true);
                     else setManagerDialogOpen(true);
                   }}
                 >
@@ -419,6 +440,9 @@ const ManagerIntroModal: React.FC<{
   onAcknowledge: () => void;
 }> = ({ open, manager, acknowledging, onViewMore, onAcknowledge }) => {
   if (!manager) return null;
+  const introText = manager.about_me_excerpt
+    || (manager.about_me ? manager.about_me.slice(0, 240) + (manager.about_me.length > 240 ? '…' : '') : '');
+  const fallbackEntry = getVisibleAboutEntries(manager)[0];
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onAcknowledge(); }}>
       <DialogContent>
@@ -438,9 +462,18 @@ const ManagerIntroModal: React.FC<{
             {manager.position_name && (
               <p className="text-xs text-muted-foreground">{manager.position_name}</p>
             )}
-            <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">
-              {manager.about_me_excerpt || (manager.about_me ? manager.about_me.slice(0, 240) + (manager.about_me.length > 240 ? '…' : '') : 'No introduction provided.')}
-            </p>
+            {introText ? (
+              <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{introText}</p>
+            ) : fallbackEntry ? (
+              <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground font-semibold">
+                  {fallbackEntry[0].replace(/_/g, ' ')}:{' '}
+                </span>
+                {String(fallbackEntry[1])}
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground mt-2">No introduction provided.</p>
+            )}
           </div>
         </div>
         <DialogFooter>
