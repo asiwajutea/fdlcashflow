@@ -144,10 +144,13 @@ const EmployeeDashboard: React.FC = () => {
         const detailsDeps = [
           profile.position_id ? db.from('positions').select('name').eq('id', profile.position_id).maybeSingle() : Promise.resolve({ data: null }),
           profile.department_id ? db.from('departments').select('name').eq('id', profile.department_id).maybeSingle() : Promise.resolve({ data: null }),
-          // Use a SECURITY DEFINER RPC to fetch the direct manager. RLS on
+          // Use a SECURITY DEFINER RPC to resolve the direct manager. RLS on
           // profiles only lets a user read their own row, so a direct query
-          // would return nothing for non-admin employees.
-          profile.manager_id ? (supabase as any).rpc('get_my_manager') : Promise.resolve({ data: null }),
+          // would return nothing for non-admin employees. Called unconditionally:
+          // the manager may be assigned via team/project/department leadership
+          // rather than an explicit profiles.manager_id, and the RPC now resolves
+          // those fallbacks too.
+          (supabase as any).rpc('get_my_manager'),
         ];
 
         const [posRes, deptRes, mgrRes] = await Promise.all(detailsDeps);
