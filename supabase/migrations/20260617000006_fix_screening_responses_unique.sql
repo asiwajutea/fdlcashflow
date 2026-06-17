@@ -8,7 +8,7 @@ DELETE FROM public.screening_responses
 WHERE id NOT IN (
   SELECT DISTINCT ON (application_id) id
   FROM public.screening_responses
-  ORDER BY application_id, submitted_at DESC
+  ORDER BY application_id, created_at DESC
 );
 
 -- 2. Add unique constraint so upsert works correctly going forward
