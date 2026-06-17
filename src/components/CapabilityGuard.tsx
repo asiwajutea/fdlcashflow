@@ -61,6 +61,9 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
   }
 
   if (requires && role !== 'admin' && !capabilities.includes(requires)) {
+    console.warn(
+      `[CapabilityGuard] Access denied. requires="${requires}" role="${role}" capabilities=[${capabilities.join(', ')}] userId=${user.id}`
+    );
     toast({ title: 'Access denied', description: 'You no longer have permission to view this page.', variant: 'destructive' });
     return <Navigate to="/dashboard" replace />;
   }
