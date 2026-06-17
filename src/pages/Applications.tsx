@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Users, Eye, FileText, ExternalLink, Brain, Calendar, Upload, Loader2 } from 'lucide-react';
+import { Users, Eye, FileText, ExternalLink, Brain, Calendar, Upload, Loader2, RefreshCw } from 'lucide-react';
 import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
 import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
 import ContractUploadDialog from '@/components/hr/ContractUploadDialog';
@@ -83,6 +83,8 @@ const Applications = () => {
   const [interviewAppId, setInterviewAppId] = useState<string | null>(null);
   const [contractAppId, setContractAppId] = useState<string | null>(null);
   const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
+  // Track which application IDs have an existing screening_responses row
+  const [hasScreeningData, setHasScreeningData] = useState<Set<string>>(new Set());
 
   const canManageRecruitment = role === 'admin' || hasCapability('manage_recruitment');
 
@@ -117,12 +119,14 @@ const Applications = () => {
 
     const appIds = (data || []).map((a: any) => a.id);
     let scoreMap = new Map<string, number | null>();
+    let screeningExistsSet = new Set<string>();
     if (appIds.length > 0) {
       const { data: screeningData } = await (supabase as any)
         .from('screening_responses')
         .select('application_id, score')
         .in('application_id', appIds);
       scoreMap = new Map(screeningData?.map((s: any) => [s.application_id, s.score]) || []);
+      screeningExistsSet = new Set(screeningData?.map((s: any) => s.application_id) || []);
     }
 
     const mapped: ApplicationRow[] = (data || []).map((a: any) => ({
@@ -136,9 +140,10 @@ const Applications = () => {
       screening_score: scoreMap.get(a.id) ?? null,
     }));
 
+    setHasScreeningData(screeningExistsSet);
+
     setApplications(mapped);
-    setLoading(false);
-  };
+    setLoading(false);  };
 
   const triggerScreeningGeneration = async (appId: string) => {
     const app = applications.find(a => a.id === appId);
@@ -173,11 +178,12 @@ const Applications = () => {
         questions = data.questions;
       }
 
-      await (supabase as any).from('screening_responses').insert({
-        application_id: appId,
-        responses: { questions, answers: {}, generated_at: new Date().toISOString() },
-      });
+      await (supabase as any).from('screening_responses').upsert(
+        { application_id: appId, responses: { questions, answers: {}, generated_at: new Date().toISOString() } },
+        { onConflict: 'application_id' }
+      );
 
+      setHasScreeningData(prev => new Set([...prev, appId]));
       toast({ title: 'Screening Generated', description: 'Screening questions sent to candidate.' });
     } catch (e: any) {
       toast({ title: 'Screening Error', description: e.message || 'Failed to generate screening questions', variant: 'destructive' });
@@ -346,6 +352,20 @@ const Applications = () => {
                         {(app.status === 'screening' || app.screening_score != null) && (
                           <Button size="sm" variant="ghost" onClick={() => setScreeningAppId(app.id)} title="View Screening">
                             <Brain className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {/* Regenerate button — shown when in screening but no questions were generated */}
+                        {app.status === 'screening' && !hasScreeningData.has(app.id) && (
+                          <Button
+                            size="sm" variant="ghost"
+                            onClick={() => triggerScreeningGeneration(app.id)}
+                            disabled={generatingScreening === app.id}
+                            title="Generate Screening Questions"
+                            className="text-amber-600 hover:text-amber-700"
+                          >
+                            {generatingScreening === app.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <RefreshCw className="h-4 w-4" />}
                           </Button>
                         )}
                         {app.status === 'interview' && (
