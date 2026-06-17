@@ -74,7 +74,7 @@ const STAGE_MESSAGES: Record<string, { subject: string; body: (jobTitle: string)
 const Applications = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading, hasCapability } = useAuth();
   const [applications, setApplications] = useState<ApplicationRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<ApplicationRow | null>(null);
@@ -84,16 +84,16 @@ const Applications = () => {
   const [contractAppId, setContractAppId] = useState<string | null>(null);
   const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
 
-  const isAdmin = role === 'admin';
+  const canManageRecruitment = role === 'admin' || hasCapability('manage_recruitment');
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
-    if (!authLoading && user && !isAdmin) navigate('/dashboard');
-  }, [user, authLoading, isAdmin, navigate]);
+    if (!authLoading && user && !canManageRecruitment) navigate('/dashboard');
+  }, [user, authLoading, canManageRecruitment, navigate]);
 
   useEffect(() => {
-    if (isAdmin) fetchApplications();
-  }, [isAdmin]);
+    if (canManageRecruitment) fetchApplications();
+  }, [canManageRecruitment]);
 
   const fetchApplications = async () => {
     const { data, error } = await (supabase as any)
