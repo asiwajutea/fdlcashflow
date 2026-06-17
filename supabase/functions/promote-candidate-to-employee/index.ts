@@ -26,7 +26,8 @@ serve(async (req) => {
     if (!requester) throw new Error('Unauthorized');
 
     const { data: roleRow } = await admin.from('user_roles').select('role').eq('user_id', requester.id).eq('role', 'admin').maybeSingle();
-    if (!roleRow) throw new Error('Admin only');
+    const { data: capRow } = await admin.from('user_capabilities').select('capability').eq('user_id', requester.id).eq('capability', 'manage_recruitment').maybeSingle();
+    if (!roleRow && !capRow) throw new Error('Admin or HR capability required');
 
     const { application_id } = await req.json();
     if (!application_id) throw new Error('application_id required');
