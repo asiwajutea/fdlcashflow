@@ -290,12 +290,12 @@ export default function Finance() {
     };
   }, [filteredPayslips, filteredRequests]);
 
-  // Salary advance tracking: classify each (non-rejected) salary advance by how much
-  // of it has been repaid. Respects the active period filter and the admin/employee
-  // scope automatically because it consumes `filteredRequests`.
+  // Salary advance tracking: only show approved/repaid advances in the admin
+  // accumulation view. Pending requests are excluded — admin should only track
+  // amounts that have actually been approved and disbursed.
   const salaryAdvances = useMemo(() => {
     return filteredRequests
-      .filter((r: any) => r.kind === 'salary_advance' && r.status !== 'rejected')
+      .filter((r: any) => r.kind === 'salary_advance' && (r.status === 'approved' || r.status === 'repaid'))
       .map((r: any) => ({ ...r, ...deriveAdvancePayment(r, repaidByAdvance[r.id]) }))
       .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [filteredRequests, repaidByAdvance]);
@@ -587,8 +587,8 @@ export default function Finance() {
                     </CardTitle>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {isSystemAdmin
-                        ? 'Repayment status across all employees for the selected period'
-                        : 'Repayment status of your salary advances for the selected period'}
+                        ? 'Approved salary advances and repayment status across all employees for the selected period'
+                        : 'Repayment status of your approved salary advances for the selected period'}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -649,6 +649,7 @@ export default function Finance() {
                           <TableHead className="text-right">Repaid</TableHead>
                           <TableHead className="text-right">Outstanding</TableHead>
                           <TableHead>Plan</TableHead>
+                          <TableHead>Approval</TableHead>
                           <TableHead>Payment Status</TableHead>
                           {isSystemAdmin && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
@@ -669,6 +670,11 @@ export default function Finance() {
                             <TableCell className="text-right text-orange-600">{fmt(r.outstanding)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {r.installments === 2 ? '2 installments' : '1 installment'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={statusVariant(r.status)} className="capitalize text-xs">
+                                {r.status === 'repaid' ? 'Repaid' : r.status === 'approved' ? 'Approved' : r.status}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               <Badge variant={payStatusVariant(r.payStatus)}>{payStatusLabel[r.payStatus]}</Badge>
