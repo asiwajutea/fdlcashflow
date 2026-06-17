@@ -20,6 +20,8 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
 
   // Always do a fresh DB fetch on mount so a user who gained capabilities
   // since their last login sees them immediately without signing out.
+  // We also refresh the session first to ensure the JWT is valid — a stale
+  // or role-switched token causes Supabase to silently return empty rows.
   useEffect(() => {
     if (!user?.id) {
       setCapabilities([]);
@@ -27,14 +29,16 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
       return;
     }
     setCapsLoading(true);
-    (supabase as any)
-      .from('user_capabilities')
-      .select('capability')
-      .eq('user_id', user.id)
+    supabase.auth.refreshSession()
+      .then(() =>
+        (supabase as any)
+          .from('user_capabilities')
+          .select('capability')
+          .eq('user_id', user.id)
+      )
       .then(({ data, error }: any) => {
         if (error) {
           console.error('[CapabilityGuard] Failed to fetch capabilities:', error.message);
-          // Fall back to whatever useAuth already loaded
           setCapabilities(authCapabilities ?? []);
         } else {
           setCapabilities(data?.map((c: any) => c.capability) ?? []);
