@@ -410,7 +410,15 @@ export default function Finance() {
         used,
         remaining,
         pct,
-        metaText: `${b.scope_type} limit Spec (${b.scope_id || 'Global'})`
+        metaText: (() => {
+          if (b.scope_type === 'user') {
+            const name = profileNameMap[b.scope_id] || b.scope_id;
+            return `User Limit · ${name}`;
+          }
+          if (b.scope_type === 'role') return `Role Limit · ${b.scope_id || 'All'}`;
+          if (b.scope_type === 'department') return `Department Limit · ${b.scope_id || 'All'}`;
+          return `Limit Spec (${b.scope_id || 'Global'})`;
+        })()
       };
     });
   }, [isSystemAdmin, myBudgets, budgets, allRequestsAdmin, categories]);
@@ -649,7 +657,6 @@ export default function Finance() {
                           <TableHead className="text-right">Repaid</TableHead>
                           <TableHead className="text-right">Outstanding</TableHead>
                           <TableHead>Plan</TableHead>
-                          <TableHead>Approval</TableHead>
                           <TableHead>Payment Status</TableHead>
                           {isSystemAdmin && <TableHead className="text-right">Actions</TableHead>}
                         </TableRow>
@@ -670,11 +677,6 @@ export default function Finance() {
                             <TableCell className="text-right text-orange-600">{fmt(r.outstanding)}</TableCell>
                             <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                               {r.installments === 2 ? '2 installments' : '1 installment'}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={statusVariant(r.status)} className="capitalize text-xs">
-                                {r.status === 'repaid' ? 'Repaid' : r.status === 'approved' ? 'Approved' : r.status}
-                              </Badge>
                             </TableCell>
                             <TableCell>
                               <Badge variant={payStatusVariant(r.payStatus)}>{payStatusLabel[r.payStatus]}</Badge>
