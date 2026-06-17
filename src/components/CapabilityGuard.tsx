@@ -16,6 +16,8 @@ interface CapabilityGuardProps {
 export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requires, adminOnly }) => {
   const { user, role, loading, capabilities: authCapabilities } = useAuth();
   const [capabilities, setCapabilities] = useState<string[]>([]);
+  // Start as true so the guard always waits for the fetch — never evaluate
+  // access on the initial render where capabilities is still empty.
   const [capsLoading, setCapsLoading] = useState(true);
 
   // Always do a fresh DB fetch on mount so a user who gained capabilities
@@ -24,8 +26,12 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
   // or role-switched token causes Supabase to silently return empty rows.
   useEffect(() => {
     if (!user?.id) {
-      setCapabilities([]);
-      setCapsLoading(false);
+      // If auth is still loading, keep capsLoading=true so we keep spinning.
+      // Only set false once we know there's definitely no user.
+      if (!loading) {
+        setCapabilities([]);
+        setCapsLoading(false);
+      }
       return;
     }
     setCapsLoading(true);
@@ -47,7 +53,7 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
         }
         setCapsLoading(false);
       });
-  }, [user?.id]);
+  }, [user?.id, loading]);
 
   // Show loader while auth is resolving, capabilities are loading,
   // or role hasn't arrived yet (prevents false "Access denied").
