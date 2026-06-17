@@ -146,24 +146,39 @@ const Applications = () => {
 
     setGeneratingScreening(appId);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-screening', {
-        body: {
-          job_title: app.job.title,
-          department: app.job.department,
-          description: app.job.description,
-          requirements: app.job.requirements,
-        },
-      });
+      // Check if this job has custom screening questions defined
+      const { data: template } = await (supabase as any)
+        .from('job_screening_templates')
+        .select('questions')
+        .eq('job_id', app.job.id)
+        .maybeSingle();
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      let questions: any[];
+
+      if (template?.questions?.length > 0) {
+        // Use the custom questions defined for this job
+        questions = template.questions;
+      } else {
+        // Fall back to AI generation
+        const { data, error } = await supabase.functions.invoke('generate-screening', {
+          body: {
+            job_title: app.job.title,
+            department: app.job.department,
+            description: app.job.description,
+            requirements: app.job.requirements,
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        questions = data.questions;
+      }
 
       await (supabase as any).from('screening_responses').insert({
         application_id: appId,
-        responses: { questions: data.questions, answers: {}, generated_at: new Date().toISOString() },
+        responses: { questions, answers: {}, generated_at: new Date().toISOString() },
       });
 
-      toast({ title: 'Screening Generated', description: 'AI screening questions created successfully.' });
+      toast({ title: 'Screening Generated', description: 'Screening questions sent to candidate.' });
     } catch (e: any) {
       toast({ title: 'Screening Error', description: e.message || 'Failed to generate screening questions', variant: 'destructive' });
     } finally {

@@ -13,7 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCapabilities } from '@/hooks/useCapabilities';
-import { Briefcase, Plus, MapPin, Edit, Trash2, Building2 } from 'lucide-react';
+import { Briefcase, Plus, MapPin, Edit, Trash2, Building2, ClipboardList } from 'lucide-react';
+import ScreeningQuestionsDialog from '@/components/hr/ScreeningQuestionsDialog';
 
 interface JobPosition {
   id: string;
@@ -41,6 +42,7 @@ const Jobs = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<JobPosition | null>(null);
+  const [screeningJob, setScreeningJob] = useState<JobPosition | null>(null);
   const [formData, setFormData] = useState({
     title: '', department: '', description: '', requirements: '',
     key_responsibilities: '', job_type: '', compensation: '',
@@ -137,6 +139,7 @@ const Jobs = () => {
   }
 
   return (
+    <>
     <DashboardLayout title="Job Openings">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -243,6 +246,9 @@ const Jobs = () => {
                     <img src={job.media_url} alt={job.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     {isAdmin && (
                       <div className="absolute top-2 right-2 flex gap-1">
+                        <Button size="icon" variant="secondary" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" title="Screening Questions" onClick={(e) => { e.stopPropagation(); setScreeningJob(job); }}>
+                          <ClipboardList className="h-3 w-3" />
+                        </Button>
                         <Button size="icon" variant="secondary" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleEdit(job); }}>
                           <Edit className="h-3 w-3" />
                         </Button>
@@ -258,6 +264,9 @@ const Jobs = () => {
                     <Building2 className="h-10 w-10 text-primary/30" />
                     {isAdmin && (
                       <div className="absolute top-2 right-2 flex gap-1">
+                        <Button size="icon" variant="secondary" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" title="Screening Questions" onClick={(e) => { e.stopPropagation(); setScreeningJob(job); }}>
+                          <ClipboardList className="h-3 w-3" />
+                        </Button>
                         <Button size="icon" variant="secondary" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => { e.stopPropagation(); handleEdit(job); }}>
                           <Edit className="h-3 w-3" />
                         </Button>
@@ -311,6 +320,7 @@ const Jobs = () => {
                     <p className="text-sm text-muted-foreground">{job.department}</p>
                   </CardHeader>
                   <CardFooter className="flex gap-2">
+                    <Button size="sm" variant="outline" onClick={() => setScreeningJob(job)}><ClipboardList className="h-3 w-3 mr-1" /> Screening</Button>
                     <Button size="sm" variant="outline" onClick={() => handleEdit(job)}><Edit className="h-3 w-3 mr-1" /> Edit</Button>
                     <Button size="sm" variant="destructive" onClick={() => handleDelete(job.id)}><Trash2 className="h-3 w-3" /></Button>
                   </CardFooter>
@@ -321,6 +331,19 @@ const Jobs = () => {
         )}
       </div>
     </DashboardLayout>
+
+    {screeningJob && (
+      <ScreeningQuestionsDialog
+        jobId={screeningJob.id}
+        jobTitle={screeningJob.title}
+        jobDepartment={screeningJob.department}
+        jobDescription={screeningJob.description}
+        jobRequirements={screeningJob.requirements}
+        open={!!screeningJob}
+        onOpenChange={(o) => { if (!o) setScreeningJob(null); }}
+      />
+    )}
+    </>
   );
 };
 
