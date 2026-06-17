@@ -48,8 +48,7 @@ BEGIN
   END IF;
 
   UPDATE public.candidates
-  SET    phone      = NEW.phone,
-         updated_at = now()
+  SET    phone = NEW.phone
   WHERE  user_id = NEW.id
     AND  phone IS DISTINCT FROM NEW.phone;
 
