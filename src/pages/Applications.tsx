@@ -228,6 +228,12 @@ const Applications = () => {
               },
             },
           }).catch(() => {});
+        } else {
+          toast({
+            title: 'SMS Skipped',
+            description: `${app.candidate_name || 'Candidate'} has no phone number on their profile — SMS not sent.`,
+            variant: 'destructive',
+          });
         }
       } catch (e) { console.error('candidate sms', e); }
     }
