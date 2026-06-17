@@ -30,13 +30,15 @@ export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requ
     }
     setCapsLoading(true);
     supabase.auth.refreshSession()
-      .then(() =>
-        (supabase as any)
+      .then(({ data: sessionData, error: sessionError }) => {
+        console.log('[CapabilityGuard] session refresh:', sessionError ? `ERROR: ${sessionError.message}` : `OK, uid=${sessionData?.session?.user?.id}`);
+        return (supabase as any)
           .from('user_capabilities')
           .select('capability')
-          .eq('user_id', user.id)
-      )
-      .then(({ data, error }: any) => {
+          .eq('user_id', user.id);
+      })
+      .then(({ data, error, status, statusText }: any) => {
+        console.log(`[CapabilityGuard] capabilities fetch: status=${status} error=${error?.message ?? 'none'} rowCount=${data?.length ?? 'null'} rows=${JSON.stringify(data)}`);
         if (error) {
           console.error('[CapabilityGuard] Failed to fetch capabilities:', error.message);
           setCapabilities(authCapabilities ?? []);
