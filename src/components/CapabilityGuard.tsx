@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { useCapabilities } from '@/hooks/useCapabilities';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CapabilityGuardProps {
   children: React.ReactNode;
@@ -14,11 +14,37 @@ interface CapabilityGuardProps {
 }
 
 export const CapabilityGuard: React.FC<CapabilityGuardProps> = ({ children, requires, adminOnly }) => {
-  const { user, role, loading } = useAuth();
-  const { capabilities, loading: capsLoading } = useCapabilities(user?.id ?? null);
+  const { user, role, loading, capabilities: authCapabilities } = useAuth();
+  const [capabilities, setCapabilities] = useState<string[]>([]);
+  const [capsLoading, setCapsLoading] = useState(true);
 
-  // Show loader while ANY of: auth resolving, user present but capabilities still loading,
-  // or role hasn't arrived yet for a signed-in user (prevents false "Access denied").
+  // Always do a fresh DB fetch on mount so a user who gained capabilities
+  // since their last login sees them immediately without signing out.
+  useEffect(() => {
+    if (!user?.id) {
+      setCapabilities([]);
+      setCapsLoading(false);
+      return;
+    }
+    setCapsLoading(true);
+    (supabase as any)
+      .from('user_capabilities')
+      .select('capability')
+      .eq('user_id', user.id)
+      .then(({ data, error }: any) => {
+        if (error) {
+          console.error('[CapabilityGuard] Failed to fetch capabilities:', error.message);
+          // Fall back to whatever useAuth already loaded
+          setCapabilities(authCapabilities ?? []);
+        } else {
+          setCapabilities(data?.map((c: any) => c.capability) ?? []);
+        }
+        setCapsLoading(false);
+      });
+  }, [user?.id]);
+
+  // Show loader while auth is resolving, capabilities are loading,
+  // or role hasn't arrived yet (prevents false "Access denied").
   if (loading || (user && capsLoading) || (user && !role)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">

@@ -219,21 +219,31 @@ const UserManagement = () => {
   const handleCapabilityToggle = async (userId: string, capability: string, enabled: boolean) => {
     try {
       if (enabled) {
-        await supabase
+        const { error } = await supabase
           .from('user_capabilities')
           .insert({ user_id: userId, capability });
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from('user_capabilities')
           .delete()
           .eq('user_id', userId)
           .eq('capability', capability);
+        if (error) throw error;
       }
 
       toast({
         title: enabled ? 'Capability Added' : 'Capability Removed',
         description: `${capability} ${enabled ? 'granted to' : 'removed from'} user`
       });
+
+      // Keep selectedUser in sync so the dialog reflects the change immediately
+      if (selectedUser && selectedUser.id === userId) {
+        const updatedCaps = enabled
+          ? [...selectedUser.capabilities, capability]
+          : selectedUser.capabilities.filter(c => c !== capability);
+        setSelectedUser({ ...selectedUser, capabilities: updatedCaps });
+      }
 
       fetchUsers();
     } catch (error: any) {
