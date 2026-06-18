@@ -105,7 +105,7 @@ const Screening = () => {
   };
 
   const getTextPart = (answer: string) =>
-    answer?.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim() || '';
+    answer?.split('\n').filter((l) => !l.startsWith('audio::')).join('\n') || '';
 
   const getAudioUrl = (answer: string) => {
     const line = answer?.split('\n').find((l) => l.startsWith('audio::'));
@@ -193,7 +193,13 @@ const Screening = () => {
                     value={getTextPart(answers[q.id] || '')}
                     onChange={(e) => {
                       const audio = getAudioUrl(answers[q.id] || '');
-                      setAnswers((prev) => ({ ...prev, [q.id]: audio ? `${e.target.value}\naudio::${audio}` : e.target.value }));
+                      // Preserve the full typed value including spaces — only re-attach the audio line
+                      const newVal = audio ? `${e.target.value}\naudio::${audio}` : e.target.value;
+                      setAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                    }}
+                    onKeyDown={(e) => {
+                      // Explicitly allow space key to prevent any browser/React stripping
+                      if (e.key === ' ') e.stopPropagation();
                     }}
                     disabled={submitted}
                     rows={3}

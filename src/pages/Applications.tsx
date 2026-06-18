@@ -16,8 +16,9 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Users, Eye, FileText, ExternalLink, Brain, Calendar, Upload,
   Loader2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown,
-  ChevronLeft, ChevronRight, AlertTriangle, X,
+  ChevronLeft, ChevronRight, AlertTriangle, X, CheckCircle2,
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
 import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
 import ContractUploadDialog from '@/components/hr/ContractUploadDialog';
@@ -33,6 +34,7 @@ interface ApplicationRow {
   };
   job: { id: string; title: string; department: string; description: string; requirements: string; };
   candidate_name: string | null;
+  candidate_avatar?: string | null;
   screening_score?: number | null;
 }
 
@@ -108,6 +110,8 @@ const Applications = () => {
   const [contractAppId, setContractAppId] = useState<string | null>(null);
   const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
   const [hasScreeningData, setHasScreeningData] = useState<Set<string>>(new Set());
+  // Track which apps have screening answers submitted by candidate
+  const [screeningAnswered, setScreeningAnswered] = useState<Set<string>>(new Set());
 
   // Filters
   const [search, setSearch] = useState('');
@@ -149,25 +153,36 @@ const Applications = () => {
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); setLoading(false); return; }
 
     const userIds = [...new Set((data || []).map((a: any) => a.candidates.user_id))];
-    const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name').in('id', userIds);
-    const profileMap = new Map(profiles?.map((p: any) => [p.id, p.full_name]) || []);
+    const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name, avatar_url').in('id', userIds);
+    const profileMap = new Map(profiles?.map((p: any) => [p.id, { name: p.full_name, avatar: p.avatar_url }]) || []);
 
     const appIds = (data || []).map((a: any) => a.id);
     let scoreMap = new Map<string, number | null>();
     let screeningSet = new Set<string>();
+    let answeredSet = new Set<string>();
     if (appIds.length > 0) {
-      const { data: sd } = await (supabase as any).from('screening_responses').select('application_id, score').in('application_id', appIds);
+      const { data: sd } = await (supabase as any).from('screening_responses').select('application_id, score, responses').in('application_id', appIds);
       scoreMap = new Map(sd?.map((s: any) => [s.application_id, s.score]) || []);
       screeningSet = new Set(sd?.map((s: any) => s.application_id) || []);
+      answeredSet = new Set(
+        (sd || [])
+          .filter((s: any) => { const ans = s.responses?.answers; return ans && Object.keys(ans).length > 0; })
+          .map((s: any) => s.application_id)
+      );
     }
 
-    const mapped: ApplicationRow[] = (data || []).map((a: any) => ({
-      id: a.id, cover_letter: a.cover_letter, status: a.status, applied_at: a.applied_at,
-      candidate: a.candidates, job: a.job_positions,
-      candidate_name: profileMap.get(a.candidates.user_id) || 'Unknown',
-      screening_score: scoreMap.get(a.id) ?? null,
-    }));
+    const mapped: ApplicationRow[] = (data || []).map((a: any) => {
+      const prof = profileMap.get(a.candidates.user_id);
+      return {
+        id: a.id, cover_letter: a.cover_letter, status: a.status, applied_at: a.applied_at,
+        candidate: a.candidates, job: a.job_positions,
+        candidate_name: prof?.name || 'Unknown',
+        candidate_avatar: prof?.avatar || null,
+        screening_score: scoreMap.get(a.id) ?? null,
+      };
+    });
     setHasScreeningData(screeningSet);
+    setScreeningAnswered(answeredSet);
     setApplications(mapped);
     setLoading(false);
   };
@@ -433,6 +448,12 @@ const Applications = () => {
                       <TableCell><Checkbox checked={selected.has(app.id)} onCheckedChange={() => toggleOne(app.id)} aria-label={`Select ${app.candidate_name}`} /></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
+                          <Avatar className="h-7 w-7 shrink-0">
+                            <AvatarImage src={app.candidate_avatar || undefined} />
+                            <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+                              {(app.candidate_name || '?').split(' ').map((s: string) => s[0]).slice(0, 2).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
                           <span className="font-medium text-sm">{app.candidate_name}</span>
                           {stale && <Tooltip><TooltipTrigger><AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" /></TooltipTrigger><TooltipContent>Stale — {days}d in {app.status}</TooltipContent></Tooltip>}
                         </div>
@@ -451,7 +472,16 @@ const Applications = () => {
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        {app.screening_score != null ? <Badge variant="secondary" className="text-xs">{app.screening_score}/100</Badge> : <span className="text-xs text-muted-foreground">—</span>}
+                        <div className="flex items-center gap-1.5">
+                          {app.screening_score != null
+                            ? <Badge variant="secondary" className="text-xs">{app.screening_score}/100</Badge>
+                            : screeningAnswered.has(app.id)
+                              ? <Tooltip><TooltipTrigger><Badge variant="outline" className="text-xs gap-1 border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20"><CheckCircle2 className="h-3 w-3" />Answered</Badge></TooltipTrigger><TooltipContent>Candidate has submitted screening answers — awaiting score</TooltipContent></Tooltip>
+                              : hasScreeningData.has(app.id)
+                                ? <span className="text-xs text-amber-600">Pending</span>
+                                : <span className="text-xs text-muted-foreground">—</span>
+                          }
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                         <div>{new Date(app.applied_at).toLocaleDateString()}</div>
@@ -514,18 +544,39 @@ const Applications = () => {
             <DialogHeader><DialogTitle>Application Details</DialogTitle></DialogHeader>
             {selectedApp && (
               <div className="space-y-4">
+                {/* Candidate profile header */}
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border">
+                  <Avatar className="h-14 w-14 shrink-0">
+                    <AvatarImage src={selectedApp.candidate_avatar || undefined} />
+                    <AvatarFallback className="text-base font-semibold bg-primary/10 text-primary">
+                      {(selectedApp.candidate_name || '?').split(' ').map((s: string) => s[0]).slice(0, 2).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-foreground">{selectedApp.candidate_name}</p>
+                    <p className="text-sm text-muted-foreground truncate">{selectedApp.job.title} · {selectedApp.job.department}</p>
+                    <Badge className={`mt-1 text-xs capitalize border ${statusColor[selectedApp.status]}`}>{selectedApp.status}</Badge>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {[['Candidate', selectedApp.candidate_name], ['Position', selectedApp.job.title], ['Department', selectedApp.job.department], ['Phone', selectedApp.candidate.phone || 'N/A'], ['Education', selectedApp.candidate.education || 'N/A'], ['Applied', new Date(selectedApp.applied_at).toLocaleDateString()]].map(([label, val]) => (
+                  {[['Phone', selectedApp.candidate.phone || 'N/A'], ['Education', selectedApp.candidate.education || 'N/A'], ['Applied', new Date(selectedApp.applied_at).toLocaleDateString()]].map(([label, val]) => (
                     <div key={label}><p className="text-xs text-muted-foreground">{label}</p><p className="text-sm font-medium">{val}</p></div>
                   ))}
-                </div>
-                {selectedApp.screening_score != null && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/40">
-                    <Brain className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-medium">Screening score:</span>
-                    <Badge variant="secondary">{selectedApp.screening_score}/100</Badge>
+                  {/* Screening status */}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Screening</p>
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      {selectedApp.screening_score != null
+                        ? <><Badge variant="secondary" className="text-xs">{selectedApp.screening_score}/100</Badge></>
+                        : screeningAnswered.has(selectedApp.id)
+                          ? <span className="flex items-center gap-1 text-emerald-700 text-xs"><CheckCircle2 className="h-3.5 w-3.5" />Answered</span>
+                          : hasScreeningData.has(selectedApp.id)
+                            ? <span className="text-amber-600 text-xs">Awaiting answers</span>
+                            : <span className="text-muted-foreground text-xs">—</span>
+                      }
+                    </p>
                   </div>
-                )}
+                </div>
                 {selectedApp.candidate.experience_summary && <div><p className="text-xs text-muted-foreground mb-1">Experience</p><p className="text-sm">{selectedApp.candidate.experience_summary}</p></div>}
                 {selectedApp.cover_letter && <div><p className="text-xs text-muted-foreground mb-1">Cover Letter</p><p className="text-sm whitespace-pre-wrap">{selectedApp.cover_letter}</p></div>}
                 {selectedApp.candidate.resume_url && (
