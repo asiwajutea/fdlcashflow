@@ -58,6 +58,8 @@ const CANDIDATE_NAV_SECTIONS = [
     ],
   },
 ];
+
+const NAV_SECTIONS = [
   {
     label: 'General',
     items: [
