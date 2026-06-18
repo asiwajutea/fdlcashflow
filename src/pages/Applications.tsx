@@ -474,7 +474,7 @@ const Applications = () => {
                           </div>
                           {app.updated_at && (
                             <span className="text-[10px] text-muted-foreground/70 pl-0.5">
-                              {new Date(app.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              {new Date(app.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </span>
                           )}
                         </div>
