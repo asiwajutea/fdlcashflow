@@ -322,7 +322,17 @@ const Applications = () => {
       try {
         const { data: prof } = await (supabase as any).from('profiles').select('full_name, phone').eq('id', app.candidate.user_id).maybeSingle();
         if (prof?.phone) {
-          supabase.functions.invoke('send-sms', { body: { to: prof.phone, user_id: app.candidate.user_id, template_key: newStatus === 'hired' ? 'candidate_hire' : 'candidate_stage', vars: { name: (prof.full_name || 'there').split(' ')[0], job: app.job.title, stage: newStatus, position: app.job.title } } }).catch(() => {});
+          supabase.functions.invoke('send-sms', {
+            body: {
+              to: prof.phone,
+              user_id: app.candidate.user_id,
+              template_key: newStatus === 'hired' ? 'candidate_hire'
+                          : newStatus === 'rejected' ? 'candidate_reject'
+                          : newStatus === 'offered' ? 'candidate_offer'
+                          : 'candidate_stage',
+              vars: { name: (prof.full_name || 'there').split(' ')[0], job: app.job.title, stage: newStatus, position: app.job.title, link: `${window.location.origin}/offers` },
+            },
+          }).catch(() => {});
         } else {
           toast({ title: 'SMS Skipped', description: `${app.candidate_name || 'Candidate'} has no phone number — SMS not sent.`, variant: 'destructive' });
         }
