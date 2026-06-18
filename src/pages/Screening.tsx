@@ -12,6 +12,87 @@ import { useAuth } from '@/hooks/useAuth';
 import { CheckCircle, Loader2, ClipboardList, Save } from 'lucide-react';
 import VoiceRecorder from '@/components/VoiceRecorder';
 
+// Shown when candidate navigates to /screening without an applicationId.
+// Looks up their applications that are in screening stage and lets them pick.
+const ScreeningPicker: React.FC<{ user: any }> = ({ user }) => {
+  const navigate = useNavigate();
+  const [apps, setApps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data: candidate } = await (supabase as any)
+        .from('candidates').select('id').eq('user_id', user.id).maybeSingle();
+      if (!candidate) { setLoading(false); return; }
+
+      const { data: applications } = await (supabase as any)
+        .from('applications')
+        .select('id, status, job_positions!inner(title, department)')
+        .eq('candidate_id', candidate.id)
+        .order('applied_at', { ascending: false });
+
+      // Only show apps that are in screening stage or have a screening row
+      const screeningApps = (applications || []).filter(
+        (a: any) => a.status === 'screening' || a.status === 'interview' || a.status === 'offered' || a.status === 'hired'
+      );
+
+      // Check which have actual screening questions
+      if (screeningApps.length > 0) {
+        const ids = screeningApps.map((a: any) => a.id);
+        const { data: srs } = await (supabase as any)
+          .from('screening_responses').select('application_id').in('application_id', ids);
+        const hasScreening = new Set((srs || []).map((s: any) => s.application_id));
+        setApps(screeningApps.filter((a: any) => hasScreening.has(a.id)));
+      }
+      setLoading(false);
+    })();
+  }, [user]);
+
+  return (
+    <DashboardLayout title="Screening">
+      <div className="max-w-lg mx-auto space-y-4">
+        <div className="text-center py-4">
+          <ClipboardList className="h-10 w-10 mx-auto text-primary mb-3" />
+          <h2 className="text-xl font-bold text-foreground">Screening Questionnaire</h2>
+          <p className="text-sm text-muted-foreground mt-1">Select an application to open its screening questions.</p>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : apps.length === 0 ? (
+          <Card className="p-8 text-center">
+            <ClipboardList className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+            <p className="font-semibold">No screening questionnaires available</p>
+            <p className="text-sm text-muted-foreground mt-1">You'll receive a notification when HR sends you one.</p>
+            <Button variant="outline" className="mt-4" onClick={() => navigate('/dashboard')}>Back to Dashboard</Button>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {apps.map((app: any) => (
+              <button
+                key={app.id}
+                onClick={() => navigate(`/screening?applicationId=${app.id}`)}
+                className="w-full text-left p-4 rounded-xl border bg-card hover:bg-accent/40 hover:border-primary/40 transition-all group"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">{app.job_positions?.title}</p>
+                    <p className="text-sm text-muted-foreground">{app.job_positions?.department}</p>
+                  </div>
+                  <span className="text-xs px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200 capitalize shrink-0">
+                    {app.status}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+};
+
 const Screening = () => {
   const [searchParams] = useSearchParams();
   const applicationId = searchParams.get('applicationId');
@@ -37,7 +118,12 @@ const Screening = () => {
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
-    if (applicationId && user) fetchScreening();
+    // If there's no applicationId, stop loading immediately — we'll show the picker
+    if (!applicationId) {
+      setLoading(false);
+      return;
+    }
+    if (user) fetchScreening();
   }, [applicationId, user]);
 
   const fetchScreening = async () => {
@@ -167,15 +253,7 @@ const Screening = () => {
   }
 
   if (!applicationId) {
-    return (
-      <DashboardLayout title="Screening">
-        <Card className="p-8 text-center">
-          <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-lg font-semibold">No Application Specified</h3>
-          <p className="text-muted-foreground">Please access this page from your application link.</p>
-        </Card>
-      </DashboardLayout>
-    );
+    return <ScreeningPicker user={user} />;
   }
 
   if (!screening) {

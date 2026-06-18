@@ -7,7 +7,49 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Calendar, Video } from 'lucide-react';
+import { Calendar, Video, CalendarPlus } from 'lucide-react';
+
+// Generate a Google Calendar URL for an interview
+function googleCalendarUrl(interview: any, jobTitle: string): string {
+  if (!interview.interview_date) return '';
+  const start = new Date(interview.interview_date);
+  const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const details = [
+    interview.interviewer ? `Interviewer: ${interview.interviewer}` : '',
+    interview.meeting_link ? `Meeting link: ${interview.meeting_link}` : '',
+  ].filter(Boolean).join('\n');
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE`
+    + `&text=${encodeURIComponent(`Interview: ${jobTitle}`)}`
+    + `&dates=${fmt(start)}/${fmt(end)}`
+    + `&details=${encodeURIComponent(details)}`
+    + (interview.meeting_link ? `&location=${encodeURIComponent(interview.meeting_link)}` : '');
+}
+
+// Generate an .ics file download for Apple Calendar / Outlook
+function downloadICS(interview: any, jobTitle: string) {
+  if (!interview.interview_date) return;
+  const start = new Date(interview.interview_date);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
+  const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const uid = `interview-${interview.id}@fdlworkforce`;
+  const ics = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FDL Workforce//Interview//EN',
+    'BEGIN:VEVENT',
+    `UID:${uid}`,
+    `DTSTART:${fmt(start)}`,
+    `DTEND:${fmt(end)}`,
+    `SUMMARY:Interview: ${jobTitle}`,
+    interview.interviewer ? `DESCRIPTION:Interviewer: ${interview.interviewer}` : '',
+    interview.meeting_link ? `LOCATION:${interview.meeting_link}` : '',
+    'END:VEVENT', 'END:VCALENDAR',
+  ].filter(Boolean).join('\r\n');
+  const blob = new Blob([ics], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `interview-${jobTitle.replace(/\s+/g, '-')}.ics`;
+  a.click(); URL.revokeObjectURL(url);
+}
 
 const Interviews = () => {
   const navigate = useNavigate();
@@ -125,6 +167,27 @@ const Interviews = () => {
                         <Video className="h-4 w-4 mr-1" /> Join Meeting
                       </a>
                     </Button>
+                  )}
+                  {/* Add to Calendar */}
+                  {interview.interview_date && (
+                    <div className="flex gap-2 flex-wrap">
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={googleCalendarUrl(interview, interview.job?.title || 'Interview')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <CalendarPlus className="h-4 w-4 mr-1" /> Google Calendar
+                        </a>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => downloadICS(interview, interview.job?.title || 'Interview')}
+                      >
+                        <CalendarPlus className="h-4 w-4 mr-1" /> Apple / Outlook (.ics)
+                      </Button>
+                    </div>
                   )}
                   {interview.feedback && (
                     <div className="border-t pt-3 mt-3">
