@@ -222,7 +222,7 @@ const AppRoutes = () =>
       <Route path="/jobs" element={<AvatarGuard><Jobs /></AvatarGuard>} />
       <Route path="/applications" element={<AvatarGuard><CapabilityGuard requires="manage_recruitment"><Applications /></CapabilityGuard></AvatarGuard>} />
       <Route path="/screening" element={<AvatarGuard><Screening /></AvatarGuard>} />
-      <Route path="/interviews" element={<AvatarGuard><CapabilityGuard requires="schedule_interviews"><Interviews /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/interviews" element={<AvatarGuard><Interviews /></AvatarGuard>} />
       <Route path="/offers" element={<AvatarGuard><Offers /></AvatarGuard>} />
       <Route path="/inbox" element={<AvatarGuard><Inbox /></AvatarGuard>} />
 
