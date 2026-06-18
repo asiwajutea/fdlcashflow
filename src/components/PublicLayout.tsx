@@ -92,7 +92,7 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
             {/* CTA Buttons */}
             <div className="hidden md:flex items-center gap-2">
               {user ?
-              <Button size="sm" onClick={() => navigate(role === 'candidate' ? '/' : '/dashboard')} className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white gap-2">
+              <Button size="sm" onClick={() => navigate('/dashboard')} className="bg-[hsl(28,100%,55%)] hover:bg-[hsl(28,100%,45%)] text-white gap-2">
                   <Avatar className="h-5 w-5">
                     <AvatarImage src={avatarUrl || undefined} />
                     <AvatarFallback className="text-[10px] bg-white/20">{fullName?.charAt(0)?.toUpperCase() || 'U'}</AvatarFallback>
@@ -196,7 +196,7 @@ const PublicLayout = ({ children }: {children: React.ReactNode;}) => {
           {/* CTA Section */}
           <div className="absolute bottom-0 left-0 right-0 p-4 space-y-2 border-t border-white/10 bg-[hsl(214,95%,8%)]">
             {user ?
-            <Button size="default" onClick={() => {setMobileOpen(false);navigate(role === 'candidate' ? '/' : '/dashboard');}} className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
+            <Button size="default" onClick={() => {setMobileOpen(false);navigate('/dashboard');}} className="w-full bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white justify-start gap-2 shadow-lg shadow-[hsl(28,100%,55%)]/20">
                 <LayoutDashboard className="h-4 w-4" />
                 Go to Dashboard
               </Button> :

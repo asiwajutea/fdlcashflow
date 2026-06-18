@@ -25,7 +25,39 @@ interface DashboardLayoutProps {
   title: string;
 }
 
-const NAV_SECTIONS = [
+// Pages candidates should NOT see in nav
+const CANDIDATE_BLOCKED_PATHS = new Set([
+  '/my-invoices', '/activity-report', '/my-finance', '/finance',
+  '/suggestions', '/knowledge-base', '/employee-support', '/team-reports',
+  '/org-chart', '/daily-tracker', '/employees', '/company-settings',
+  '/generate-invoice', '/bulk-invoice', '/invoices', '/invoice-statistics',
+  '/statistics', '/user-management', '/applications', '/jobs',
+  '/admin/contract-templates', '/cms', '/cms/sms-templates',
+  '/admin/chat-policies', '/admin/ai-assistant',
+  '/cms/knowledge-base', '/cms/activity-forms',
+]);
+
+// Candidate-specific nav — only what they need
+const CANDIDATE_NAV_SECTIONS = [
+  {
+    label: 'My Applications',
+    items: [
+      { path: '/dashboard',  label: 'Dashboard',    icon: LayoutDashboard },
+      { path: '/screening',  label: 'Screening',    icon: ClipboardList },
+      { path: '/interviews', label: 'Interviews',   icon: CalendarClock },
+      { path: '/offers',     label: 'My Offers',    icon: FileText },
+      { path: '/my-contract',label: 'My Contract',  icon: FileText },
+    ],
+  },
+  {
+    label: 'Account',
+    items: [
+      { path: '/profile', label: 'My Profile', icon: User },
+      { path: '/inbox',   label: 'Inbox',      icon: Mail },
+      { path: '/jobs',    label: 'Job Openings', icon: Briefcase },
+    ],
+  },
+];
   {
     label: 'General',
     items: [
@@ -123,14 +155,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     navigate('/auth');
   };
 
-  const visibleSections = NAV_SECTIONS.map(section => ({
-    ...section,
-    items: section.items.filter(item => {
-      if (!item.capability) return true;
-      if (role === 'admin') return true;
-      return hasCapability(item.capability);
-    }),
-  })).filter(section => section.items.length > 0);
+  const visibleSections = role === 'candidate'
+    ? CANDIDATE_NAV_SECTIONS
+    : NAV_SECTIONS.map(section => ({
+        ...section,
+        items: section.items.filter(item => {
+          if (!item.capability) return true;
+          if (role === 'admin') return true;
+          return hasCapability(item.capability);
+        }),
+      })).filter(section => section.items.length > 0);
 
   return (
     <div className="min-h-screen bg-background">

@@ -159,7 +159,27 @@ const EmployeeGuard = ({ children }: { children: React.ReactNode }) => {
   const { user, role, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/auth" replace />;
-  if (role === 'candidate') return <Navigate to="/dashboard" replace />;
+  if (role === 'candidate') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="text-center max-w-sm space-y-4">
+          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <Loader2 className="h-8 w-8 text-destructive" />
+          </div>
+          <h2 className="text-xl font-bold text-foreground">Not Authorized</h2>
+          <p className="text-muted-foreground text-sm">
+            This page is for employees only. As a candidate, you don't have access to this section.
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium hover:bg-accent transition-colors"
+          >
+            ← Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
   return <>{children}</>;
 };
 
