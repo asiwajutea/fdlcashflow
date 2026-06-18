@@ -109,6 +109,7 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
     onSuccess: (_d, v) => {
       toast({ title: v.status === 'approved' ? 'Approved' : 'Rejected' });
       qc.invalidateQueries({ queryKey: ['advance_requests'] });
+      qc.invalidateQueries({ queryKey: ['global_platform_advance_requests'] });
       qc.invalidateQueries({ queryKey: ['advance_request_events', v.id] });
     },
     onError: (e: any) => toast({ title: 'Failed', description: e.message, variant: 'destructive' }),
@@ -120,8 +121,9 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Deleted' });
+      toast({ title: 'Request cancelled' });
       qc.invalidateQueries({ queryKey: ['advance_requests'] });
+      qc.invalidateQueries({ queryKey: ['global_platform_advance_requests'] });
     },
   });
 
