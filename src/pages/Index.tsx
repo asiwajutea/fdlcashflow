@@ -26,6 +26,119 @@ import { useAuth } from '@/hooks/useAuth';
 import { getISOWeek, getCurrentWeekRange, getDateOfISOWeek } from '@/utils/weekUtils';
 
 // Candidate Dashboard Component
+const PIPELINE_STAGES = [
+  { key: 'submitted',  label: 'Applied',    icon: '📝', desc: 'Application received' },
+  { key: 'screening',  label: 'Screening',  icon: '🔍', desc: 'Complete questionnaire' },
+  { key: 'interview',  label: 'Interview',  icon: '🎙️', desc: 'Interview scheduled' },
+  { key: 'offered',    label: 'Offer',      icon: '📄', desc: 'Review & sign contract' },
+  { key: 'hired',      label: 'Hired',      icon: '🎉', desc: 'Welcome to the team!' },
+];
+
+const STAGE_INDEX: Record<string, number> = {
+  submitted: 0, screening: 1, interview: 2, offered: 3, hired: 4, rejected: -1,
+};
+
+function ApplicationPipeline({ app, onAction }: { app: any; onAction: (path: string) => void }) {
+  const status = app.status;
+  const stageIdx = STAGE_INDEX[status] ?? 0;
+  const isRejected = status === 'rejected';
+
+  const actionMap: Record<string, { label: string; path: string; urgent?: boolean }> = {
+    screening: { label: 'Complete Screening', path: `/screening?applicationId=${app.id}`, urgent: true },
+    interview: { label: 'View Interview Details', path: '/interviews' },
+    offered:   { label: 'Review & Sign Contract', path: '/offers', urgent: true },
+  };
+
+  // If screening exists but unanswered, always show the action
+  const screeningPending = app.screening && !(app.screening?.responses?.answers && Object.keys(app.screening.responses.answers).length > 0);
+  const action = screeningPending
+    ? { label: 'Complete Screening', path: `/screening?applicationId=${app.id}`, urgent: true }
+    : actionMap[status];
+
+  return (
+    <div className="rounded-2xl border bg-card overflow-hidden shadow-sm">
+      {/* Job header */}
+      <div className="px-5 pt-4 pb-3 flex items-start justify-between gap-3 border-b">
+        <div>
+          <h3 className="font-semibold text-foreground leading-tight">{app.job_positions?.title}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{app.job_positions?.department} · Applied {new Date(app.applied_at).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+        </div>
+        {isRejected ? (
+          <Badge variant="destructive" className="shrink-0">Not Selected</Badge>
+        ) : status === 'hired' ? (
+          <Badge className="shrink-0 bg-emerald-500 text-white">Hired 🎉</Badge>
+        ) : (
+          <Badge variant="outline" className="shrink-0 capitalize text-xs">{status}</Badge>
+        )}
+      </div>
+
+      {/* Pipeline stepper */}
+      {!isRejected && (
+        <div className="px-5 py-4">
+          <div className="flex items-center gap-0">
+            {PIPELINE_STAGES.map((stage, i) => {
+              const done    = i < stageIdx;
+              const current = i === stageIdx;
+              const future  = i > stageIdx;
+              return (
+                <React.Fragment key={stage.key}>
+                  {/* Step */}
+                  <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-bold border-2 transition-all
+                      ${done    ? 'bg-emerald-500 border-emerald-500 text-white'
+                               : current ? 'bg-primary border-primary text-primary-foreground shadow-md scale-110'
+                               : 'bg-muted border-border text-muted-foreground'}`}>
+                      {done ? '✓' : <span className="text-[11px]">{stage.icon}</span>}
+                    </div>
+                    <p className={`text-[10px] text-center leading-tight font-medium truncate w-full
+                      ${current ? 'text-primary' : done ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                      {stage.label}
+                    </p>
+                  </div>
+                  {/* Connector */}
+                  {i < PIPELINE_STAGES.length - 1 && (
+                    <div className={`h-0.5 flex-shrink-0 w-4 sm:w-6 mx-0.5 rounded-full transition-all
+                      ${i < stageIdx ? 'bg-emerald-500' : 'bg-border'}`} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          {/* Current stage description */}
+          {!isRejected && status !== 'hired' && (
+            <p className="text-xs text-muted-foreground mt-3 text-center">
+              <span className="font-medium text-foreground">Current stage:</span>{' '}
+              {PIPELINE_STAGES[stageIdx]?.desc}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Rejected message */}
+      {isRejected && (
+        <div className="px-5 py-4 text-center text-sm text-muted-foreground">
+          Thank you for your application. We've moved forward with other candidates at this time.
+        </div>
+      )}
+
+      {/* Action CTA */}
+      {action && !isRejected && (
+        <div className={`px-5 pb-4 ${action.urgent ? '' : ''}`}>
+          <button
+            onClick={() => onAction(action.path)}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold transition-all
+              ${action.urgent
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm'
+                : 'border border-primary text-primary hover:bg-primary/5'}`}>
+            {action.urgent && <span className="animate-pulse h-2 w-2 rounded-full bg-primary-foreground/80" />}
+            {action.label} →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const { user, fullName, signOut } = useAuth();
@@ -120,118 +233,77 @@ const CandidateDashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Card */}
-      <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-accent/5 border-0">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Welcome back, {fullName || 'Candidate'}! 👋</h2>
-              <p className="text-muted-foreground mt-1">Track your applications and explore new opportunities.</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => { signOut(); navigate('/auth'); }}>
-              <LogOut className="h-4 w-4 mr-2" /> Logout
+    <div className="space-y-6 max-w-3xl mx-auto">
+      {/* Welcome banner */}
+      <div className="rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-0 p-6 flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-bold text-foreground">Welcome back, {fullName?.split(' ')[0] || 'Candidate'} 👋</h2>
+          <p className="text-sm text-muted-foreground mt-1">Track your application progress below.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => { signOut(); navigate('/auth'); }} className="gap-1.5 shrink-0">
+          <LogOut className="h-4 w-4" /> Logout
+        </Button>
+      </div>
+
+      {/* Applications with pipeline */}
+      <div>
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3">My Applications</h3>
+        {applications.length === 0 ? (
+          <div className="rounded-2xl border bg-card p-10 text-center">
+            <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="font-semibold text-foreground">No applications yet</p>
+            <p className="text-sm text-muted-foreground mt-1">Browse open positions and apply.</p>
+            <Button className="mt-4 gap-1.5" onClick={() => navigate('/jobs')}>
+              <Briefcase className="h-4 w-4" /> Browse Jobs
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* My Applications */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="h-5 w-5 text-primary" />
-                My Applications
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {applications.length === 0 ? (
-                <div className="text-center py-8">
-                  <Briefcase className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                  <p className="text-muted-foreground">No applications yet</p>
-                  <Button className="mt-3" onClick={() => navigate('/jobs')}>Browse Jobs</Button>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {applications.map((app: any) => {
-                    const action = getStatusAction(app);
-                    return (
-                      <div key={app.id} className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/30 transition-colors">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-foreground">{app.job_positions?.title}</p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground">{app.job_positions?.department}</span>
-                            <span className="text-xs text-muted-foreground">•</span>
-                            <span className="text-xs text-muted-foreground">{new Date(app.applied_at).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={statusColor(app.status)} className="capitalize">{app.status}</Badge>
-                          {action && (
-                            <Button size="sm" variant="outline" onClick={() => navigate(action.path)} className="gap-1">
-                              <action.icon className="h-3.5 w-3.5" />
-                              {action.label}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/jobs')}>
-                <Briefcase className="h-4 w-4" /> Browse Job Openings
-              </Button>
-              <Button variant="outline" className="w-full justify-start gap-2" onClick={() => navigate('/inbox')}>
-                <Mail className="h-4 w-4" /> Messages
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Company Social Media */}
-          {socialLinks && Object.values(socialLinks).some(Boolean) && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Globe className="h-4 w-4 text-primary" /> Follow Us
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {socialIcons.map(({ key, icon: Icon, label }) => {
-                    const url = socialLinks[key];
-                    if (!url) return null;
-                    return (
-                      <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-muted hover:bg-accent transition-colors text-sm">
-                        <Icon className="h-4 w-4" /> {label}
-                      </a>
-                    );
-                  })}
-                  {socialLinks.social_tiktok && (
-                    <a href={socialLinks.social_tiktok} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-muted hover:bg-accent transition-colors text-sm">
-                      TikTok
-                    </a>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {applications.map((app: any) => (
+              <ApplicationPipeline key={app.id} app={app} onAction={(path) => navigate(path)} />
+            ))}
+          </div>
+        )}
       </div>
+
+      {/* Quick links */}
+      <div className="grid grid-cols-2 gap-3">
+        <button onClick={() => navigate('/jobs')}
+          className="rounded-2xl border bg-card p-4 flex items-center gap-3 hover:bg-accent/40 transition-colors text-left">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary"><Briefcase className="h-4 w-4" /></div>
+          <div><p className="text-sm font-semibold">Browse Jobs</p><p className="text-xs text-muted-foreground">Find more positions</p></div>
+        </button>
+        <button onClick={() => navigate('/inbox')}
+          className="rounded-2xl border bg-card p-4 flex items-center gap-3 hover:bg-accent/40 transition-colors text-left">
+          <div className="p-2 rounded-xl bg-primary/10 text-primary"><Mail className="h-4 w-4" /></div>
+          <div><p className="text-sm font-semibold">Messages</p><p className="text-xs text-muted-foreground">Check your inbox</p></div>
+        </button>
+      </div>
+
+      {/* Company social links */}
+      {socialLinks && Object.values(socialLinks).some(Boolean) && (
+        <div>
+          <h3 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3">Follow Us</h3>
+          <div className="flex flex-wrap gap-2">
+            {socialIcons.map(({ key, icon: Icon, label }) => {
+              const url = socialLinks[key];
+              if (!url) return null;
+              return (
+                <a key={key} href={url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border hover:bg-accent transition-colors text-sm">
+                  <Icon className="h-4 w-4" /> {label}
+                </a>
+              );
+            })}
+            {socialLinks.social_tiktok && (
+              <a href={socialLinks.social_tiktok} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border hover:bg-accent transition-colors text-sm">
+                TikTok
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

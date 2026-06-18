@@ -72,22 +72,22 @@ function isStale(app: ApplicationRow) {
   return daysAgo(app.applied_at) > limit;
 }
 
-const STAGE_MESSAGES: Record<string, { subject: string; body: (j: string) => string }> = {
+const STAGE_MESSAGES: Record<string, { subject: string; body: (j: string, appId: string) => string }> = {
   screening: {
     subject: 'Your application has moved to Screening',
-    body: (j) => `Dear Candidate,\n\nGreat news! Your application for the "${j}" position has been selected for screening.\n\nPlease complete the screening questionnaire at your earliest convenience.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+    body: (j, appId) => `Dear Candidate,\n\nGreat news! Your application for the "${j}" position has been selected for screening.\n\nYour next step is to complete the screening questionnaire. Please follow the link below to get started:\n\n👉 Complete Screening: ${window.location.origin}/screening?applicationId=${appId}\n\nPlease complete this at your earliest convenience — it is an important step in our evaluation process.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
   interview: {
     subject: 'Interview Scheduled — Congratulations!',
-    body: (j) => `Dear Candidate,\n\nCongratulations! You've been shortlisted for an interview for the "${j}" position.\n\nPlease check your interview details in the Interviews section of your dashboard.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+    body: (j, _appId) => `Dear Candidate,\n\nCongratulations! You've been shortlisted for an interview for the "${j}" position.\n\nYour next step is to check your interview details and confirm your availability:\n\n👉 View Interview Details: ${window.location.origin}/interviews\n\nPlease make sure you are available at the scheduled time. We look forward to meeting you!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
   offered: {
     subject: 'Job Offer Extended — Action Required',
-    body: (j) => `Dear Candidate,\n\nWe are pleased to extend an offer for the "${j}" position! Please review and sign your contract in the Offers section.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+    body: (j, _appId) => `Dear Candidate,\n\nWe are pleased to extend an offer for the "${j}" position!\n\nYour next step is to review and sign your contract:\n\n👉 Review & Sign Contract: ${window.location.origin}/offers\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
   hired: {
     subject: 'Welcome to the Team! 🎉',
-    body: (j) => `Dear Colleague,\n\nWelcome aboard! You've been officially hired for the "${j}" position.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+    body: (j, _appId) => `Dear Colleague,\n\nWelcome aboard! You've been officially hired for the "${j}" position.\n\nWe're excited to have you join our team at Footprints Dynasty Limited. Further onboarding details will be shared with you shortly.\n\nYou can view your dashboard here:\n👉 ${window.location.origin}/dashboard\n\nCongratulations!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
 };
 
@@ -278,7 +278,7 @@ const Applications = () => {
     const tpl = STAGE_MESSAGES[newStatus];
     if (!tpl || !user) return;
     try {
-      await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title) });
+      await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
     } catch (e) { console.error('Failed to send stage message:', e); }
   };
 
