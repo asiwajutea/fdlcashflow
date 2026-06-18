@@ -294,7 +294,20 @@ const Applications = () => {
     const tpl = STAGE_MESSAGES[newStatus];
     if (!tpl || !user) return;
     try {
+      // Inbox message
       await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
+      // Email notification — fire and forget
+      const { data: prof } = await (supabase as any).from('profiles').select('full_name, email').eq('id', app.candidate.user_id).maybeSingle();
+      const email = prof?.email;
+      if (email) {
+        const emailKeyMap: Record<string, string> = { screening: 'candidate_screening', interview: 'candidate_interview', offered: 'candidate_offered', hired: 'candidate_hired', rejected: 'candidate_rejected' };
+        const emailKey = emailKeyMap[newStatus];
+        if (emailKey) {
+          supabase.functions.invoke('send-email', {
+            body: { template_key: emailKey, to: email, name: (prof?.full_name || 'Candidate').split(' ')[0], user_id: app.candidate.user_id, vars: { job: app.job.title, applicationId: app.id, origin: window.location.origin } },
+          }).catch(e => console.error('stage email failed', e));
+        }
+      }
     } catch (e) { console.error('Failed to send stage message:', e); }
   };
 

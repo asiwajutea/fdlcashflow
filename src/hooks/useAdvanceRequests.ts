@@ -89,18 +89,17 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
           amt = amt ?? Number(req?.amount || 0);
         }
         if (uid) {
-          const { data: prof } = await db.from('profiles').select('full_name, phone').eq('id', uid).maybeSingle();
+          const { data: prof } = await db.from('profiles').select('full_name, phone, email').eq('id', uid).maybeSingle();
+          const { supabase } = await import('@/integrations/supabase/client');
           if (prof?.phone) {
-            const { supabase } = await import('@/integrations/supabase/client');
             supabase.functions.invoke('send-sms', {
-              body: {
-                to: prof.phone, user_id: uid, template_key: 'finance_decision',
-                vars: {
-                  name: (prof.full_name || 'there').split(' ')[0],
-                  amount: Number(amt || 0).toLocaleString(),
-                  status, note: note || '',
-                },
-              },
+              body: { to: prof.phone, user_id: uid, template_key: 'finance_decision', vars: { name: (prof.full_name || 'there').split(' ')[0], amount: Number(amt || 0).toLocaleString(), status, note: note || '' } },
+            }).catch(() => {});
+          }
+          // Also send email
+          if (prof?.email) {
+            supabase.functions.invoke('send-email', {
+              body: { template_key: 'finance_decision', to: prof.email, name: (prof.full_name || 'there').split(' ')[0], user_id: uid, vars: { amount: Number(amt || 0).toLocaleString(), status, note: note || '' } },
             }).catch(() => {});
           }
         }

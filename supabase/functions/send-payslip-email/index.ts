@@ -67,7 +67,8 @@ const handler = async (req: Request): Promise<Response> => {
     }] : [];
 
     const emailPayload: any = {
-      from: "Payslip System <onboarding@resend.dev>",
+      from: "Footprints Dynasty Finance <finance@footprintsdynasty.com.ng>",
+      reply_to: "footprintsdynasty@gmail.com",
       to: [employeeEmail],
       subject: `Your Payslip for ${monthName} ${year} - ${slipNumber}`,
       html: `
