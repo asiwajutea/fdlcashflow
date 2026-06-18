@@ -27,6 +27,7 @@ import { format } from 'date-fns';
 import { AreaChart, Area, PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { ExportMenu } from '@/components/finance/ExportMenu';
 import { RequestTimeline } from '@/components/finance/RequestTimeline';
+import { FinanceHistory } from '@/components/finance/FinanceHistory';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const COLORS = ['#0B1F3B', '#FF7A00', '#10b981', '#8b5cf6', '#ef4444'];
@@ -465,6 +466,7 @@ export default function Finance() {
             {canApprove && <TabsTrigger value="approvals">Approvals {pendingCount > 0 && <Badge variant="destructive" className="ml-2">{pendingCount}</Badge>}</TabsTrigger>}
             {isLeader && <TabsTrigger value="team">Team</TabsTrigger>}
             {canManageBudgets && <TabsTrigger value="settings">Settings</TabsTrigger>}
+            {canApprove && <TabsTrigger value="history">History</TabsTrigger>}
           </TabsList>
 
           {/* OVERVIEW SECTION */}
@@ -816,6 +818,13 @@ export default function Finance() {
             <TabsContent value="settings" className="space-y-6">
               <CategoryManager />
               <BudgetEditor />
+            </TabsContent>
+          )}
+
+          {/* HISTORY */}
+          {canApprove && (
+            <TabsContent value="history">
+              <FinanceHistory />
             </TabsContent>
           )}
         </Tabs>
