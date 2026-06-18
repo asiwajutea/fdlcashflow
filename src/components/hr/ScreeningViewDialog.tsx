@@ -104,13 +104,19 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
       scored_at: new Date().toISOString(),
     };
 
-    const { error } = await (supabase as any)
+    const { error, count } = await (supabase as any)
       .from('screening_responses')
       .update({ responses: updatedResponses, score: finalPercent })
-      .eq('id', currentData.id);
+      .eq('id', currentData.id)
+      .select('id', { count: 'exact', head: true });
 
-    if (error) {
-      if (!silent) toast({ title: 'Error saving scores', description: error.message, variant: 'destructive' });
+    // count === 0 means RLS blocked the update silently
+    if (error || count === 0) {
+      if (!silent) toast({
+        title: error ? 'Error saving scores' : 'Permission denied',
+        description: error?.message || 'Your account does not have permission to update screening scores. Contact an admin.',
+        variant: 'destructive',
+      });
     } else {
       setData((prev: any) => ({ ...prev, score: finalPercent, responses: updatedResponses }));
       setLastSaved(new Date());
