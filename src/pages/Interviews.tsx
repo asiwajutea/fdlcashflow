@@ -170,23 +170,26 @@ const Interviews = () => {
                   )}
                   {/* Add to Calendar */}
                   {interview.interview_date && (
-                    <div className="flex gap-2 flex-wrap">
-                      <Button variant="outline" size="sm" asChild>
-                        <a
-                          href={googleCalendarUrl(interview, interview.job?.title || 'Interview')}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Add to Calendar</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button variant="outline" size="sm" asChild>
+                          <a
+                            href={googleCalendarUrl(interview, interview.job?.title || 'Interview')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <CalendarPlus className="h-4 w-4 mr-1" /> Google Calendar
+                          </a>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadICS(interview, interview.job?.title || 'Interview')}
                         >
-                          <CalendarPlus className="h-4 w-4 mr-1" /> Google Calendar
-                        </a>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => downloadICS(interview, interview.job?.title || 'Interview')}
-                      >
-                        <CalendarPlus className="h-4 w-4 mr-1" /> Apple / Outlook (.ics)
-                      </Button>
+                          <CalendarPlus className="h-4 w-4 mr-1" /> Apple / Outlook (.ics)
+                        </Button>
+                      </div>
                     </div>
                   )}
                   {interview.feedback && (
