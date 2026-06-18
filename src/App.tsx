@@ -148,7 +148,7 @@ const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
   if (pendingStatus === 'pending' && role !== 'candidate' && window.location.pathname !== '/pending-approval') {
     return <Navigate to="/pending-approval" replace />;
   }
-  if (!avatarUrl && window.location.pathname !== '/profile-setup' && window.location.pathname !== '/auth' && window.location.pathname !== '/pending-approval') {
+  if (!avatarUrl && role !== 'candidate' && window.location.pathname !== '/profile-setup' && window.location.pathname !== '/auth' && window.location.pathname !== '/pending-approval') {
     return <Navigate to="/profile-setup" replace />;
   }
   return <>{children}</>;
