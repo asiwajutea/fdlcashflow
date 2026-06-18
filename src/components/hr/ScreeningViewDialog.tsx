@@ -12,6 +12,7 @@ interface ScreeningViewDialogProps {
   applicationId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onScored?: () => void;
 }
 
 const parseAnswer = (answer: string) => {
@@ -39,7 +40,7 @@ function computePercent(parsed: Record<string, number>, questionCount: number): 
 
 const AUTO_SAVE_DELAY = 1500; // ms after last keystroke
 
-const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, open, onOpenChange }) => {
+const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, open, onOpenChange, onScored }) => {
   const { toast }             = useToast();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -117,6 +118,9 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
         const total = Object.values(parsed).reduce((s, v) => s + v, 0);
         const max = questions.length * 10;
         toast({ title: 'Scores saved', description: `Final score: ${finalPercent}% (${total}/${max} points)` });
+        // Close dialog and trigger page refresh so score column updates
+        onScored?.();
+        onOpenChange(false);
       }
     }
     setSaving(false);

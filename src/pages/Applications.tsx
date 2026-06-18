@@ -28,6 +28,7 @@ interface ApplicationRow {
   cover_letter: string | null;
   status: string;
   applied_at: string;
+  updated_at?: string | null;
   candidate: {
     id: string; phone: string | null; education: string | null;
     experience_summary: string | null; resume_url: string | null; user_id: string;
@@ -145,7 +146,7 @@ const Applications = () => {
   const fetchApplications = async () => {
     const { data, error } = await (supabase as any)
       .from('applications')
-      .select(`id, cover_letter, status, applied_at,
+      .select(`id, cover_letter, status, applied_at, updated_at,
         candidates!inner(id, phone, education, experience_summary, resume_url, user_id),
         job_positions!inner(id, title, department, description, requirements)`)
       .order('applied_at', { ascending: false });
@@ -174,7 +175,7 @@ const Applications = () => {
     const mapped: ApplicationRow[] = (data || []).map((a: any) => {
       const prof = profileMap.get(a.candidates.user_id);
       return {
-        id: a.id, cover_letter: a.cover_letter, status: a.status, applied_at: a.applied_at,
+        id: a.id, cover_letter: a.cover_letter, status: a.status, applied_at: a.applied_at, updated_at: a.updated_at || null,
         candidate: a.candidates, job: a.job_positions,
         candidate_name: prof?.name || 'Unknown',
         candidate_avatar: prof?.avatar || null,
@@ -302,7 +303,7 @@ const Applications = () => {
     const { error } = await (supabase as any).from('applications').update({ status: newStatus }).eq('id', appId);
     if (error) { toast({ title: 'Error', description: error.message, variant: 'destructive' }); return; }
     toast({ title: 'Status Updated', description: `Application moved to "${newStatus}"` });
-    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus } : a));
+    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status: newStatus, updated_at: new Date().toISOString() } : a));
     if (app) {
       sendStageMessage(app, newStatus);
       try {
@@ -461,14 +462,21 @@ const Applications = () => {
                       <TableCell className="text-sm">{app.job.title}</TableCell>
                       <TableCell className="text-sm text-muted-foreground hidden md:table-cell">{app.job.department}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <Select value={app.status} onValueChange={(v) => handleStatusChange(app.id, v)}>
-                            <SelectTrigger className="w-[120px] h-7 text-xs border-0 p-0 shadow-none focus:ring-0">
-                              <Badge className={`text-xs font-medium border capitalize ${statusColor[app.status]}`}>{app.status}</Badge>
-                            </SelectTrigger>
-                            <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}</SelectContent>
-                          </Select>
-                          {generatingScreening === app.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-1.5">
+                            <Select value={app.status} onValueChange={(v) => handleStatusChange(app.id, v)}>
+                              <SelectTrigger className="w-[120px] h-7 text-xs border-0 p-0 shadow-none focus:ring-0">
+                                <Badge className={`text-xs font-medium border capitalize ${statusColor[app.status]}`}>{app.status}</Badge>
+                              </SelectTrigger>
+                              <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}</SelectContent>
+                            </Select>
+                            {generatingScreening === app.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                          </div>
+                          {app.updated_at && (
+                            <span className="text-[10px] text-muted-foreground/70 pl-0.5">
+                              {new Date(app.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
@@ -589,7 +597,7 @@ const Applications = () => {
           </DialogContent>
         </Dialog>
 
-        <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} />
+        <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
         <InterviewScheduleDialog applicationId={interviewAppId} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
         <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
       </div>
