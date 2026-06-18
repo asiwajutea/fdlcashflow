@@ -154,6 +154,15 @@ const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
   return <>{children}</>;
 };
 
+// Guard that blocks candidates from employee-only pages
+const EmployeeGuard = ({ children }: { children: React.ReactNode }) => {
+  const { user, role, loading } = useAuth();
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (role === 'candidate') return <Navigate to="/dashboard" replace />;
+  return <>{children}</>;
+};
+
 const AppRoutes = () =>
 <Suspense fallback={<LoadingFallback />}>
     <Routes>
@@ -198,15 +207,15 @@ const AppRoutes = () =>
       <Route path="/inbox" element={<AvatarGuard><Inbox /></AvatarGuard>} />
 
       {/* Employee skeleton routes */}
-      <Route path="/my-invoices" element={<AvatarGuard><MyInvoices /></AvatarGuard>} />
-      <Route path="/activity-report" element={<AvatarGuard><ActivityReport /></AvatarGuard>} />
-      <Route path="/my-finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
-      <Route path="/finance" element={<AvatarGuard><EmpFinance /></AvatarGuard>} />
-      <Route path="/suggestions" element={<AvatarGuard><Suggestions /></AvatarGuard>} />
-      <Route path="/knowledge-base" element={<AvatarGuard><KnowledgeBase /></AvatarGuard>} />
-      <Route path="/knowledge-base/:slug" element={<AvatarGuard><KBArticle /></AvatarGuard>} />
-      <Route path="/employee-support" element={<AvatarGuard><EmployeeSupport /></AvatarGuard>} />
-      <Route path="/team-reports" element={<AvatarGuard><TeamReports /></AvatarGuard>} />
+      <Route path="/my-invoices" element={<AvatarGuard><EmployeeGuard><MyInvoices /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/activity-report" element={<AvatarGuard><EmployeeGuard><ActivityReport /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/my-finance" element={<AvatarGuard><EmployeeGuard><EmpFinance /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/finance" element={<AvatarGuard><EmployeeGuard><EmpFinance /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/suggestions" element={<AvatarGuard><EmployeeGuard><Suggestions /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/knowledge-base" element={<AvatarGuard><EmployeeGuard><KnowledgeBase /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/knowledge-base/:slug" element={<AvatarGuard><EmployeeGuard><KBArticle /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/employee-support" element={<AvatarGuard><EmployeeGuard><EmployeeSupport /></EmployeeGuard></AvatarGuard>} />
+      <Route path="/team-reports" element={<AvatarGuard><EmployeeGuard><TeamReports /></EmployeeGuard></AvatarGuard>} />
 
       {/* CMS routes */}
       <Route path="/cms" element={<AvatarGuard><CapabilityGuard requires="manage_website_content"><CMSDashboard /></CapabilityGuard></AvatarGuard>} />

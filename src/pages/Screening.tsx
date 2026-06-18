@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,8 +23,6 @@ const Screening = () => {
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [score, setScore] = useState<number | null>(null);
-  const [feedback, setFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -48,18 +45,13 @@ const Screening = () => {
       return;
     }
 
-    if (!data) {
-      setLoading(false);
-      return;
-    }
+    if (!data) { setLoading(false); return; }
 
     setScreening(data);
     const responses = data.responses as any;
     if (responses?.answers && Object.keys(responses.answers).length > 0) {
       setSubmitted(true);
       setAnswers(responses.answers);
-      setScore(data.score);
-      setFeedback(responses.feedback || null);
     }
     setLoading(false);
   };
@@ -69,19 +61,35 @@ const Screening = () => {
     setSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('score-screening', {
+      // Step 1: Save answers immediately — this always works regardless of AI credit.
+      const updatedResponses = {
+        ...(screening.responses as any),
+        answers,
+        submitted_at: new Date().toISOString(),
+      };
+      const { error: saveErr } = await (supabase as any)
+        .from('screening_responses')
+        .update({ responses: updatedResponses })
+        .eq('id', screening.id);
+      if (saveErr) throw saveErr;
+
+      setSubmitted(true);
+
+      // Step 2: Attempt AI scoring in the background — failure is non-blocking.
+      // Candidates never see the score; HR/admin can also score manually.
+      supabase.functions.invoke('score-screening', {
         body: { application_id: applicationId, answers },
+      }).catch(() => {
+        // Silently swallow — score will be assigned manually by HR if AI is unavailable.
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      setScore(data.score);
-      setFeedback(data.feedback);
-      setSubmitted(true);
-      toast({ title: 'Submitted!', description: `Your screening has been scored: ${data.score}/100` });
+      toast({
+        title: 'Submitted successfully!',
+        description: 'Your screening responses have been recorded. HR will be in touch soon.',
+      });
     } catch (e: any) {
       toast({ title: 'Error', description: e.message || 'Failed to submit screening', variant: 'destructive' });
+      setSubmitted(false);
     } finally {
       setSubmitting(false);
     }
@@ -90,17 +98,14 @@ const Screening = () => {
   const handleVoiceRecording = (questionId: string, audioUrl: string) => {
     setAnswers((prev) => {
       const existing = prev[questionId] || '';
-      // Remove any existing audio:: prefix
       const textPart = existing.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim();
       if (!audioUrl) return { ...prev, [questionId]: textPart };
-      const newValue = textPart ? `${textPart}\naudio::${audioUrl}` : `audio::${audioUrl}`;
-      return { ...prev, [questionId]: newValue };
+      return { ...prev, [questionId]: textPart ? `${textPart}\naudio::${audioUrl}` : `audio::${audioUrl}` };
     });
   };
 
-  const getTextPart = (answer: string) => {
-    return answer?.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim() || '';
-  };
+  const getTextPart = (answer: string) =>
+    answer?.split('\n').filter((l) => !l.startsWith('audio::')).join('\n').trim() || '';
 
   const getAudioUrl = (answer: string) => {
     const line = answer?.split('\n').find((l) => l.startsWith('audio::'));
@@ -113,7 +118,7 @@ const Screening = () => {
     return (
       <DashboardLayout title="Screening">
         <div className="flex items-center justify-center py-20">
-          <p className="text-muted-foreground">Loading...</p>
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       </DashboardLayout>
     );
@@ -146,17 +151,16 @@ const Screening = () => {
   return (
     <DashboardLayout title="Screening Questionnaire">
       <div className="max-w-2xl mx-auto space-y-4 sm:space-y-6">
+
+        {/* Submission confirmation — no score or feedback shown to candidate */}
         {submitted && (
           <Card className="border-green-200 bg-green-50 dark:bg-green-950/20">
             <CardContent className="pt-6 text-center">
               <CheckCircle className="h-12 w-12 mx-auto text-green-600 mb-2" />
               <h3 className="text-lg font-semibold">Screening Completed</h3>
-              {score !== null && (
-                <Badge variant="secondary" className="mt-2 text-lg px-4 py-1">
-                  Score: {score}/100
-                </Badge>
-              )}
-              {feedback && <p className="text-sm text-muted-foreground mt-3">{feedback}</p>}
+              <p className="text-sm text-muted-foreground mt-2">
+                Your responses have been recorded. Our HR team will review them and get back to you.
+              </p>
             </CardContent>
           </Card>
         )}
@@ -189,8 +193,7 @@ const Screening = () => {
                     value={getTextPart(answers[q.id] || '')}
                     onChange={(e) => {
                       const audio = getAudioUrl(answers[q.id] || '');
-                      const newVal = audio ? `${e.target.value}\naudio::${audio}` : e.target.value;
-                      setAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                      setAnswers((prev) => ({ ...prev, [q.id]: audio ? `${e.target.value}\naudio::${audio}` : e.target.value }));
                     }}
                     disabled={submitted}
                     rows={3}
@@ -212,9 +215,7 @@ const Screening = () => {
         {!submitted && questions.length > 0 && (
           <Button onClick={handleSubmit} disabled={submitting} className="w-full" size="lg">
             {submitting ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Scoring your responses...
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting…</>
             ) : (
               'Submit Screening'
             )}
