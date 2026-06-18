@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { CheckCircle, Loader2, ClipboardList } from 'lucide-react';
+import { CheckCircle, Loader2, ClipboardList, Save } from 'lucide-react';
 import VoiceRecorder from '@/components/VoiceRecorder';
 
 const Screening = () => {
@@ -23,6 +23,14 @@ const Screening = () => {
   const [submitting, setSubmitting] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [autoSaving, setAutoSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refs so auto-save closure always reads latest values
+  const screeningRef = useRef<any>(null);
+  const answersRef   = useRef<Record<string, string>>({});
+  useEffect(() => { screeningRef.current = screening; }, [screening]);
+  useEffect(() => { answersRef.current = answers; }, [answers]);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/auth');
@@ -50,11 +58,44 @@ const Screening = () => {
     setScreening(data);
     const responses = data.responses as any;
     if (responses?.answers && Object.keys(responses.answers).length > 0) {
-      setSubmitted(true);
+      // Restore all saved answers — including drafts not yet submitted
       setAnswers(responses.answers);
+      if (responses?.submitted_at) {
+        setSubmitted(true);
+      }
+      if (responses?.last_saved_at) {
+        setLastSaved(new Date(responses.last_saved_at));
+      }
     }
     setLoading(false);
   };
+
+  // Auto-save candidate answers (silent, uses refs to avoid stale closures)
+  const performAutoSave = useCallback(async () => {
+    const sc = screeningRef.current;
+    const ans = answersRef.current;
+    if (!sc || Object.keys(ans).length === 0) return;
+    setAutoSaving(true);
+    const updatedResponses = { ...(sc.responses as any), answers: ans, last_saved_at: new Date().toISOString() };
+    const { error } = await (supabase as any)
+      .from('screening_responses')
+      .update({ responses: updatedResponses })
+      .eq('id', sc.id);
+    if (!error) {
+      setLastSaved(new Date());
+      setScreening((prev: any) => prev ? { ...prev, responses: updatedResponses } : prev);
+    }
+    setAutoSaving(false);
+  }, []);
+
+  const scheduleAutoSave = useCallback(() => {
+    if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => performAutoSave(), 1500);
+  }, [performAutoSave]);
+
+  useEffect(() => {
+    return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+  }, []);
 
   const handleSubmit = async () => {
     if (!screening) return;
@@ -102,6 +143,7 @@ const Screening = () => {
       if (!audioUrl) return { ...prev, [questionId]: textPart };
       return { ...prev, [questionId]: textPart ? `${textPart}\naudio::${audioUrl}` : `audio::${audioUrl}` };
     });
+    scheduleAutoSave();
   };
 
   const getTextPart = (answer: string) =>
@@ -196,6 +238,7 @@ const Screening = () => {
                       // Preserve the full typed value including spaces — only re-attach the audio line
                       const newVal = audio ? `${e.target.value}\naudio::${audio}` : e.target.value;
                       setAnswers((prev) => ({ ...prev, [q.id]: newVal }));
+                      scheduleAutoSave();
                     }}
                     onKeyDown={(e) => {
                       // Explicitly allow space key to prevent any browser/React stripping
@@ -219,13 +262,33 @@ const Screening = () => {
         ))}
 
         {!submitted && questions.length > 0 && (
-          <Button onClick={handleSubmit} disabled={submitting} className="w-full" size="lg">
-            {submitting ? (
-              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting…</>
-            ) : (
-              'Submit Screening'
-            )}
-          </Button>
+          <div className="space-y-3">
+            {/* Auto-save status */}
+            <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+              <span className="flex items-center gap-1.5">
+                {autoSaving
+                  ? <><Loader2 className="h-3 w-3 animate-spin" /> Saving draft…</>
+                  : lastSaved
+                    ? <><Save className="h-3 w-3 text-emerald-500" /> Draft saved {lastSaved.toLocaleTimeString()}</>
+                    : 'Answers auto-save as you type'}
+              </span>
+              <button
+                type="button"
+                onClick={() => performAutoSave()}
+                disabled={autoSaving}
+                className="underline hover:no-underline disabled:opacity-50"
+              >
+                Save draft now
+              </button>
+            </div>
+            <Button onClick={handleSubmit} disabled={submitting} className="w-full" size="lg">
+              {submitting ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Submitting…</>
+              ) : (
+                'Submit Screening'
+              )}
+            </Button>
+          </div>
         )}
       </div>
     </DashboardLayout>
