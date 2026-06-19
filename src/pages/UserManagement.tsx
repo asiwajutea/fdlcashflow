@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
 import RoleManagement, { CustomRole } from '@/components/RoleManagement';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Users, Plus, Edit, RefreshCw, Shield, Eye, EyeOff, ArrowLeft, Copy, Check, X, Search, MoreHorizontal, UserCheck, UserX, Clock } from 'lucide-react';
 
@@ -67,9 +69,27 @@ const UserManagement = () => {
     role: 'employee' as 'admin' | 'employee' | 'guest',
     is_active: true,
     new_password: '',
-    manager_id: '' as string
+    manager_id: '' as string,
+    // Employment fields
+    phone: '',
+    birthday: '',
+    gender: '',
+    employee_id: '',
+    employment_start_date: '',
+    position_ids: [] as string[],
+    department_ids: [] as string[],
+    project_ids: [] as string[],
+    team_ids: [] as string[],
+    bank_name: '',
+    account_number: '',
+    account_name: '',
   });
   const [managerOptions, setManagerOptions] = useState<{ id: string; full_name: string | null }[]>([]);
+  // Lookup tables for employment fields
+  const [positions, setPositions]     = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [projects, setProjects]       = useState<{ id: string; name: string }[]>([]);
+  const [teams, setTeams]             = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     if (role && role !== 'admin') {
@@ -153,6 +173,7 @@ const UserManagement = () => {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       
+      // Update auth/role via edge function
       const response = await supabase.functions.invoke('update-user', {
         body: {
           user_id: selectedUser.id,
@@ -162,14 +183,35 @@ const UserManagement = () => {
           new_password: editForm.new_password || undefined,
           manager_id: editForm.manager_id || null,
         },
-        headers: {
-          Authorization: `Bearer ${sessionData.session?.access_token}`
-        }
+        headers: { Authorization: `Bearer ${sessionData.session?.access_token}` }
       });
-
       if (response.error) throw response.error;
 
-      toast({ title: 'User Updated', description: 'User details updated successfully' });
+      // Save employment fields directly to profiles
+      const profilePayload: Record<string, any> = {
+        phone:                editForm.phone || null,
+        birthday:             editForm.birthday || null,
+        gender:               editForm.gender || null,
+        employee_id:          editForm.employee_id || null,
+        employment_start_date: editForm.employment_start_date || null,
+        position_ids:         editForm.position_ids,
+        department_ids:       editForm.department_ids,
+        project_ids:          editForm.project_ids,
+        team_ids:             editForm.team_ids,
+        // Keep single-value FK in sync with first selection
+        position_id:   editForm.position_ids[0]   || null,
+        department_id: editForm.department_ids[0] || null,
+        project_id:    editForm.project_ids[0]    || null,
+        team_id:       editForm.team_ids[0]        || null,
+        bank_name:     editForm.bank_name     || null,
+        account_number: editForm.account_number || null,
+        account_name:  editForm.account_name   || null,
+      };
+      const { error: profErr } = await (supabase as any)
+        .from('profiles').update(profilePayload).eq('id', selectedUser.id);
+      if (profErr) throw profErr;
+
+      toast({ title: 'User Updated', description: 'User details and employment profile saved.' });
       setEditDialogOpen(false);
       fetchUsers();
     } catch (error: any) {
@@ -292,18 +334,37 @@ const UserManagement = () => {
 
   const openEditDialog = async (user: User) => {
     setSelectedUser(user);
-    // Load current manager_id from profile and the list of potential managers
-    const [{ data: prof }, { data: profs }] = await Promise.all([
-      (supabase as any).from('profiles').select('manager_id').eq('id', user.id).maybeSingle(),
+    const [{ data: prof }, { data: profs }, posRes, deptRes, projRes, teamRes] = await Promise.all([
+      (supabase as any).from('profiles').select('*').eq('id', user.id).maybeSingle(),
       (supabase as any).from('profiles').select('id, full_name').neq('id', user.id).order('full_name'),
+      db.from('positions').select('id, name').eq('is_active', true).order('name'),
+      db.from('departments').select('id, name').eq('is_active', true).order('name'),
+      db.from('projects').select('id, name').eq('is_active', true).order('name'),
+      db.from('teams').select('id, name').eq('is_active', true).order('name'),
     ]);
     setManagerOptions(profs || []);
+    setPositions((posRes as any).data || []);
+    setDepartments((deptRes as any).data || []);
+    setProjects((projRes as any).data || []);
+    setTeams((teamRes as any).data || []);
     setEditForm({
       full_name: user.full_name || '',
       role: user.role,
       is_active: user.is_active,
       new_password: '',
-      manager_id: prof?.manager_id || ''
+      manager_id: prof?.manager_id || '',
+      phone: prof?.phone || '',
+      birthday: prof?.birthday || '',
+      gender: prof?.gender || '',
+      employee_id: prof?.employee_id || '',
+      employment_start_date: prof?.employment_start_date || '',
+      position_ids: prof?.position_ids || (prof?.position_id ? [prof.position_id] : []),
+      department_ids: prof?.department_ids || (prof?.department_id ? [prof.department_id] : []),
+      project_ids: prof?.project_ids || (prof?.project_id ? [prof.project_id] : []),
+      team_ids: prof?.team_ids || (prof?.team_id ? [prof.team_id] : []),
+      bank_name: prof?.bank_name || '',
+      account_number: prof?.account_number || '',
+      account_name: prof?.account_name || '',
     });
     setEditDialogOpen(true);
   };
@@ -590,15 +651,13 @@ const UserManagement = () => {
 
         {/* Edit User Dialog */}
         <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-xl max-h-[88vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit User: {selectedUser?.email}</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label>Full Name</Label>
-                <Input value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} />
-              </div>
+              {/* Account */}
+              <div><Label>Full Name</Label><Input value={editForm.full_name} onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })} /></div>
               <div>
                 <Label>Role</Label>
                 <Select value={editForm.role} onValueChange={(value: any) => setEditForm({ ...editForm, role: value })}>
@@ -612,31 +671,55 @@ const UserManagement = () => {
               </div>
               <div>
                 <Label>Direct Manager</Label>
-                <Select
-                  value={editForm.manager_id || 'none'}
-                  onValueChange={(v) => setEditForm({ ...editForm, manager_id: v === 'none' ? '' : v })}
-                >
+                <Select value={editForm.manager_id || 'none'} onValueChange={(v) => setEditForm({ ...editForm, manager_id: v === 'none' ? '' : v })}>
                   <SelectTrigger><SelectValue placeholder="Select direct manager…" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— No manager —</SelectItem>
-                    {managerOptions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>
-                    ))}
+                    {managerOptions.map((p) => (<SelectItem key={p.id} value={p.id}>{p.full_name || p.id}</SelectItem>))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Direct managers can view this user's form submissions and analytics.
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Direct managers can view this user's form submissions and analytics.</p>
               </div>
-              <div>
-                <Label>New Password (leave blank to keep current)</Label>
-                <Input type="password" value={editForm.new_password} onChange={(e) => setEditForm({ ...editForm, new_password: e.target.value })} placeholder="••••••••" />
+              <div><Label>New Password <span className="text-muted-foreground font-normal">(leave blank to keep current)</span></Label><Input type="password" value={editForm.new_password} onChange={(e) => setEditForm({ ...editForm, new_password: e.target.value })} placeholder="••••••••" /></div>
+              <div className="flex items-center gap-2"><Switch checked={editForm.is_active} onCheckedChange={(checked) => setEditForm({ ...editForm, is_active: checked })} /><Label>Account Active</Label></div>
+
+              <Separator />
+              <p className="text-sm font-semibold text-foreground">Employment Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Employee ID</Label><Input value={editForm.employee_id} onChange={e => setEditForm({ ...editForm, employee_id: e.target.value })} placeholder="e.g. FDL-001" /></div>
+                <div><Label>Start Date</Label><Input type="date" value={editForm.employment_start_date} onChange={e => setEditForm({ ...editForm, employment_start_date: e.target.value })} /></div>
+                <div><Label>Phone</Label><Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} placeholder="+234…" /></div>
+                <div><Label>Birthday</Label><Input type="date" value={editForm.birthday} onChange={e => setEditForm({ ...editForm, birthday: e.target.value })} /></div>
+                <div className="col-span-2">
+                  <Label>Gender</Label>
+                  <Select value={editForm.gender} onValueChange={v => setEditForm({ ...editForm, gender: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch checked={editForm.is_active} onCheckedChange={(checked) => setEditForm({ ...editForm, is_active: checked })} />
-                <Label>Account Active</Label>
+              <div className="space-y-3">
+                <div><Label>Designation(s)</Label><MultiSelect options={positions.map(p=>({value:p.id,label:p.name}))} value={editForm.position_ids} onChange={v=>setEditForm({...editForm,position_ids:v})} placeholder="Select designation(s)…" /></div>
+                <div><Label>Department(s)</Label><MultiSelect options={departments.map(d=>({value:d.id,label:d.name}))} value={editForm.department_ids} onChange={v=>setEditForm({...editForm,department_ids:v})} placeholder="Select department(s)…" /></div>
+                <div><Label>Project(s)</Label><MultiSelect options={projects.map(p=>({value:p.id,label:p.name}))} value={editForm.project_ids} onChange={v=>setEditForm({...editForm,project_ids:v})} placeholder="Select project(s)…" /></div>
+                <div><Label>Team(s)</Label><MultiSelect options={teams.map(t=>({value:t.id,label:t.name}))} value={editForm.team_ids} onChange={v=>setEditForm({...editForm,team_ids:v})} placeholder="Select team(s)…" /></div>
               </div>
+
+              <Separator />
+              <p className="text-sm font-semibold text-foreground">Bank Details</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div><Label>Bank Name</Label><Input value={editForm.bank_name} onChange={e=>setEditForm({...editForm,bank_name:e.target.value})} placeholder="e.g. First Bank" /></div>
+                <div><Label>Account Number</Label><Input value={editForm.account_number} onChange={e=>setEditForm({...editForm,account_number:e.target.value})} placeholder="0123456789" /></div>
+                <div className="col-span-2"><Label>Account Name</Label><Input value={editForm.account_name} onChange={e=>setEditForm({...editForm,account_name:e.target.value})} placeholder="As it appears on bank records" /></div>
+              </div>
+
               <DialogFooter>
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
                 <Button onClick={handleEditUser}>Save Changes</Button>
               </DialogFooter>
             </div>
