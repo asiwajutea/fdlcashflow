@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MultiSelect } from '@/components/ui/multi-select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,6 +38,11 @@ const Profile = () => {
     department_id: '',
     project_id: '',
     team_id: '',
+    // Multi-select arrays
+    position_ids: [] as string[],
+    department_ids: [] as string[],
+    project_ids: [] as string[],
+    team_ids: [] as string[],
     bank_name: '',
     account_number: '',
     account_name: '',
@@ -104,6 +110,10 @@ const Profile = () => {
         department_id: p.department_id || '',
         project_id: p.project_id || '',
         team_id: p.team_id || '',
+        position_ids: p.position_ids || (p.position_id ? [p.position_id] : []),
+        department_ids: p.department_ids || (p.department_id ? [p.department_id] : []),
+        project_ids: p.project_ids || (p.project_id ? [p.project_id] : []),
+        team_ids: p.team_ids || (p.team_id ? [p.team_id] : []),
         bank_name,
         account_number,
         account_name,
@@ -154,10 +164,14 @@ const Profile = () => {
         gender: form.gender || null,
         employee_id: form.employee_id || null,
         employment_start_date: form.employment_start_date || null,
-        position_id: form.position_id || null,
-        department_id: form.department_id || null,
-        project_id: form.project_id || null,
-        team_id: form.team_id || null,
+        position_id: form.position_ids[0] || form.position_id || null,
+        department_id: form.department_ids[0] || form.department_id || null,
+        project_id: form.project_ids[0] || form.project_id || null,
+        team_id: form.team_ids[0] || form.team_id || null,
+        position_ids: form.position_ids,
+        department_ids: form.department_ids,
+        project_ids: form.project_ids,
+        team_ids: form.team_ids,
         bank_name: form.bank_name || null,
         account_number: form.account_number || null,
         account_name: form.account_name || null,
@@ -329,32 +343,40 @@ const Profile = () => {
                 <Input type="date" value={form.employment_start_date} onChange={(e) => setF({ employment_start_date: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Position</Label>
-                <Select value={form.position_id} onValueChange={(v) => setF({ position_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select position" /></SelectTrigger>
-                  <SelectContent>{positions.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Designation(s)</Label>
+                <MultiSelect
+                  options={positions.map(p => ({ value: p.id, label: p.name }))}
+                  value={form.position_ids}
+                  onChange={v => setF({ position_ids: v })}
+                  placeholder="Select designation(s)"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Department</Label>
-                <Select value={form.department_id} onValueChange={(v) => setF({ department_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
-                  <SelectContent>{departments.map(d => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Department(s)</Label>
+                <MultiSelect
+                  options={departments.map(d => ({ value: d.id, label: d.name }))}
+                  value={form.department_ids}
+                  onChange={v => setF({ department_ids: v })}
+                  placeholder="Select department(s)"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Project</Label>
-                <Select value={form.project_id} onValueChange={(v) => setF({ project_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
-                  <SelectContent>{projects.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Project(s)</Label>
+                <MultiSelect
+                  options={projects.map(p => ({ value: p.id, label: p.name }))}
+                  value={form.project_ids}
+                  onChange={v => setF({ project_ids: v })}
+                  placeholder="Select project(s)"
+                />
               </div>
               <div className="space-y-2">
-                <Label>Team</Label>
-                <Select value={form.team_id} onValueChange={(v) => setF({ team_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
-                  <SelectContent>{teams.map(t => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Team(s)</Label>
+                <MultiSelect
+                  options={teams.map(t => ({ value: t.id, label: t.name }))}
+                  value={form.team_ids}
+                  onChange={v => setF({ team_ids: v })}
+                  placeholder="Select team(s)"
+                />
               </div>
             </div>
           </CardContent>

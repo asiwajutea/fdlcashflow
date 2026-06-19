@@ -187,26 +187,24 @@ const UserManagement = () => {
       });
       if (response.error) throw response.error;
 
-      // Save employment fields directly to profiles
-      const profilePayload: Record<string, any> = {
-        phone:                editForm.phone || null,
-        birthday:             editForm.birthday || null,
-        gender:               editForm.gender || null,
-        employee_id:          editForm.employee_id || null,
-        employment_start_date: editForm.employment_start_date || null,
-        position_ids:         editForm.position_ids,
-        department_ids:       editForm.department_ids,
-        project_ids:          editForm.project_ids,
-        team_ids:             editForm.team_ids,
-        // Keep single-value FK in sync with first selection
-        position_id:   editForm.position_ids[0]   || null,
-        department_id: editForm.department_ids[0] || null,
-        project_id:    editForm.project_ids[0]    || null,
-        team_id:       editForm.team_ids[0]        || null,
-        bank_name:     editForm.bank_name     || null,
-        account_number: editForm.account_number || null,
-        account_name:  editForm.account_name   || null,
-      };
+      // Save employment fields directly to profiles (exclude bank fields — employee-only)
+      const profilePayload: Record<string, any> = Object.fromEntries(
+        Object.entries({
+          phone:                editForm.phone || null,
+          birthday:             editForm.birthday || null,
+          gender:               editForm.gender || null,
+          employee_id:          editForm.employee_id || null,
+          employment_start_date: editForm.employment_start_date || null,
+          position_ids:         editForm.position_ids,
+          department_ids:       editForm.department_ids,
+          project_ids:          editForm.project_ids,
+          team_ids:             editForm.team_ids,
+          position_id:   editForm.position_ids[0]   || null,
+          department_id: editForm.department_ids[0] || null,
+          project_id:    editForm.project_ids[0]    || null,
+          team_id:       editForm.team_ids[0]        || null,
+        }).filter(([, v]) => v !== undefined)
+      );
       const { error: profErr } = await (supabase as any)
         .from('profiles').update(profilePayload).eq('id', selectedUser.id);
       if (profErr) throw profErr;
@@ -711,11 +709,11 @@ const UserManagement = () => {
               </div>
 
               <Separator />
-              <p className="text-sm font-semibold text-foreground">Bank Details</p>
+              <p className="text-sm font-semibold text-foreground">Bank Details <span className="text-xs font-normal text-muted-foreground">(read-only — employee updates via their profile)</span></p>
               <div className="grid grid-cols-2 gap-3">
-                <div><Label>Bank Name</Label><Input value={editForm.bank_name} onChange={e=>setEditForm({...editForm,bank_name:e.target.value})} placeholder="e.g. First Bank" /></div>
-                <div><Label>Account Number</Label><Input value={editForm.account_number} onChange={e=>setEditForm({...editForm,account_number:e.target.value})} placeholder="0123456789" /></div>
-                <div className="col-span-2"><Label>Account Name</Label><Input value={editForm.account_name} onChange={e=>setEditForm({...editForm,account_name:e.target.value})} placeholder="As it appears on bank records" /></div>
+                <div><Label>Bank Name</Label><Input value={editForm.bank_name} disabled className="bg-muted" /></div>
+                <div><Label>Account Number</Label><Input value={editForm.account_number} disabled className="bg-muted" /></div>
+                <div className="col-span-2"><Label>Account Name</Label><Input value={editForm.account_name} disabled className="bg-muted" /></div>
               </div>
 
               <DialogFooter>
