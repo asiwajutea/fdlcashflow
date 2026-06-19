@@ -311,7 +311,7 @@ const EmployeeManagement = () => {
         </Card>
 
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
                 {editingEmployee ? 'Edit Employee' : 'Add New Employee'}
