@@ -136,7 +136,7 @@ const Careers = () => {
                       </div>
                     </div>
                     <Button asChild className="w-full sm:w-auto rounded-full bg-gradient-to-r from-brand-red-orange to-brand-red-orange-dark text-primary-foreground border-0 shadow-glow-orange shrink-0">
-                      <Link to="/apply">
+                      <Link to={`/apply?jobId=${job.id}`}>
                         Apply Now <ArrowRight className="ml-2 h-4 w-4" />
                       </Link>
                     </Button>

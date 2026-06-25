@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,8 +26,12 @@ const STEPS = [
 
 const Auth = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo  = searchParams.get('redirect') || '/dashboard';
+  const modeParam   = searchParams.get('mode'); // 'login' | 'signup'
+  const roleParam   = searchParams.get('role'); // 'candidate' | 'employee'
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('login');
+  const [activeTab, setActiveTab] = useState(modeParam === 'signup' ? 'signup' : 'login');
   const [loading, setLoading] = useState(false);
   const [loginStep, setLoginStep] = useState<'credentials' | 'passcode'>('credentials');
   const [storedUserId, setStoredUserId] = useState<string | null>(null);
@@ -42,7 +46,7 @@ const Auth = () => {
   const [step, setStep] = useState(0);
   const [signupData, setSignupData] = useState({
     email: '', password: '', confirmPassword: '', fullName: '',
-    signupType: 'employee' as 'employee' | 'candidate',
+    signupType: (roleParam === 'candidate' ? 'candidate' : 'employee') as 'employee' | 'candidate',
     birthday: '', gender: '', phone: '',
     positionId: '', departmentId: '', projectId: '', teamId: '',
     employmentStartDate: '', employeeId: ''
@@ -87,7 +91,7 @@ const Auth = () => {
 
       if (roleData?.role === 'candidate') {
         toast({ title: "Success", description: "Login successful" });
-        navigate('/dashboard');
+        navigate(redirectTo);
         return;
       }
 
@@ -147,7 +151,7 @@ const Auth = () => {
         return;
       }
       toast({ title: "Success", description: "Login successful" });
-      navigate('/dashboard');
+      navigate(redirectTo);
     } catch (error: any) {
       setLoginStep('credentials'); setPasscode(''); setStoredUserId(null);
       toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
@@ -274,7 +278,20 @@ const Auth = () => {
         }
         toast({ title: "Check your email", description: "We sent a verification link. Once you verify, sign in to continue." });
       } else {
-        toast({ title: "Account Created", description: "You can now log in and apply for jobs." });
+        // Candidate — if they came from an application redirect, send them back after verifying
+        if (redirectTo !== '/dashboard') {
+          navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}&redirect=${encodeURIComponent(redirectTo)}`);
+          return;
+        } else {
+          navigate(`/verify-email?email=${encodeURIComponent(signupData.email)}`);
+          return;
+        }
+      }
+
+      if (!isEmployee) {
+        // fallback already handled above
+      } else {
+        // Reset for employee
       }
 
       // Reset
@@ -349,6 +366,11 @@ const Auth = () => {
                 <Button type="submit" className="w-full bg-gradient-primary" disabled={loading}>
                   {loading ? 'Signing In...' : 'Sign In'}
                 </Button>
+                <div className="text-center">
+                  <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                    Forgot your password?
+                  </Link>
+                </div>
               </form>
             </TabsContent>
 

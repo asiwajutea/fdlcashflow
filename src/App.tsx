@@ -59,6 +59,9 @@ const KnowledgeBase = lazy(() => import("./pages/employee/KnowledgeBase"));
 const KBArticle = lazy(() => import("./pages/employee/KnowledgeBaseArticle"));
 const EmployeeSupport = lazy(() => import("./pages/employee/EmployeeSupport"));
 const MyContract = lazy(() => import("./pages/employee/MyContract"));
+const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ContractTemplates = lazy(() => import("./pages/admin/ContractTemplates"));
 const EmailLogs = lazy(() => import("./pages/admin/EmailLogs"));
 
@@ -204,6 +207,9 @@ const AppRoutes = () =>
 
       {/* Auth */}
       <Route path="/auth" element={<Auth />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/apply" element={<Apply />} />
       <Route path="/profile-setup" element={<ProfileSetup />} />
       <Route path="/profile" element={<AvatarGuard><Profile /></AvatarGuard>} />
