@@ -18,7 +18,7 @@ import { FileText, Plus, Trash2, Edit, Loader2 } from 'lucide-react';
 const empty = { title: '', role_name: '', position_id: '', body_html: '', is_active: true };
 
 export default function ContractTemplates() {
-  const { user, role } = useAuth();
+  const { user, role, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
   const [positions, setPositions] = useState<any[]>([]);
@@ -41,6 +41,7 @@ export default function ContractTemplates() {
 
   useEffect(() => { load(); }, []);
 
+  if (authLoading) return null;
   if (role && role !== 'admin') return <Navigate to="/dashboard" replace />;
 
   const openNew = () => { setEditing(null); setForm(empty); setOpen(true); };
@@ -139,10 +140,10 @@ export default function ContractTemplates() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <Label>Position</Label>
-                  <Select value={form.position_id} onValueChange={(v) => setForm({ ...form, position_id: v })}>
+                  <Select value={form.position_id || 'none'} onValueChange={(v) => setForm({ ...form, position_id: v === 'none' ? '' : v })}>
                     <SelectTrigger><SelectValue placeholder="Any position" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any position</SelectItem>
+                      <SelectItem value="none">Any position</SelectItem>
                       {positions.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
                     </SelectContent>
                   </Select>

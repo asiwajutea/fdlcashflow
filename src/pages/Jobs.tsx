@@ -13,8 +13,9 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useCapabilities } from '@/hooks/useCapabilities';
-import { Briefcase, Plus, MapPin, Edit, Trash2, Building2, ClipboardList } from 'lucide-react';
+import { Briefcase, Plus, MapPin, Edit, Trash2, Building2, ClipboardList, Image, X } from 'lucide-react';
 import ScreeningQuestionsDialog from '@/components/hr/ScreeningQuestionsDialog';
+import { MediaPicker } from '@/components/cms/MediaPicker';
 
 interface JobPosition {
   id: string;
@@ -43,6 +44,8 @@ const Jobs = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJob, setEditingJob] = useState<JobPosition | null>(null);
   const [screeningJob, setScreeningJob] = useState<JobPosition | null>(null);
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false);
+  const [departments, setDepartments] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     title: '', department: '', description: '', requirements: '',
     key_responsibilities: '', job_type: '', compensation: '',
@@ -57,7 +60,12 @@ const Jobs = () => {
     if (!authLoading && !user) navigate('/auth');
   }, [user, authLoading, navigate]);
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => { fetchJobs(); fetchDepartments(); }, []);
+
+  const fetchDepartments = async () => {
+    const { data } = await supabase.from('departments').select('name').eq('is_active', true).order('name');
+    setDepartments((data || []).map((d: any) => d.name));
+  };
 
   const fetchJobs = async () => {
     const { data, error } = await supabase
@@ -166,7 +174,20 @@ const Jobs = () => {
                   </div>
                   <div>
                     <Label>Department</Label>
-                    <Input value={formData.department} onChange={(e) => setFormData({ ...formData, department: e.target.value })} placeholder="e.g. Operations" className="mt-1" />
+                    <Select value={formData.department} onValueChange={(v) => setFormData({ ...formData, department: v })}>
+                      <SelectTrigger className="mt-1"><SelectValue placeholder="Select department" /></SelectTrigger>
+                      <SelectContent>
+                        {departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                        <SelectItem value="__other__">Other (type below)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {formData.department === '__other__' && (
+                      <Input
+                        className="mt-1"
+                        placeholder="Enter department name"
+                        onChange={e => setFormData({ ...formData, department: e.target.value })}
+                      />
+                    )}
                   </div>
                   <div>
                     <Label>Job Type</Label>
@@ -194,8 +215,37 @@ const Jobs = () => {
                     <Input value={formData.compensation} onChange={(e) => setFormData({ ...formData, compensation: e.target.value })} placeholder="e.g. ₦150,000/month" className="mt-1" />
                   </div>
                   <div>
-                    <Label>Media URL (Image)</Label>
-                    <Input value={formData.media_url} onChange={(e) => setFormData({ ...formData, media_url: e.target.value })} placeholder="https://..." className="mt-1" />
+                    <Label>Media Image</Label>
+                    <div className="mt-1 space-y-2">
+                      {formData.media_url && (
+                        <div className="relative w-full h-32 rounded-lg overflow-hidden border bg-muted">
+                          <img src={formData.media_url} alt="Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, media_url: '' })}
+                            className="absolute top-1.5 right-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
+                          ><X className="h-3.5 w-3.5" /></button>
+                        </div>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setMediaPickerOpen(true)}
+                        >
+                          <Image className="h-3.5 w-3.5" />
+                          {formData.media_url ? 'Change Image' : 'Select from Gallery'}
+                        </Button>
+                      </div>
+                      <Input
+                        value={formData.media_url}
+                        onChange={e => setFormData({ ...formData, media_url: e.target.value })}
+                        placeholder="Or paste image URL directly…"
+                        className="text-xs"
+                      />
+                    </div>
                   </div>
                   <div>
                     <Label>Country</Label>
@@ -343,6 +393,14 @@ const Jobs = () => {
         onOpenChange={(o) => { if (!o) setScreeningJob(null); }}
       />
     )}
+    <MediaPicker
+      open={mediaPickerOpen}
+      onOpenChange={setMediaPickerOpen}
+      onSelect={(url) => {
+        setFormData(prev => ({ ...prev, media_url: url }));
+        setMediaPickerOpen(false);
+      }}
+    />
     </>
   );
 };
