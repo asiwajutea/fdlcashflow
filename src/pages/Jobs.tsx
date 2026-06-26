@@ -15,7 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCapabilities } from '@/hooks/useCapabilities';
 import { Briefcase, Plus, MapPin, Edit, Trash2, Building2, ClipboardList, Image, X } from 'lucide-react';
 import ScreeningQuestionsDialog from '@/components/hr/ScreeningQuestionsDialog';
-import { MediaPicker } from '@/components/cms/MediaPicker';
+import MediaPicker from '@/components/cms/MediaPicker';
 
 interface JobPosition {
   id: string;
@@ -396,7 +396,7 @@ const Jobs = () => {
     <MediaPicker
       open={mediaPickerOpen}
       onOpenChange={setMediaPickerOpen}
-      onSelect={(url) => {
+      onPick={(url) => {
         setFormData(prev => ({ ...prev, media_url: url }));
         setMediaPickerOpen(false);
       }}
