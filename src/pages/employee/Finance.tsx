@@ -801,6 +801,7 @@ export default function Finance() {
                 requests={allRequestsAdmin}
                 categories={categories}
                 budgets={budgets}
+                profileNameMap={profileNameMap}
                 onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user.id })}
               />
             </TabsContent>
@@ -989,7 +990,7 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
       />
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setAck(false); setFile(null); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New finance request</DialogTitle>
             <DialogDescription>Submit a request for approval.</DialogDescription>
@@ -1095,7 +1096,7 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
   );
 }
 
-function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
+function ApprovalsList({ requests, categories, budgets, profileNameMap = {}, onDecide }: any) {
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [noteFor, setNoteFor] = useState<{ id: string; status: 'approved' | 'rejected' } | null>(null);
   const [note, setNote] = useState('');
@@ -1116,15 +1117,23 @@ function ApprovalsList({ requests, categories, budgets, onDecide }: any) {
           const cat = categories.find((c: any) => c.id === r.category_id);
           const budget = budgets.find((b: any) => b.kind === r.kind && b.scope_type === 'user' && b.scope_id === r.user_id);
           const over = budget && Number(r.amount) > Number(budget.monthly_limit);
+          const requesterName = profileNameMap[r.user_id] || `${String(r.user_id).slice(0, 8)}…`;
           return (
             <Card key={r.id}>
               <CardContent className="p-4 space-y-2">
                 <div className="flex justify-between items-start gap-2">
-                  <div>
-                    <p className="font-semibold">{kindLabel[r.kind as AdvanceKind]}{cat ? ` · ${cat.name}` : ''}</p>
+                  <div className="min-w-0">
+                    {/* Requester name */}
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <div className="h-6 w-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {requesterName.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold text-foreground truncate">{requesterName}</span>
+                    </div>
+                    <p className="font-medium text-sm">{kindLabel[r.kind as AdvanceKind]}{cat ? ` · ${cat.name}` : ''}</p>
                     <p className="text-xs text-muted-foreground">{format(new Date(r.created_at), 'MMM d, yyyy')}</p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Badge variant={statusVariant(r.status)} className="capitalize">{r.status}</Badge>
                     {r.receipt_url && (
                       <Button size="icon" variant="ghost" onClick={() => openReceipt(r.receipt_url)} title="View supporting document">
