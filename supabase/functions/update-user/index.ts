@@ -62,6 +62,18 @@ serve(async (req) => {
       throw new Error('user_id is required');
     }
 
+    // Disable/enable the auth user when is_active changes
+    if (is_active !== undefined) {
+      const { error: authUpdateError } = await supabaseAdmin.auth.admin.updateUserById(
+        user_id,
+        { ban_duration: is_active ? 'none' : '876600h' } // 876600h ≈ 100 years = effectively banned
+      );
+      if (authUpdateError) {
+        console.error('Auth ban/unban error:', authUpdateError);
+        // Non-fatal — profile is already updated
+      }
+    }
+
     // Update password if provided
     if (new_password) {
       const { error: passwordError } = await supabaseAdmin.auth.admin.updateUserById(
@@ -84,6 +96,7 @@ serve(async (req) => {
     // Update profile fields (any provided)
     const profileUpdates: Record<string, any> = {};
     if (full_name !== undefined) profileUpdates.full_name = full_name;
+    if (is_active !== undefined) profileUpdates.is_active = is_active;  // ← was missing
     if (birthday !== undefined) profileUpdates.birthday = birthday || null;
     if (gender !== undefined) profileUpdates.gender = gender || null;
     if (employee_id !== undefined) profileUpdates.employee_id = employee_id || null;
