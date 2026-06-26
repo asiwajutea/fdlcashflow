@@ -116,14 +116,21 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
 
   const remove = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await db.from('advance_requests').delete().eq('id', id);
+      // First check if the request is still pending — only pending can be cancelled
+      const { data: req } = await db.from('advance_requests').select('status').eq('id', id).maybeSingle();
+      if (!req) throw new Error('Request not found.');
+      if (req.status !== 'pending') throw new Error(`This request has already been ${req.status} and cannot be cancelled.`);
+
+      const { error, count } = await db.from('advance_requests').delete({ count: 'exact' }).eq('id', id);
       if (error) throw error;
+      if ((count ?? 0) === 0) throw new Error('Unable to cancel — you may not have permission or the request is no longer pending.');
     },
     onSuccess: () => {
-      toast({ title: 'Request cancelled' });
+      toast({ title: 'Request cancelled', description: 'Your request has been cancelled successfully.' });
       qc.invalidateQueries({ queryKey: ['advance_requests'] });
       qc.invalidateQueries({ queryKey: ['global_platform_advance_requests'] });
     },
+    onError: (e: any) => toast({ title: 'Cannot cancel', description: e.message, variant: 'destructive' }),
   });
 
   return { ...query, requests: query.data ?? [], create, decide, remove };

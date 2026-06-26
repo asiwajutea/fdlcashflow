@@ -571,7 +571,7 @@ const Applications = () => {
 
         {/* Detail dialog */}
         <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Application Details</DialogTitle></DialogHeader>
             {selectedApp && (
               <div className="space-y-4">
