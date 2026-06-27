@@ -237,7 +237,14 @@ const Auth = () => {
 
       const { data: signUpData, error } = await supabase.auth.signUp({
         email: signupData.email, password: signupData.password,
-        options: { data: metadata, emailRedirectTo: window.location.origin }
+        options: {
+          data: metadata,
+          // For candidates with a pending application, redirect back to the apply page
+          // so the draft auto-submits. For everyone else, go to the app root.
+          emailRedirectTo: (!isEmployee && redirectTo !== '/dashboard')
+            ? `${window.location.origin}${redirectTo}`
+            : window.location.origin
+        }
       });
       if (error) throw error;
 

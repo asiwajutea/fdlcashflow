@@ -139,12 +139,15 @@ function ApplicationPipeline({ app, onAction }: { app: any; onAction: (path: str
     </div>
   );
 }
+const DRAFT_KEY = 'fdl_application_draft';
+
 const CandidateDashboard = () => {
   const navigate = useNavigate();
   const { user, fullName, signOut } = useAuth();
   const [applications, setApplications] = useState<any[]>([]);
   const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingDraft, setPendingDraft] = useState<{ jobId: string; jobTitle?: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -186,6 +189,20 @@ const CandidateDashboard = () => {
         .select('social_facebook, social_twitter, social_instagram, social_linkedin, social_youtube, social_tiktok, social_website')
         .maybeSingle();
       setSocialLinks(settings);
+
+      // Check for a pending unsent draft application
+      try {
+        const raw = sessionStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.jobId) {
+            // Fetch job title for display
+            const { data: jobData } = await (supabase as any)
+              .from('job_positions').select('title').eq('id', draft.jobId).maybeSingle();
+            setPendingDraft({ jobId: draft.jobId, jobTitle: jobData?.title });
+          }
+        }
+      } catch { /* ignore */ }
 
       setLoading(false);
     };
@@ -244,6 +261,36 @@ const CandidateDashboard = () => {
           <LogOut className="h-4 w-4" /> Logout
         </Button>
       </div>
+
+      {/* Pending draft banner */}
+      {pendingDraft && (
+        <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl shrink-0">📋</span>
+            <div>
+              <p className="font-semibold text-foreground text-sm">You have an unsent application!</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Your application for <strong>{pendingDraft.jobTitle || 'a job'}</strong> was saved but not submitted yet.
+                Go back to the job page to submit it.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => navigate(`/apply?jobId=${pendingDraft.jobId}`)}
+              className="px-4 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors"
+            >
+              Submit Application →
+            </button>
+            <button
+              onClick={() => { sessionStorage.removeItem(DRAFT_KEY); setPendingDraft(null); }}
+              className="px-3 py-2 rounded-xl border border-amber-300 text-amber-700 text-xs font-medium hover:bg-amber-100 transition-colors"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Applications with pipeline */}
       <div>
