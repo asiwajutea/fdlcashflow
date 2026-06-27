@@ -132,47 +132,54 @@ const LoadingFallback = () =>
     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>;
 
-// Error boundary that catches chunk load failures and auto-retries once.
-// After a deploy, Vite generates new chunk hashes. Old clients hitting a cached
-// page get a stale chunk URL that 404s. This boundary detects that and does a
-// hard reload once to pick up the new bundle — transparent to the user.
+// Catches chunk load failures after a Vercel deploy (stale cached chunk URLs).
+// Only triggers on known chunk/module load errors — everything else re-throws.
 class ChunkErrorBoundary extends React.Component<
   { children: React.ReactNode },
-  { hasError: boolean; retried: boolean }
+  { crashed: boolean }
 > {
   constructor(props: any) {
     super(props);
-    this.state = { hasError: false, retried: false };
+    this.state = { crashed: false };
+  }
+
+  static isChunkError(error: any): boolean {
+    const msg: string = error?.message || error?.toString() || '';
+    return (
+      error?.name === 'ChunkLoadError' ||
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('Loading chunk') ||
+      msg.includes('Loading CSS chunk')
+    );
   }
 
   static getDerivedStateFromError(error: any) {
-    const isChunkError =
-      error?.name === 'ChunkLoadError' ||
-      /Loading chunk .+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
-        error?.message || ''
-      );
-    return { hasError: isChunkError };
+    if (ChunkErrorBoundary.isChunkError(error)) {
+      return { crashed: true };
+    }
+    // Not a chunk error — let it propagate normally
+    throw error;
   }
 
   componentDidCatch(error: any) {
-    const isChunkError =
-      error?.name === 'ChunkLoadError' ||
-      /Loading chunk .+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
-        error?.message || ''
-      );
-    if (isChunkError && !this.state.retried) {
-      this.setState({ retried: true });
-      // Force a hard reload to pick up the new bundle
-      window.location.reload();
+    if (ChunkErrorBoundary.isChunkError(error)) {
+      // Hard reload once to pick up the new bundle — use a flag in sessionStorage
+      // to prevent infinite reload loops
+      const key = 'fdl_chunk_reload_attempted';
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        window.location.reload();
+      }
     }
   }
 
   render() {
-    if (this.state.hasError && !this.state.retried) {
+    if (this.state.crashed) {
       return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-8 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Loading new version…</p>
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3 text-center p-8">
+          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Updating to the latest version…</p>
         </div>
       );
     }
