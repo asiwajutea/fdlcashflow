@@ -197,8 +197,8 @@ const Home = () => {
               ))}
               </div>
 
-              {/* CTA Buttons — desktop/tablet: absolute bottom of text column. Hidden on mobile (shown below image instead). */}
-              <div className="hidden sm:flex absolute bottom-0 left-0 right-0 flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
+              {/* CTA Buttons — desktop only (lg+): absolute bottom of text column. Hidden on mobile/tablet (shown below image instead). */}
+              <div className="hidden lg:flex absolute bottom-0 left-0 right-0 flex-row gap-4 justify-center lg:justify-start">
                 <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                   <Link to="/services">
                     Explore Our Services
@@ -256,16 +256,16 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Mobile-only CTA buttons — appear BELOW the image (order-3).
-                Hidden on sm+ since the desktop buttons live inside the text column. */}
-            <div className="flex sm:hidden flex-col gap-3 justify-center order-3 pt-2">
-              <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm px-6 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 rounded-xl group">
+            {/* Mobile + tablet CTA buttons — appear BELOW the image (order-3).
+                Hidden on lg+ since the desktop buttons live inside the text column. */}
+            <div className="flex lg:hidden flex-col sm:flex-row gap-3 justify-center order-3 pt-2">
+              <Button size="lg" asChild className="bg-gradient-to-r from-[hsl(28,100%,55%)] to-[hsl(12,90%,50%)] hover:from-[hsl(28,100%,45%)] hover:to-[hsl(12,90%,40%)] text-white text-sm sm:text-base px-6 sm:px-8 shadow-lg shadow-[hsl(28,100%,55%)]/30 border-0 h-11 sm:h-12 rounded-xl group">
                 <Link to="/services">
                   Explore Our Services
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" asChild className="border-[hsl(214,95%,15%)]/20 text-[hsl(214,95%,15%)] hover:bg-[hsl(214,95%,15%)]/5 text-sm px-6 h-11 rounded-xl">
+              <Button size="lg" variant="outline" asChild className="border-[hsl(214,95%,15%)]/20 text-[hsl(214,95%,15%)] hover:bg-[hsl(214,95%,15%)]/5 text-sm sm:text-base px-6 sm:px-8 h-11 sm:h-12 rounded-xl">
                 <Link to="/contact">Book a Consultation</Link>
               </Button>
             </div>
