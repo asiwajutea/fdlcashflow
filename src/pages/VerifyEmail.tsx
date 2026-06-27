@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { MailCheck, RefreshCw, CheckCircle2, XCircle, ArrowRight, Loader2, Mail } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Loader2, Mail } from 'lucide-react';
 import fdlLogo from '@/assets/fdl-logo.jpg';
 
 const VerifyEmail = () => {
@@ -14,25 +14,57 @@ const VerifyEmail = () => {
   const emailParam = searchParams.get('email') || '';
   const redirectTo = searchParams.get('redirect') || '/dashboard';
 
-  const [resending, setResending]     = useState(false);
+  const [resending, setResending]           = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
-  const [verifyStatus, setVerifyStatus] = useState<'pending' | 'verified' | 'error'>('pending');
+  const [verified, setVerified]             = useState(false);
 
-  // Poll for verification every 5 seconds
+  // ── Listen for auth state change ──────────────────────────────────────────
+  // When the user clicks the verification link in their email, Supabase fires
+  // SIGNED_IN / USER_UPDATED with an email_confirmed_at set. We catch that here
+  // and also check the current session on mount in case they're already verified.
   useEffect(() => {
-    const check = async () => {
+    // Check immediately on mount (covers the case where the tab was already open
+    // when the email link was clicked in another tab)
+    const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user?.email_confirmed_at) {
-        setVerifyStatus('verified');
-        setTimeout(() => navigate(redirectTo), 2000);
+        handleVerified();
+        return;
+      }
+      // Also try refreshing the session — Supabase may have updated server-side
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed?.session?.user?.email_confirmed_at) {
+        handleVerified();
       }
     };
-    check();
-    const interval = setInterval(check, 5000);
-    return () => clearInterval(interval);
-  }, [navigate, redirectTo]);
+    checkSession();
 
-  // Cooldown timer for resend
+    // Subscribe to auth state changes — fires when user clicks email link
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (
+        (event === 'SIGNED_IN' || event === 'USER_UPDATED') &&
+        session?.user?.email_confirmed_at
+      ) {
+        handleVerified();
+      }
+    });
+
+    // Also poll every 4s as a fallback (some email clients open link in background)
+    const interval = setInterval(checkSession, 4000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearInterval(interval);
+    };
+  }, []);
+
+  const handleVerified = () => {
+    setVerified(true);
+    // Short delay so user sees the success state before redirect
+    setTimeout(() => navigate(redirectTo, { replace: true }), 2500);
+  };
+
+  // Cooldown countdown
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
@@ -50,7 +82,7 @@ const VerifyEmail = () => {
       });
       if (error) throw error;
       setResendCooldown(60);
-      toast({ title: 'Verification email resent', description: `We sent a new link to ${emailParam}` });
+      toast({ title: 'Verification email resent', description: `New link sent to ${emailParam}` });
     } catch (e: any) {
       toast({ title: 'Failed to resend', description: e.message, variant: 'destructive' });
     } finally {
@@ -61,11 +93,9 @@ const VerifyEmail = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-
-        {/* Card */}
         <div className="bg-card rounded-2xl shadow-xl overflow-hidden">
 
-          {/* Header band */}
+          {/* Header */}
           <div className="bg-gradient-to-r from-primary to-primary/80 px-8 py-8 text-center">
             <img src={fdlLogo} alt="FDL" className="h-14 w-14 rounded-full object-cover mx-auto mb-4 ring-4 ring-white/20" />
             <h1 className="text-white font-bold text-xl">Footprints Dynasty</h1>
@@ -74,23 +104,21 @@ const VerifyEmail = () => {
 
           <div className="px-8 py-8 space-y-6">
 
-            {/* Status */}
-            {verifyStatus === 'verified' ? (
-              <div className="text-center space-y-3">
-                <div className="flex items-center justify-center">
-                  <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center">
-                    <CheckCircle2 className="h-9 w-9 text-emerald-600" />
-                  </div>
+            {verified ? (
+              /* ── Verified state ── */
+              <div className="text-center space-y-4">
+                <div className="h-16 w-16 rounded-full bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="h-9 w-9 text-emerald-600" />
                 </div>
                 <h2 className="text-xl font-bold text-foreground">Email Verified!</h2>
-                <p className="text-sm text-muted-foreground">Your email has been confirmed. Redirecting you now…</p>
+                <p className="text-sm text-muted-foreground">Your email has been confirmed. Taking you in now…</p>
                 <div className="flex items-center justify-center gap-2 text-sm text-emerald-600">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Taking you in…
+                  <Loader2 className="h-4 w-4 animate-spin" /> Redirecting…
                 </div>
               </div>
             ) : (
+              /* ── Pending state ── */
               <>
-                {/* Illustration */}
                 <div className="text-center">
                   <div className="relative inline-flex">
                     <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
@@ -104,33 +132,31 @@ const VerifyEmail = () => {
                   <h2 className="text-xl font-bold text-foreground">Check your inbox</h2>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     We sent a verification link to{' '}
-                    {emailParam ? (
-                      <strong className="text-foreground font-semibold">{emailParam}</strong>
-                    ) : (
-                      'your email address'
-                    )}.
+                    {emailParam
+                      ? <strong className="text-foreground">{emailParam}</strong>
+                      : 'your email address'}.
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Click the link in the email to activate your account. This page will update automatically once verified.
+                    Click the link in the email to activate your account. This page detects verification automatically.
                   </p>
                 </div>
 
                 {/* Steps */}
                 <div className="bg-muted/40 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">What to do next</p>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">What to do</p>
                   {[
-                    { n: 1, text: 'Open the email from Footprints Dynasty' },
-                    { n: 2, text: 'Click the "Verify Email" button in the email' },
-                    { n: 3, text: 'You\'ll be redirected back automatically' },
-                  ].map(s => (
-                    <div key={s.n} className="flex items-start gap-3">
-                      <span className="h-5 w-5 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
-                      <p className="text-sm text-foreground">{s.text}</p>
+                    'Open the email from Footprints Dynasty',
+                    'Click the "Verify Email" button',
+                    'This page will detect it and log you in automatically',
+                  ].map((text, i) => (
+                    <div key={i} className="flex items-start gap-3">
+                      <span className="h-5 w-5 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                      <p className="text-sm text-foreground">{text}</p>
                     </div>
                   ))}
                 </div>
 
-                {/* Checking indicator */}
+                {/* Auto-check indicator */}
                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
                   <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
                   Checking for verification automatically…
@@ -144,31 +170,40 @@ const VerifyEmail = () => {
                     variant="outline"
                     className="w-full gap-2"
                   >
-                    {resending ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
-                    ) : resendCooldown > 0 ? (
-                      <><RefreshCw className="h-4 w-4" /> Resend in {resendCooldown}s</>
-                    ) : (
-                      <><RefreshCw className="h-4 w-4" /> Resend verification email</>
-                    )}
+                    {resending
+                      ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending…</>
+                      : resendCooldown > 0
+                        ? <><RefreshCw className="h-4 w-4" /> Resend in {resendCooldown}s</>
+                        : <><RefreshCw className="h-4 w-4" /> Resend verification email</>}
                   </Button>
                   <p className="text-center text-xs text-muted-foreground">
                     Didn't receive it? Check your spam folder first.
                   </p>
                 </div>
+
+                {/* Manual check button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground"
+                  onClick={async () => {
+                    const { data } = await supabase.auth.refreshSession();
+                    if (data?.session?.user?.email_confirmed_at) {
+                      handleVerified();
+                    } else {
+                      toast({ title: 'Not yet verified', description: 'Please click the link in your email first.' });
+                    }
+                  }}
+                >
+                  I've verified my email — check again
+                </Button>
               </>
             )}
 
-            {/* Footer links */}
             <div className="pt-2 border-t flex items-center justify-between text-xs text-muted-foreground">
-              <Link to="/auth" className="hover:text-primary transition-colors flex items-center gap-1">
-                ← Back to Sign In
-              </Link>
-              <Link to="/contact" className="hover:text-primary transition-colors">
-                Need help?
-              </Link>
+              <Link to="/auth" className="hover:text-primary transition-colors">← Back to Sign In</Link>
+              <Link to="/contact" className="hover:text-primary transition-colors">Need help?</Link>
             </div>
-
           </div>
         </div>
 
