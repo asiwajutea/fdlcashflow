@@ -148,6 +148,9 @@ const CandidateDashboard = () => {
   const [socialLinks, setSocialLinks] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [pendingDraft, setPendingDraft] = useState<{ jobId: string; jobTitle?: string } | null>(null);
+  const [profileComplete, setProfileComplete] = useState<{
+    hasAvatar: boolean; hasPhone: boolean; hasBirthday: boolean;
+  }>({ hasAvatar: true, hasPhone: true, hasBirthday: true });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -196,13 +199,21 @@ const CandidateDashboard = () => {
         if (raw) {
           const draft = JSON.parse(raw);
           if (draft.jobId) {
-            // Fetch job title for display
             const { data: jobData } = await (supabase as any)
               .from('job_positions').select('title').eq('id', draft.jobId).maybeSingle();
             setPendingDraft({ jobId: draft.jobId, jobTitle: jobData?.title });
           }
         }
       } catch { /* ignore */ }
+
+      // Check profile completeness
+      const { data: prof } = await (supabase as any)
+        .from('profiles').select('avatar_url, phone, birthday').eq('id', user.id).maybeSingle();
+      setProfileComplete({
+        hasAvatar:   !!prof?.avatar_url,
+        hasPhone:    !!prof?.phone,
+        hasBirthday: !!prof?.birthday,
+      });
 
       setLoading(false);
     };
@@ -288,6 +299,48 @@ const CandidateDashboard = () => {
             >
               Discard
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Profile completion nudge — shown when avatar, phone, or birthday is missing */}
+      {(!profileComplete.hasAvatar || !profileComplete.hasPhone || !profileComplete.hasBirthday) && (
+        <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4">
+          <div className="flex items-start gap-3">
+            <div className="shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-lg">
+              {!profileComplete.hasAvatar ? '🖼️' : '✏️'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-foreground text-sm">
+                {!profileComplete.hasAvatar ? 'Add your profile photo' : 'Complete your profile'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+                {!profileComplete.hasAvatar
+                  ? 'A profile photo helps HR put a face to your application and makes your profile stand out.'
+                  : 'Complete your profile so HR has everything they need to process your application.'}
+              </p>
+              {/* Missing items checklist */}
+              <div className="space-y-1 mb-3">
+                {[
+                  { done: profileComplete.hasAvatar,   label: 'Profile photo' },
+                  { done: profileComplete.hasPhone,    label: 'Phone number' },
+                  { done: profileComplete.hasBirthday, label: 'Date of birth' },
+                ].map(item => (
+                  <div key={item.label} className="flex items-center gap-2 text-xs">
+                    <span className={`h-4 w-4 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${item.done ? 'bg-emerald-500 text-white' : 'bg-muted border border-border text-muted-foreground'}`}>
+                      {item.done ? '✓' : ''}
+                    </span>
+                    <span className={item.done ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}>{item.label}</span>
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => navigate('/profile')}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Complete Profile →
+              </button>
+            </div>
           </div>
         </div>
       )}
