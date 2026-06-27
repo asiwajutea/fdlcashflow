@@ -132,6 +132,54 @@ const LoadingFallback = () =>
     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>;
 
+// Error boundary that catches chunk load failures and auto-retries once.
+// After a deploy, Vite generates new chunk hashes. Old clients hitting a cached
+// page get a stale chunk URL that 404s. This boundary detects that and does a
+// hard reload once to pick up the new bundle — transparent to the user.
+class ChunkErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; retried: boolean }
+> {
+  constructor(props: any) {
+    super(props);
+    this.state = { hasError: false, retried: false };
+  }
+
+  static getDerivedStateFromError(error: any) {
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      /Loading chunk .+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+        error?.message || ''
+      );
+    return { hasError: isChunkError };
+  }
+
+  componentDidCatch(error: any) {
+    const isChunkError =
+      error?.name === 'ChunkLoadError' ||
+      /Loading chunk .+ failed|Failed to fetch dynamically imported module|Importing a module script failed/i.test(
+        error?.message || ''
+      );
+    if (isChunkError && !this.state.retried) {
+      this.setState({ retried: true });
+      // Force a hard reload to pick up the new bundle
+      window.location.reload();
+    }
+  }
+
+  render() {
+    if (this.state.hasError && !this.state.retried) {
+      return (
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-8 text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">Loading new version…</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 
 // Guard for backend routes only
 const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
@@ -188,6 +236,7 @@ const EmployeeGuard = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () =>
+<ChunkErrorBoundary>
 <Suspense fallback={<LoadingFallback />}>
     <Routes>
       {/* Public routes */}
@@ -281,7 +330,8 @@ const AppRoutes = () =>
 
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </Suspense>;
+  </Suspense>
+</ChunkErrorBoundary>;
 
 
 const App = () =>
