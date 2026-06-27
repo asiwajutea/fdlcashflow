@@ -132,61 +132,6 @@ const LoadingFallback = () =>
     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
   </div>;
 
-// Catches chunk load failures after a Vercel deploy (stale cached chunk URLs).
-// Only triggers on known chunk/module load errors — everything else re-throws.
-class ChunkErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { crashed: boolean }
-> {
-  constructor(props: any) {
-    super(props);
-    this.state = { crashed: false };
-  }
-
-  static isChunkError(error: any): boolean {
-    const msg: string = error?.message || error?.toString() || '';
-    return (
-      error?.name === 'ChunkLoadError' ||
-      msg.includes('Failed to fetch dynamically imported module') ||
-      msg.includes('Importing a module script failed') ||
-      msg.includes('Loading chunk') ||
-      msg.includes('Loading CSS chunk')
-    );
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (ChunkErrorBoundary.isChunkError(error)) {
-      return { crashed: true };
-    }
-    // Not a chunk error — let it propagate normally
-    throw error;
-  }
-
-  componentDidCatch(error: any) {
-    if (ChunkErrorBoundary.isChunkError(error)) {
-      // Hard reload once to pick up the new bundle — use a flag in sessionStorage
-      // to prevent infinite reload loops
-      const key = 'fdl_chunk_reload_attempted';
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, '1');
-        window.location.reload();
-      }
-    }
-  }
-
-  render() {
-    if (this.state.crashed) {
-      return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3 text-center p-8">
-          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">Updating to the latest version…</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 
 // Guard for backend routes only
 const AvatarGuard = ({ children }: {children: React.ReactNode;}) => {
@@ -243,7 +188,6 @@ const EmployeeGuard = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AppRoutes = () =>
-<ChunkErrorBoundary>
 <Suspense fallback={<LoadingFallback />}>
     <Routes>
       {/* Public routes */}
@@ -337,8 +281,7 @@ const AppRoutes = () =>
 
       <Route path="*" element={<NotFound />} />
     </Routes>
-  </Suspense>
-</ChunkErrorBoundary>;
+  </Suspense>;
 
 
 const App = () =>
