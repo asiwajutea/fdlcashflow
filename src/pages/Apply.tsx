@@ -74,27 +74,41 @@ const Apply = () => {
 
   // Restore draft + auto-submit after login
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (authLoading) return; // wait for auth to fully resolve
+    if (!user) return;
     const raw = sessionStorage.getItem(DRAFT_KEY);
     if (!raw) return;
     try {
       const draft = JSON.parse(raw);
       if (draft.jobId !== jobId) return;
       sessionStorage.removeItem(DRAFT_KEY);
+      // Pre-fill form
       setPhone(draft.phone || '');
       setEducationLevel(draft.educationLevel || '');
       setEducationField(draft.educationField || '');
       setExperience(draft.experience || '');
       setCoverLetter(draft.coverLetter || '');
-      submitApplication({
-        phone: draft.phone,
-        education: buildEducationString(draft.educationLevel, draft.educationField),
-        experience: draft.experience,
-        coverLetter: draft.coverLetter,
-        resumeUrl: null,
-      });
+      // Auto-submit with a small delay to ensure job data is loaded
+      const trySubmit = () => {
+        submitApplication({
+          phone: draft.phone,
+          education: buildEducationString(draft.educationLevel, draft.educationField),
+          experience: draft.experience,
+          coverLetter: draft.coverLetter,
+          resumeUrl: null,
+        });
+      };
+      if (job) {
+        trySubmit();
+      } else {
+        // Job not loaded yet — wait for it
+        const interval = setInterval(() => {
+          if (job) { clearInterval(interval); trySubmit(); }
+        }, 200);
+        setTimeout(() => clearInterval(interval), 5000);
+      }
     } catch { sessionStorage.removeItem(DRAFT_KEY); }
-  }, [user, authLoading]);
+  }, [user, authLoading, job]);
 
   const buildEducationString = (level: string, field: string) => {
     const levelLabel = EDUCATION_LEVELS.find(e => e.value === level)?.label || level;

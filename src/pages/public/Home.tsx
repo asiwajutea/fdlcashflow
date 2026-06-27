@@ -145,7 +145,34 @@ const Home = () => {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20 lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
             {/* Left Column — Text Content */}
-            <div className="text-center lg:text-left order-1 relative" style={{ minHeight: '350px' }}>
+            {/* On mobile: natural height (no min-height) so image follows text tightly.
+                On lg+: fixed 350px so the absolutely-positioned buttons have room at the bottom. */}
+            <div className="text-center lg:text-left order-1 relative lg:min-h-[350px]">
+              {/* Mobile: show only the active slide inline (not absolute) so the column has real height */}
+              <div className="lg:hidden">
+                {slides.map((slide, index) => (
+                  <div
+                    key={index}
+                    className="transition-opacity duration-[1800ms] ease-in-out"
+                    style={{ opacity: currentSlide === index ? 1 : 0, display: currentSlide === index ? 'block' : 'none' }}
+                  >
+                    <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[hsl(214,95%,15%)]/8 border border-[hsl(214,95%,15%)]/10 text-[hsl(214,95%,15%)] text-xs font-medium mb-4">
+                      <Star className="h-3 w-3 text-[hsl(28,100%,55%)]" />
+                      Making a Difference
+                    </div>
+                    <h1 className="text-3xl font-bold text-[hsl(214,95%,15%)] leading-[1.1] mb-3 tracking-tight">
+                      {slide.title}{' '}
+                      <span className="text-[hsl(28,100%,55%)]">{slide.accent}</span>
+                    </h1>
+                    <p className="text-sm leading-relaxed text-[hsl(214,20%,40%)] max-w-lg mx-auto">
+                      {slide.subtitle}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop/tablet: stacked absolute slides (original behaviour) */}
+              <div className="hidden lg:block">
               {slides.map((slide, index) => (
                 <div
                   key={index}
@@ -161,15 +188,14 @@ const Home = () => {
                   </div>
                   <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-5xl xl:text-6xl font-bold text-[hsl(214,95%,15%)] leading-[1.1] mb-4 tracking-tight">
                     {slide.title}{' '}
-                    <span className="text-[hsl(28,100%,55%)]">
-                      {slide.accent}
-                    </span>
+                    <span className="text-[hsl(28,100%,55%)]">{slide.accent}</span>
                   </h1>
                   <p className="text-sm sm:text-base md:text-lg leading-relaxed text-[hsl(214,20%,40%)] max-w-lg mx-auto lg:mx-0">
                     {slide.subtitle}
                   </p>
                 </div>
               ))}
+              </div>
 
               {/* CTA Buttons — desktop/tablet: absolute bottom of text column. Hidden on mobile (shown below image instead). */}
               <div className="hidden sm:flex absolute bottom-0 left-0 right-0 flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">

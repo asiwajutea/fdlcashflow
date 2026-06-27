@@ -26,26 +26,28 @@ const VerifyEmail = () => {
     // Check immediately on mount (covers the case where the tab was already open
     // when the email link was clicked in another tab)
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.email_confirmed_at) {
-        handleVerified();
-        return;
-      }
-      // Also try refreshing the session — Supabase may have updated server-side
-      const { data: refreshed } = await supabase.auth.refreshSession();
-      if (refreshed?.session?.user?.email_confirmed_at) {
+      // getUser() always hits the server — never returns stale cached data
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.email_confirmed_at) {
         handleVerified();
       }
     };
     checkSession();
 
     // Subscribe to auth state changes — fires when user clicks email link
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (
-        (event === 'SIGNED_IN' || event === 'USER_UPDATED') &&
-        session?.user?.email_confirmed_at
-      ) {
-        handleVerified();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Handle all events that could mean email is now confirmed
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED' || event === 'TOKEN_REFRESHED') {
+        if (session?.user?.email_confirmed_at) {
+          handleVerified();
+          return;
+        }
+        // Session exists but email_confirmed_at not set in cached token
+        // Force a fresh fetch from the server
+        const { data: fresh } = await supabase.auth.getUser();
+        if (fresh?.user?.email_confirmed_at) {
+          handleVerified();
+        }
       }
     });
 
@@ -187,11 +189,18 @@ const VerifyEmail = () => {
                   size="sm"
                   className="w-full text-xs text-muted-foreground"
                   onClick={async () => {
-                    const { data } = await supabase.auth.refreshSession();
-                    if (data?.session?.user?.email_confirmed_at) {
+                    // getUser() always fetches fresh from the server (bypasses cache)
+                    const { data } = await supabase.auth.getUser();
+                    if (data?.user?.email_confirmed_at) {
                       handleVerified();
                     } else {
-                      toast({ title: 'Not yet verified', description: 'Please click the link in your email first.' });
+                      // Also try refreshing the session
+                      const { data: refreshed } = await supabase.auth.refreshSession();
+                      if (refreshed?.session?.user?.email_confirmed_at) {
+                        handleVerified();
+                      } else {
+                        toast({ title: 'Not yet verified', description: 'Please click the link in your email first, then try again.' });
+                      }
                     }
                   }}
                 >
