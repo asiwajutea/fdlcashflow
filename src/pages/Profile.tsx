@@ -19,7 +19,8 @@ interface Lookup { id: string; name: string }
 
 const Profile = () => {
   const { toast } = useToast();
-  const { user, fullName, avatarUrl } = useAuth();
+  const { user, fullName, avatarUrl, role } = useAuth();
+  const isCandidate = role === 'candidate';
   const [saving, setSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
@@ -326,7 +327,8 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* Employment */}
+        {/* Employment — hidden for candidates */}
+        {!isCandidate && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Employment</CardTitle>
@@ -381,8 +383,10 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        )} {/* end !isCandidate — Employment */}
 
-        {/* Bank */}
+        {/* Bank — hidden for candidates */}
+        {!isCandidate && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><CreditCard className="h-5 w-5" /> Bank Details</CardTitle>
@@ -408,6 +412,7 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        )} {/* end !isCandidate — Bank Details */}
 
         {/* Documents */}
         <Card>
@@ -441,7 +446,8 @@ const Profile = () => {
           </CardContent>
         </Card>
 
-        {/* About Me */}
+        {/* About Me — hidden for candidates */}
+        {!isCandidate && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Heart className="h-5 w-5" /> About Me</CardTitle>
@@ -519,6 +525,7 @@ const Profile = () => {
             </div>
           </CardContent>
         </Card>
+        )} {/* end !isCandidate — About Me */}
 
         <div className="sticky bottom-4 z-10">
           <Button className="w-full gap-2 shadow-lg" size="lg" onClick={handleSave} disabled={saving}>
