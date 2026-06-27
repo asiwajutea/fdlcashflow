@@ -152,6 +152,22 @@ const Apply = () => {
       const { error: appErr } = await (supabase as any)
         .from('applications').insert({ candidate_id: candidateId, job_id: jobId, cover_letter: data.coverLetter });
       if (appErr) throw appErr;
+
+      // Notify admins and HR of new application
+      const candidateName = (await (supabase as any).from('profiles').select('full_name').eq('id', user.id).maybeSingle()).data?.full_name || 'A candidate';
+      supabase.functions.invoke('notify-staff', {
+        body: {
+          template_key: 'staff_new_application',
+          roles: ['admin'],
+          capabilities: ['manage_recruitment'],
+          vars: {
+            job: job?.title || 'a position',
+            candidate: candidateName,
+            link: `${window.location.origin}/applications`,
+          },
+        },
+      }).catch(() => {});
+
       setSubmitted(true);
       toast({ title: 'Application Submitted!', description: "We'll be in touch soon." });
     } catch (e: any) {

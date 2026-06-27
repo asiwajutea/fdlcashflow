@@ -91,6 +91,19 @@ const Offers = () => {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Contract Signed!', description: 'Your signed contract has been submitted successfully.' });
+      // Notify admins and HR
+      supabase.functions.invoke('notify-staff', {
+        body: {
+          template_key: 'staff_contract_signed',
+          roles: ['admin'],
+          capabilities: ['manage_recruitment'],
+          vars: {
+            candidate: 'A candidate',
+            job: contract?.job?.title || 'a position',
+            link: `${window.location.origin}/applications`,
+          },
+        },
+      }).catch(() => {});
       setSigningId(null);
       setSignature(null);
       fetchContracts();

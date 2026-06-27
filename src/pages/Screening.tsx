@@ -202,6 +202,20 @@ const Screening = () => {
 
       setSubmitted(true);
 
+      // Notify admins and HR that screening was submitted
+      supabase.functions.invoke('notify-staff', {
+        body: {
+          template_key: 'staff_screening_submitted',
+          roles: ['admin'],
+          capabilities: ['manage_recruitment'],
+          vars: {
+            candidate: (await (supabase as any).from('profiles').select('full_name').eq('id', user?.id).maybeSingle()).data?.full_name || 'A candidate',
+            job: 'the applied position',
+            link: `${window.location.origin}/applications`,
+          },
+        },
+      }).catch(() => {});
+
       // Step 2: Attempt AI scoring in the background — failure is non-blocking.
       // Candidates never see the score; HR/admin can also score manually.
       supabase.functions.invoke('score-screening', {

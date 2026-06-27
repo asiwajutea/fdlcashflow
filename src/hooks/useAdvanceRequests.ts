@@ -55,6 +55,24 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
           event_type: 'submitted',
           note: '',
         });
+        // Notify admins and finance approvers
+        const { supabase } = await import('@/integrations/supabase/client');
+        const kindMap: Record<string, string> = { salary_advance: 'Salary Advance', reimbursement: 'Reimbursement', cash_advance: 'Cash Advance' };
+        const kindLabel = kindMap[payload.kind as string] || payload.kind || 'Finance';
+        supabase.functions.invoke('notify-staff', {
+          body: {
+            template_key: 'staff_finance_request',
+            roles: ['admin'],
+            capabilities: ['approve_finance_requests'],
+            vars: {
+              requester: payload.user_id,
+              kind: kindLabel,
+              amount: Number(payload.amount || 0).toLocaleString(),
+              reason: payload.reason || 'No reason provided',
+              link: `${window.location.origin}/finance`,
+            },
+          },
+        }).catch(() => {});
       }
       return data;
     },

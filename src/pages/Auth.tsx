@@ -283,6 +283,19 @@ const Auth = () => {
           navigate('/pending-approval');
           return;
         }
+        // Notify admins of new pending user
+        supabase.functions.invoke('notify-staff', {
+          body: {
+            template_key: 'staff_new_user_pending',
+            roles: ['admin'],
+            capabilities: ['manage_users'],
+            vars: {
+              name: signupData.fullName,
+              email: signupData.email,
+              link: `${window.location.origin}/user-management`,
+            },
+          },
+        }).catch(() => {});
         toast({ title: "Check your email", description: "We sent a verification link. Once you verify, sign in to continue." });
       } else {
         // Candidate — if they came from an application redirect, send them back after verifying
