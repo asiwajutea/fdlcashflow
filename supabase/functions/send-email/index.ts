@@ -279,21 +279,41 @@ serve(async (req) => {
   let logEntry: any = { status: "failed" };
 
   try {
-    const { template_key, to, name, user_id, vars = {}, attachments = [] } = await req.json();
+    const { template_key, to: rawTo, name, user_id, vars = {}, attachments = [] } = await req.json();
 
-    if (!template_key || !to) {
-      return new Response(JSON.stringify({ error: "template_key and to are required" }), {
+    if (!template_key || (!rawTo && !user_id)) {
+      return new Response(JSON.stringify({ error: "template_key and (to or user_id) are required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Resolve email address — if `to` looks like a UUID or is missing, look up via auth.users
+    let to = rawTo;
+    let resolvedName = name;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawTo || '');
+    if ((!to || isUuid) && user_id) {
+      const { data: authUser } = await admin.auth.admin.getUserById(user_id);
+      if (authUser?.user?.email) {
+        to = authUser.user.email;
+        if (!resolvedName) {
+          resolvedName = authUser.user.user_metadata?.full_name || authUser.user.email.split('@')[0];
+        }
+      }
+    }
+
+    if (!to) {
+      return new Response(JSON.stringify({ skipped: true, reason: "Could not resolve recipient email" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY not configured");
 
-    const rendered = renderTemplate(template_key, { ...vars, name: name || vars.name || "there" });
+    const rendered = renderTemplate(template_key, { ...vars, name: resolvedName || vars.name || "there" });
 
     if (!rendered) {
-      logEntry = { template_key, recipient_email: to, recipient_name: name, user_id, subject: "—", status: "skipped", error: `Unknown template: ${template_key}`, vars };
+      logEntry = { template_key, recipient_email: to, recipient_name: resolvedName, user_id, subject: "—", status: "skipped", error: `Unknown template: ${template_key}`, vars };
       await admin.from("email_logs").insert(logEntry);
       return new Response(JSON.stringify({ skipped: true, reason: `Unknown template: ${template_key}` }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -323,14 +343,14 @@ serve(async (req) => {
     const result = await res.json();
 
     if (!res.ok) {
-      logEntry = { template_key, recipient_email: to, recipient_name: name, user_id, subject: rendered.subject, status: "failed", error: JSON.stringify(result), vars };
+      logEntry = { template_key, recipient_email: to, recipient_name: resolvedName, user_id, subject: rendered.subject, status: "failed", error: JSON.stringify(result), vars };
       await admin.from("email_logs").insert(logEntry);
       return new Response(JSON.stringify({ error: result }), {
         status: res.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    logEntry = { template_key, recipient_email: to, recipient_name: name, user_id, subject: rendered.subject, status: "sent", resend_id: result.id, vars };
+    logEntry = { template_key, recipient_email: to, recipient_name: resolvedName, user_id, subject: rendered.subject, status: "sent", resend_id: result.id, vars };
     await admin.from("email_logs").insert(logEntry);
 
     return new Response(JSON.stringify({ success: true, id: result.id }), {

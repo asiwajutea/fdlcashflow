@@ -98,7 +98,6 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
       });
       // Fire-and-forget SMS to requester
       try {
-        // resolve user_id and amount if missing
         let uid = user_id;
         let amt = amount;
         if (!uid || amt === undefined) {
@@ -107,21 +106,36 @@ export const useAdvanceRequests = (filters: AdvanceFilters = {}) => {
           amt = amt ?? Number(req?.amount || 0);
         }
         if (uid) {
-          const { data: prof } = await db.from('profiles').select('full_name, phone, email').eq('id', uid).maybeSingle();
           const { supabase } = await import('@/integrations/supabase/client');
-          if (prof?.phone) {
-            supabase.functions.invoke('send-sms', {
-              body: { to: prof.phone, user_id: uid, template_key: 'finance_decision', vars: { name: (prof.full_name || 'there').split(' ')[0], amount: Number(amt || 0).toLocaleString(), status, note: note || '' } },
-            }).catch(() => {});
-          }
-          // Also send email
-          if (prof?.email) {
-            supabase.functions.invoke('send-email', {
-              body: { template_key: 'finance_decision', to: prof.email, name: (prof.full_name || 'there').split(' ')[0], user_id: uid, vars: { amount: Number(amt || 0).toLocaleString(), status, note: note || '' } },
-            }).catch(() => {});
-          }
+          // Use the security-definer RPC to resolve name (bypasses RLS on profiles)
+          const { data: nameRows } = await (supabase as any).rpc('get_user_display_names', { user_ids: [uid] });
+          const displayName = nameRows?.[0]?.display_name || 'there';
+          // Phone must be fetched with service role — use send-sms with user_id only
+          // (send-sms resolves the phone from profiles using service role internally)
+          supabase.functions.invoke('send-sms', {
+            body: {
+              user_id: uid,
+              template_key: 'finance_decision',
+              vars: {
+                name: displayName.split(' ')[0],
+                amount: Number(amt || 0).toLocaleString(),
+                status,
+                note: note || '',
+              },
+            },
+          }).catch(() => {});
+          // Also send email via send-email function
+          supabase.functions.invoke('send-email', {
+            body: {
+              template_key: 'finance_decision',
+              to: uid, // send-email can resolve by user_id if we pass it
+              user_id: uid,
+              name: displayName.split(' ')[0],
+              vars: { amount: Number(amt || 0).toLocaleString(), status, note: note || '' },
+            },
+          }).catch(() => {});
         }
-      } catch (e) { console.error('finance sms failed', e); }
+      } catch (e) { console.error('finance notification failed', e); }
     },
     onSuccess: (_d, v) => {
       toast({ title: v.status === 'approved' ? 'Approved' : 'Rejected' });
