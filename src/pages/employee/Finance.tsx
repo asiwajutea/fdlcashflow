@@ -802,7 +802,7 @@ export default function Finance() {
                 categories={categories}
                 budgets={budgets}
                 profileNameMap={profileNameMap}
-                onDecide={(id, status, note) => decide.mutate({ id, status, note, approver_id: user.id })}
+                onDecide={(id, status, note, user_id, amount) => decide.mutate({ id, status, note, approver_id: user.id, user_id, amount })}
               />
             </TabsContent>
           )}
@@ -1098,7 +1098,7 @@ function RequestsList({ requests, categories, myBudgets, userId, onCreate, onDel
 
 function ApprovalsList({ requests, categories, budgets, profileNameMap = {}, onDecide }: any) {
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
-  const [noteFor, setNoteFor] = useState<{ id: string; status: 'approved' | 'rejected' } | null>(null);
+  const [noteFor, setNoteFor] = useState<{ id: string; status: 'approved' | 'rejected'; user_id?: string; amount?: number } | null>(null);
   const [note, setNote] = useState('');
   const [timelineId, setTimelineId] = useState<string | null>(null);
 
@@ -1152,10 +1152,10 @@ function ApprovalsList({ requests, categories, budgets, profileNameMap = {}, onD
                 {r.approver_note && <p className="text-xs italic">"{r.approver_note}"</p>}
                 {r.status === 'pending' && (
                   <div className="flex gap-2 pt-2">
-                    <Button size="sm" className="flex-1" onClick={() => { setNoteFor({ id: r.id, status: 'approved' }); setNote(''); }}>
+                    <Button size="sm" className="flex-1" onClick={() => { setNoteFor({ id: r.id, status: 'approved', user_id: r.user_id, amount: Number(r.amount) }); setNote(''); }}>
                       <Check className="h-3.5 w-3.5 mr-1" /> Approve
                     </Button>
-                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => { setNoteFor({ id: r.id, status: 'rejected' }); setNote(''); }}>
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => { setNoteFor({ id: r.id, status: 'rejected', user_id: r.user_id, amount: Number(r.amount) }); setNote(''); }}>
                       <X className="h-3.5 w-3.5 mr-1" /> Reject
                     </Button>
                   </div>
@@ -1179,7 +1179,7 @@ function ApprovalsList({ requests, categories, budgets, profileNameMap = {}, onD
           <Textarea placeholder="Add a note (required)" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" onClick={() => setNoteFor(null)}>Cancel</Button>
-            <Button disabled={!note.trim()} onClick={() => { if (noteFor) onDecide(noteFor.id, noteFor.status, note); setNoteFor(null); }}>Confirm</Button>
+            <Button disabled={!note.trim()} onClick={() => { if (noteFor) onDecide(noteFor.id, noteFor.status, note, noteFor.user_id, noteFor.amount); setNoteFor(null); }}>Confirm</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
