@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/supabase-db';
 import { supabase } from '@/integrations/supabase/client';
-import { MessageSquare, Send, Save, Plus, Trash2, Sparkles, Calendar } from 'lucide-react';
+import { MessageSquare, Send, Save, Plus, Trash2, Sparkles, Calendar, Users, Briefcase, Wallet, Bell } from 'lucide-react';
 
 interface SmsTemplate {
   id: string;
@@ -180,39 +181,125 @@ const CMSSmsTemplates = () => {
             </CardContent>
           </Card>
 
-          {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : templates.map(t => (
-            <Card key={t.id}>
-              <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3">
-                <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    {t.name}
-                    <Badge variant={t.is_active ? 'default' : 'secondary'}>{t.is_active ? 'Active' : 'Inactive'}</Badge>
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground mt-1 font-mono">{t.key}</p>
-                </div>
-                <Switch checked={t.is_active} onCheckedChange={(v) => updateField(t.id, { is_active: v })} />
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <Label className="text-xs">Name</Label>
-                  <Input value={t.name} onChange={(e) => updateField(t.id, { name: e.target.value })} />
-                </div>
-                <div>
-                  <Label className="text-xs">Body ({t.body.length} chars)</Label>
-                  <Textarea value={t.body} onChange={(e) => updateField(t.id, { body: e.target.value })} rows={3} className="font-mono text-sm" />
-                  {(t.variables?.length ?? 0) > 0 && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Variables: {(t.variables || []).map(v => <code key={v} className="mx-1">{`{{${v}}}`}</code>)}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => save(t)} disabled={saving === t.id}><Save className="h-4 w-4 mr-1" /> Save</Button>
-                  <Button size="sm" variant="outline" onClick={() => sendTest(t)}><Send className="h-4 w-4 mr-1" /> Send test</Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          {loading ? <p className="text-sm text-muted-foreground">Loading…</p> : (() => {
+            // Group templates by category
+            const GROUPS: { label: string; icon: any; keys: string[]; color: string }[] = [
+              {
+                label: 'Account & Onboarding',
+                icon: Users,
+                color: 'text-blue-600',
+                keys: ['account_approved', 'payslip_generated', 'payslip'],
+              },
+              {
+                label: 'Candidate Pipeline',
+                icon: Briefcase,
+                color: 'text-purple-600',
+                keys: ['candidate_stage', 'candidate_hire', 'candidate_offer'],
+              },
+              {
+                label: 'Finance',
+                icon: Wallet,
+                color: 'text-emerald-600',
+                keys: ['finance_decision'],
+              },
+              {
+                label: 'Staff Notifications',
+                icon: Bell,
+                color: 'text-amber-600',
+                keys: [
+                  'staff_finance_request',
+                  'staff_new_application',
+                  'staff_screening_submitted',
+                  'staff_new_user_pending',
+                  'staff_interview_scored',
+                  'staff_contract_signed',
+                  'staff_over_budget_request',
+                ],
+              },
+            ];
+
+            // Any template not in a group goes to "Other"
+            const allGroupedKeys = new Set(GROUPS.flatMap(g => g.keys));
+            const otherTemplates = templates.filter(t => !allGroupedKeys.has(t.key));
+
+            const renderTemplate = (t: SmsTemplate) => (
+              <AccordionItem key={t.id} value={t.id} className="border rounded-xl px-0 overflow-hidden">
+                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-muted/30 transition-colors [&>svg]:shrink-0">
+                  <div className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                    <Switch
+                      checked={t.is_active}
+                      onCheckedChange={(v) => { updateField(t.id, { is_active: v }); }}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-foreground truncate">{t.name}</p>
+                      <p className="text-[11px] text-muted-foreground font-mono truncate">{t.key}</p>
+                    </div>
+                    <Badge variant={t.is_active ? 'default' : 'secondary'} className="shrink-0 text-[10px]">
+                      {t.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4 pt-1 space-y-3 border-t bg-muted/10">
+                  <div>
+                    <Label className="text-xs">Name</Label>
+                    <Input value={t.name} onChange={(e) => updateField(t.id, { name: e.target.value })} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Body ({t.body.length} chars)</Label>
+                    <Textarea value={t.body} onChange={(e) => updateField(t.id, { body: e.target.value })} rows={3} className="font-mono text-sm mt-1" />
+                    {(t.variables?.length ?? 0) > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Variables: {(t.variables || []).map(v => <code key={v} className="mx-0.5 bg-muted px-1 rounded text-[11px]">{`{{${v}}}`}</code>)}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => save(t)} disabled={saving === t.id}>
+                      <Save className="h-4 w-4 mr-1" /> Save
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => sendTest(t)}>
+                      <Send className="h-4 w-4 mr-1" /> Send test
+                    </Button>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            );
+
+            return (
+              <div className="space-y-5">
+                {GROUPS.map(group => {
+                  const groupTemplates = templates.filter(t => group.keys.includes(t.key));
+                  if (groupTemplates.length === 0) return null;
+                  const Icon = group.icon;
+                  return (
+                    <div key={group.label}>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Icon className={`h-4 w-4 ${group.color}`} />
+                        <h3 className="text-sm font-semibold text-foreground">{group.label}</h3>
+                        <Badge variant="secondary" className="text-[10px]">{groupTemplates.length}</Badge>
+                      </div>
+                      <Accordion type="multiple" className="space-y-2">
+                        {groupTemplates.map(renderTemplate)}
+                      </Accordion>
+                    </div>
+                  );
+                })}
+                {otherTemplates.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                      <h3 className="text-sm font-semibold text-foreground">Other</h3>
+                      <Badge variant="secondary" className="text-[10px]">{otherTemplates.length}</Badge>
+                    </div>
+                    <Accordion type="multiple" className="space-y-2">
+                      {otherTemplates.map(renderTemplate)}
+                    </Accordion>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="holidays">
