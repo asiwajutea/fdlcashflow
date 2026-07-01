@@ -99,7 +99,7 @@ const Offers = () => {
           capabilities: ['manage_recruitment'],
           vars: {
             candidate: 'A candidate',
-            job: contract?.job?.title || 'a position',
+            job: contracts.find(c => c.id === contractId)?.job?.title || 'a position',
             link: `${window.location.origin}/applications`,
           },
         },

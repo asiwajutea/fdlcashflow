@@ -155,7 +155,7 @@ const Applications = () => {
 
     const userIds = [...new Set((data || []).map((a: any) => a.candidates.user_id))];
     const { data: profiles } = await (supabase as any).from('profiles').select('id, full_name, avatar_url').in('id', userIds);
-    const profileMap = new Map(profiles?.map((p: any) => [p.id, { name: p.full_name, avatar: p.avatar_url }]) || []);
+    const profileMap = new Map<string, { name: string; avatar: string | null }>(profiles?.map((p: any) => [p.id, { name: p.full_name, avatar: p.avatar_url }]) || []);
 
     const appIds = (data || []).map((a: any) => a.id);
     let scoreMap = new Map<string, number | null>();

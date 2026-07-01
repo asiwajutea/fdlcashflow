@@ -376,6 +376,7 @@ export type Database = {
           id: string
           job_id: string
           status: string
+          updated_at: string
         }
         Insert: {
           applied_at?: string
@@ -384,6 +385,7 @@ export type Database = {
           id?: string
           job_id: string
           status?: string
+          updated_at?: string
         }
         Update: {
           applied_at?: string
@@ -392,6 +394,7 @@ export type Database = {
           id?: string
           job_id?: string
           status?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -941,6 +944,48 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          recipient_email: string
+          recipient_name: string | null
+          resend_id: string | null
+          status: string
+          subject: string
+          template_key: string
+          user_id: string | null
+          vars: Json | null
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          recipient_email: string
+          recipient_name?: string | null
+          resend_id?: string | null
+          status?: string
+          subject: string
+          template_key: string
+          user_id?: string | null
+          vars?: Json | null
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          resend_id?: string | null
+          status?: string
+          subject?: string
+          template_key?: string
+          user_id?: string | null
+          vars?: Json | null
+        }
+        Relationships: []
+      }
       employees: {
         Row: {
           account_number: string | null
@@ -1429,6 +1474,41 @@ export type Database = {
         }
         Relationships: []
       }
+      job_screening_templates: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          job_id: string
+          questions: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id: string
+          questions?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          job_id?: string
+          questions?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_screening_templates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: true
+            referencedRelation: "job_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kb_articles: {
         Row: {
           attachments: Json
@@ -1664,20 +1744,25 @@ export type Database = {
           created_at: string
           cv_url: string | null
           department_id: string | null
+          department_ids: string[]
           employee_id: string | null
           employment_start_date: string | null
           full_name: string | null
           gender: string | null
           id: string
           id_card_url: string | null
+          is_active: boolean
           manager_id: string | null
           manager_intro_acknowledged: boolean
           passcode: string | null
           passcode_acknowledged: boolean
           phone: string | null
           position_id: string | null
+          position_ids: string[]
           project_id: string | null
+          project_ids: string[]
           team_id: string | null
+          team_ids: string[]
           updated_at: string
         }
         Insert: {
@@ -1694,20 +1779,25 @@ export type Database = {
           created_at?: string
           cv_url?: string | null
           department_id?: string | null
+          department_ids?: string[]
           employee_id?: string | null
           employment_start_date?: string | null
           full_name?: string | null
           gender?: string | null
           id: string
           id_card_url?: string | null
+          is_active?: boolean
           manager_id?: string | null
           manager_intro_acknowledged?: boolean
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
           position_id?: string | null
+          position_ids?: string[]
           project_id?: string | null
+          project_ids?: string[]
           team_id?: string | null
+          team_ids?: string[]
           updated_at?: string
         }
         Update: {
@@ -1724,20 +1814,25 @@ export type Database = {
           created_at?: string
           cv_url?: string | null
           department_id?: string | null
+          department_ids?: string[]
           employee_id?: string | null
           employment_start_date?: string | null
           full_name?: string | null
           gender?: string | null
           id?: string
           id_card_url?: string | null
+          is_active?: boolean
           manager_id?: string | null
           manager_intro_acknowledged?: boolean
           passcode?: string | null
           passcode_acknowledged?: boolean
           phone?: string | null
           position_id?: string | null
+          position_ids?: string[]
           project_id?: string | null
+          project_ids?: string[]
           team_id?: string | null
+          team_ids?: string[]
           updated_at?: string
         }
         Relationships: [
@@ -2000,7 +2095,7 @@ export type Database = {
           {
             foreignKeyName: "screening_responses_application_id_fkey"
             columns: ["application_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "applications"
             referencedColumns: ["id"]
           },
@@ -2410,6 +2505,20 @@ export type Database = {
     Functions: {
       can_message: { Args: { _from: string; _to: string }; Returns: boolean }
       generate_employee_id: { Args: never; Returns: string }
+      get_my_manager: {
+        Args: never
+        Returns: {
+          about_details: Json
+          about_me: string
+          about_me_excerpt: string
+          about_visibility: Json
+          avatar_url: string
+          full_name: string
+          id: string
+          position_id: string
+          position_name: string
+        }[]
+      }
       get_my_subordinates: {
         Args: never
         Returns: {
@@ -2432,6 +2541,13 @@ export type Database = {
         Args: { _user_id: string }
         Returns: {
           user_id: string
+        }[]
+      }
+      get_user_display_names: {
+        Args: { user_ids: string[] }
+        Returns: {
+          display_name: string
+          id: string
         }[]
       }
       get_user_role: {
