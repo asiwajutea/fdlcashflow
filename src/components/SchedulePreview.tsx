@@ -150,6 +150,23 @@ export function SchedulePreview({ mode }: Props) {
 
   useEffect(() => { build(); }, [mode]);
 
+  // ── Batch helper — max 8 concurrent, 1.1 s gap between batches ────────────
+  // Resend's free/default limit is 10 req/s; staying at 8 gives headroom.
+  const sendInBatches = async <T,>(
+    items: T[],
+    fn: (item: T) => Promise<void>,
+    batchSize = 8,
+    delayMs = 1100,
+  ) => {
+    for (let i = 0; i < items.length; i += batchSize) {
+      const batch = items.slice(i, i + batchSize);
+      await Promise.allSettled(batch.map(fn));
+      if (i + batchSize < items.length) {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+    }
+  };
+
   // ── Send Now handler ────────────────────────────────────────────────────────
   const handleSendNow = async (date: string, ev: ScheduleEvent) => {
     const key = `${date}-${ev.type}`;
@@ -159,36 +176,34 @@ export function SchedulePreview({ mode }: Props) {
     let failCount = 0;
 
     try {
-      await Promise.allSettled(
-        ev.profiles.map(async (p) => {
-          const firstName = (p.full_name || 'there').split(' ')[0];
+      await sendInBatches(ev.profiles, async (p) => {
+        const firstName = (p.full_name || 'there').split(' ')[0];
 
-          if (ev.type === 'birthday_sms') {
-            const { error } = await supabase.functions.invoke('send-sms', {
-              body: { to: p.phone, user_id: p.id, template_key: 'birthday', vars: { name: firstName } },
-            });
-            error ? failCount++ : successCount++;
+        if (ev.type === 'birthday_sms') {
+          const { error } = await supabase.functions.invoke('send-sms', {
+            body: { to: p.phone, user_id: p.id, template_key: 'birthday', vars: { name: firstName } },
+          });
+          error ? failCount++ : successCount++;
 
-          } else if (ev.type === 'birthday_email') {
-            const { error } = await supabase.functions.invoke('send-email', {
-              body: { template_key: 'birthday_greeting', user_id: p.id, name: firstName, vars: { name: firstName } },
-            });
-            error ? failCount++ : successCount++;
+        } else if (ev.type === 'birthday_email') {
+          const { error } = await supabase.functions.invoke('send-email', {
+            body: { template_key: 'birthday_greeting', user_id: p.id, name: firstName, vars: { name: firstName } },
+          });
+          error ? failCount++ : successCount++;
 
-          } else if (ev.type === 'holiday_sms') {
-            const { error } = await supabase.functions.invoke('send-sms', {
-              body: { to: p.phone, user_id: p.id, template_key: 'holiday', vars: { name: firstName, holiday: ev.holidayLabel } },
-            });
-            error ? failCount++ : successCount++;
+        } else if (ev.type === 'holiday_sms') {
+          const { error } = await supabase.functions.invoke('send-sms', {
+            body: { to: p.phone, user_id: p.id, template_key: 'holiday', vars: { name: firstName, holiday: ev.holidayLabel } },
+          });
+          error ? failCount++ : successCount++;
 
-          } else if (ev.type === 'holiday_email') {
-            const { error } = await supabase.functions.invoke('send-email', {
-              body: { template_key: 'holiday_greeting', user_id: p.id, name: firstName, vars: { name: firstName, holiday: ev.holidayLabel } },
-            });
-            error ? failCount++ : successCount++;
-          }
-        })
-      );
+        } else if (ev.type === 'holiday_email') {
+          const { error } = await supabase.functions.invoke('send-email', {
+            body: { template_key: 'holiday_greeting', user_id: p.id, name: firstName, vars: { name: firstName, holiday: ev.holidayLabel } },
+          });
+          error ? failCount++ : successCount++;
+        }
+      });
 
       if (failCount === 0) {
         toast({ title: 'Sent!', description: `${successCount} message${successCount !== 1 ? 's' : ''} dispatched successfully.` });
