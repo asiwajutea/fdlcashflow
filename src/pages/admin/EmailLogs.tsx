@@ -270,6 +270,9 @@ export default function EmailLogs() {
             </div>
           </div>
         )}
+
+          </TabsContent>
+          </Tabs>
       </div>
 
       {/* Test Email Dialog */}
@@ -320,8 +323,6 @@ export default function EmailLogs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </TabsContent>
-      </Tabs>
     </DashboardLayout>
   );
 }
