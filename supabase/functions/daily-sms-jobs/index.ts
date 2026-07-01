@@ -86,13 +86,13 @@ serve(async (req) => {
   });
 
   if (todayHoliday) {
+    // Fetch all approved users (not just those with phones — we want to email everyone)
     const { data: all } = await admin
       .from("profiles")
       .select("id, full_name, phone, approval_status")
-      .eq("approval_status", "approved")
-      .not("phone", "is", null);
+      .eq("approval_status", "approved");
 
-    // Also fetch emails from auth.users for the holiday email
+    // Fetch emails from auth.users using service role
     const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 });
     const emailMap = new Map<string, string>();
     for (const u of authList?.users || []) {
@@ -100,14 +100,15 @@ serve(async (req) => {
     }
 
     for (const p of all || []) {
-      if (!p.phone) continue;
       const firstName = (p.full_name || "there").split(" ")[0];
       const vars = { name: firstName, holiday: todayHoliday.label };
 
-      // Send SMS
-      await callSendSms({ to: p.phone, user_id: p.id, template_key: "holiday_greeting", vars });
+      // SMS — only for users with a phone number
+      if (p.phone) {
+        await callSendSms({ to: p.phone, user_id: p.id, template_key: "holiday", vars });
+      }
 
-      // Send email (same content as SMS but HTML)
+      // Email — send to everyone with an email address
       const email = emailMap.get(p.id);
       if (email) {
         await callSendEmail({ template_key: "holiday_greeting", to: email, name: firstName, user_id: p.id, vars });
