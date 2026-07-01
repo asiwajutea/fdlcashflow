@@ -90,7 +90,7 @@ export default function EmailLogs() {
     skipped: logs.filter((l: any) => l.status === 'skipped').length,
   }), [logs]);
 
-  const templates: string[] = [...new Set(logs.map((l: any) => String(l.template_key)))].sort();
+  const templates: string[] = Array.from(new Set(logs.map((l: any) => String(l.template_key)))).sort();
 
   const handleSendTest = async () => {
     if (!testEmail.trim()) {
