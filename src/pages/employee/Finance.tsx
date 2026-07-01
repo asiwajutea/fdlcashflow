@@ -95,7 +95,7 @@ const openReceipt = async (path: string) => {
 export default function Finance() {
   const { user, role, capabilities, loading: authLoading } = useAuth();
   const isAdmin = role === 'admin';
-  const isSuperAdmin = role === 'super_admin';
+  const isSuperAdmin = false;
   const isSystemAdmin = isAdmin || isSuperAdmin;
   
   const canApprove = isSystemAdmin || capabilities.includes('approve_finance_requests');
