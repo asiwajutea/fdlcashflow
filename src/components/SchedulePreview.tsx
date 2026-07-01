@@ -6,6 +6,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Cake, PartyPopper, Mail, MessageSquare, RefreshCw, Send, Loader2 } from 'lucide-react';
 
+interface ProfileRow {
+  id: string;
+  full_name: string | null;
+  birthday: string | null;
+  phone: string | null;
+  is_active: boolean;
+  approval_status: string;
+}
+
 interface ScheduleEntry {
   date: string;          // YYYY-MM-DD
   dayLabel: string;      // "Today", "Tomorrow", "Mon 23 Jun"
@@ -18,6 +27,10 @@ interface ScheduleEvent {
   label: string;
   recipients: string[];  // names
   count: number;
+  /** Full profile rows needed to drive "Send Now" */
+  profiles: ProfileRow[];
+  /** Holiday label, present for holiday events */
+  holidayLabel?: string;
 }
 
 interface Props {
@@ -27,11 +40,12 @@ interface Props {
 export function SchedulePreview({ mode }: Props) {
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [sending, setSending]   = useState<string | null>(null); // key = `${date}-${type}`
+  const { toast } = useToast();
 
   const build = async () => {
     setLoading(true);
     try {
-      // Load holidays and active profiles in parallel
       const [{ data: holSetting }, { data: profiles }] = await Promise.all([
         db.from('app_settings').select('value').eq('key', 'holidays').maybeSingle(),
         db.from('profiles')
@@ -72,12 +86,24 @@ export function SchedulePreview({ mode }: Props) {
 
         if (bdays.length > 0) {
           const names = bdays.map(p => p.full_name || 'Unknown');
-          const withPhone = bdays.filter(p => !!p.phone).length;
-          if ((mode === 'sms' || mode === 'both') && withPhone > 0) {
-            events.push({ type: 'birthday_sms', label: 'Birthday SMS', recipients: names, count: withPhone });
+          const withPhone = bdays.filter(p => !!p.phone);
+          if ((mode === 'sms' || mode === 'both') && withPhone.length > 0) {
+            events.push({
+              type: 'birthday_sms',
+              label: 'Birthday SMS',
+              recipients: names,
+              count: withPhone.length,
+              profiles: withPhone,
+            });
           }
           if (mode === 'email' || mode === 'both') {
-            events.push({ type: 'birthday_email', label: 'Birthday Email', recipients: names, count: bdays.length });
+            events.push({
+              type: 'birthday_email',
+              label: 'Birthday Email',
+              recipients: names,
+              count: bdays.length,
+              profiles: bdays,
+            });
           }
         }
 
@@ -89,14 +115,16 @@ export function SchedulePreview({ mode }: Props) {
         });
 
         if (todayHol) {
-          const allActive = profiles || [];
-          const withPhone = allActive.filter(p => !!p.phone).length;
-          if ((mode === 'sms' || mode === 'both') && withPhone > 0) {
+          const allActive = (profiles || []) as ProfileRow[];
+          const withPhone = allActive.filter(p => !!p.phone);
+          if ((mode === 'sms' || mode === 'both') && withPhone.length > 0) {
             events.push({
               type: 'holiday_sms',
               label: `Holiday SMS — ${todayHol.label}`,
-              recipients: [`All ${withPhone} users with phone`],
-              count: withPhone,
+              recipients: [`All ${withPhone.length} users with phone`],
+              count: withPhone.length,
+              profiles: withPhone,
+              holidayLabel: todayHol.label,
             });
           }
           if (mode === 'email' || mode === 'both') {
@@ -105,6 +133,8 @@ export function SchedulePreview({ mode }: Props) {
               label: `Holiday Email — ${todayHol.label}`,
               recipients: [`All ${allActive.length} active users`],
               count: allActive.length,
+              profiles: allActive,
+              holidayLabel: todayHol.label,
             });
           }
         }
@@ -120,6 +150,65 @@ export function SchedulePreview({ mode }: Props) {
 
   useEffect(() => { build(); }, [mode]);
 
+  // ── Send Now handler ────────────────────────────────────────────────────────
+  const handleSendNow = async (date: string, ev: ScheduleEvent) => {
+    const key = `${date}-${ev.type}`;
+    setSending(key);
+
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      await Promise.allSettled(
+        ev.profiles.map(async (p) => {
+          const firstName = (p.full_name || 'there').split(' ')[0];
+
+          if (ev.type === 'birthday_sms') {
+            const { error } = await supabase.functions.invoke('send-sms', {
+              body: { to: p.phone, user_id: p.id, template_key: 'birthday', vars: { name: firstName } },
+            });
+            error ? failCount++ : successCount++;
+
+          } else if (ev.type === 'birthday_email') {
+            const { error } = await supabase.functions.invoke('send-email', {
+              body: { template_key: 'birthday_greeting', user_id: p.id, name: firstName, vars: { name: firstName } },
+            });
+            error ? failCount++ : successCount++;
+
+          } else if (ev.type === 'holiday_sms') {
+            const { error } = await supabase.functions.invoke('send-sms', {
+              body: { to: p.phone, user_id: p.id, template_key: 'holiday', vars: { name: firstName, holiday: ev.holidayLabel } },
+            });
+            error ? failCount++ : successCount++;
+
+          } else if (ev.type === 'holiday_email') {
+            const { error } = await supabase.functions.invoke('send-email', {
+              body: { template_key: 'holiday_greeting', user_id: p.id, name: firstName, vars: { name: firstName, holiday: ev.holidayLabel } },
+            });
+            error ? failCount++ : successCount++;
+          }
+        })
+      );
+
+      if (failCount === 0) {
+        toast({ title: 'Sent!', description: `${successCount} message${successCount !== 1 ? 's' : ''} dispatched successfully.` });
+      } else if (successCount > 0) {
+        toast({
+          title: 'Partially sent',
+          description: `${successCount} sent, ${failCount} failed.`,
+          variant: 'destructive',
+        });
+      } else {
+        toast({ title: 'Send failed', description: 'All messages failed to dispatch.', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Error', description: e?.message || 'Unexpected error.', variant: 'destructive' });
+    } finally {
+      setSending(null);
+    }
+  };
+
+  // ── Type config ─────────────────────────────────────────────────────────────
   const typeConfig = {
     birthday_sms:   { icon: Cake,        color: 'bg-pink-50 dark:bg-pink-950/20 border-pink-200',   badge: 'bg-pink-100 text-pink-700',   label: 'Birthday SMS' },
     birthday_email: { icon: Cake,        color: 'bg-pink-50 dark:bg-pink-950/20 border-pink-200',   badge: 'bg-pink-100 text-pink-700',   label: 'Birthday Email' },
@@ -181,6 +270,8 @@ export function SchedulePreview({ mode }: Props) {
                     const cfg = typeConfig[ev.type];
                     const Icon = cfg.icon;
                     const isEmail = ev.type.includes('email');
+                    const sendKey = `${day.date}-${ev.type}`;
+                    const isSending = sending === sendKey;
                     return (
                       <div key={i} className={`flex items-start gap-3 px-4 py-3 ${cfg.color}`}>
                         <div className="p-1.5 rounded-lg bg-white/60 dark:bg-white/10 shrink-0 mt-0.5">
@@ -201,7 +292,22 @@ export function SchedulePreview({ mode }: Props) {
                             </p>
                           )}
                         </div>
-                        <Icon className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-0.5" />
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1.5 bg-white/70 dark:bg-white/10 hover:bg-white dark:hover:bg-white/20"
+                            disabled={isSending || !!sending}
+                            onClick={() => handleSendNow(day.date, ev)}
+                            title="Send this message now instead of waiting for the scheduled date"
+                          >
+                            {isSending
+                              ? <><Loader2 className="h-3 w-3 animate-spin" /> Sending…</>
+                              : <><Send className="h-3 w-3" /> Send Now</>
+                            }
+                          </Button>
+                          <Icon className="h-4 w-4 text-muted-foreground/50" />
+                        </div>
                       </div>
                     );
                   })}
