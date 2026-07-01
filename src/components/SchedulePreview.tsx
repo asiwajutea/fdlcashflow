@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { db } from '@/lib/supabase-db';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { CalendarDays, Cake, PartyPopper, Mail, MessageSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { CalendarDays, Cake, PartyPopper, Mail, MessageSquare, RefreshCw, Send, Loader2 } from 'lucide-react';
 
 interface ScheduleEntry {
   date: string;          // YYYY-MM-DD
