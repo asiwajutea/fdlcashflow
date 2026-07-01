@@ -261,6 +261,42 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
         `),
       };
 
+    // ── Holiday greeting ─────────────────────────────────────────────
+    case "holiday_greeting":
+      return {
+        subject: `Happy ${v.holiday || 'Holiday'} from Footprints Dynasty! 🎉`,
+        html: wrap(`Happy ${v.holiday || 'Holiday'}!`, `
+          <p>Dear <strong>${v.name || 'Team Member'}</strong>,</p>
+          <p>Happy <strong>${v.holiday || 'Holiday'}</strong> from all of us at Footprints Dynasty Limited! 🎉</p>
+          <p>Wishing you and your loved ones a wonderful celebration filled with joy, rest, and togetherness.</p>
+          <div class="info-box">
+            We appreciate everything you do. See you on the other side!
+          </div>
+          <p>With warm regards,<br/><strong>The Footprints Dynasty Team</strong></p>
+        `),
+      };
+
+    // ── Daily digest — unread inbox messages ─────────────────────────
+    case "inbox_digest":
+      return {
+        subject: `You have ${v.count || 'unread'} unread message${Number(v.count) !== 1 ? 's' : ''} — FDL Inbox`,
+        html: wrap("Unread Messages", `
+          <p>Dear <strong>${v.name || 'Team Member'}</strong>,</p>
+          <p>You have <strong>${v.count || 'some'} unread message${Number(v.count) !== 1 ? 's' : ''}</strong> waiting in your FDL Workforce inbox.</p>
+          ${v.previews ? `
+          <div class="info-box">
+            <strong>Recent messages:</strong><br/>
+            ${v.previews}
+          </div>` : ''}
+          <a href="${v.origin || 'https://footprintsdynasty.com.ng'}/inbox" class="cta">View Your Inbox →</a>
+          <p style="font-size:12px;color:#94a3b8;margin-top:16px">
+            You will stop receiving these reminders once you open your messages.
+            Reminders stop automatically after 7 days.
+          </p>
+          <p>Best regards,<br/><strong>Footprints Dynasty Platform</strong></p>
+        `),
+      };
+
     default:
       return null;
   }

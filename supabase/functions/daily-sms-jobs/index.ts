@@ -32,6 +32,20 @@ serve(async (req) => {
     } catch (e) { console.error("send-sms call failed", e); }
   };
 
+  const callSendEmail = async (payload: any) => {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceKey}`,
+          apikey: serviceKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (e) { console.error("send-email call failed", e); }
+  };
+
   const now = new Date();
   const todayMonth = now.getUTCMonth() + 1;
   const todayDay = now.getUTCDate();
@@ -77,10 +91,27 @@ serve(async (req) => {
       .select("id, full_name, phone, approval_status")
       .eq("approval_status", "approved")
       .not("phone", "is", null);
+
+    // Also fetch emails from auth.users for the holiday email
+    const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    const emailMap = new Map<string, string>();
+    for (const u of authList?.users || []) {
+      if (u.email) emailMap.set(u.id, u.email);
+    }
+
     for (const p of all || []) {
       if (!p.phone) continue;
       const firstName = (p.full_name || "there").split(" ")[0];
-      await callSendSms({ to: p.phone, user_id: p.id, template_key: "holiday", vars: { name: firstName, holiday: todayHoliday.label } });
+      const vars = { name: firstName, holiday: todayHoliday.label };
+
+      // Send SMS
+      await callSendSms({ to: p.phone, user_id: p.id, template_key: "holiday_greeting", vars });
+
+      // Send email (same content as SMS but HTML)
+      const email = emailMap.get(p.id);
+      if (email) {
+        await callSendEmail({ template_key: "holiday_greeting", to: email, name: firstName, user_id: p.id, vars });
+      }
       holidayCount++;
     }
   }
