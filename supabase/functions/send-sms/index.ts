@@ -117,7 +117,13 @@ serve(async (req) => {
     // Resolve recipient phone
     let phone: string | null = normalizePhone(to || "");
     if (!phone && user_id) {
-      const { data: prof } = await admin.from("profiles").select("phone, full_name").eq("id", user_id).maybeSingle();
+      const { data: prof } = await admin.from("profiles").select("phone, full_name, is_active").eq("id", user_id).maybeSingle();
+      // Skip inactive users
+      if (prof?.is_active === false) {
+        return new Response(JSON.stringify({ skipped: true, reason: "User account is inactive" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       phone = normalizePhone(prof?.phone || "");
       if (!vars.name && prof?.full_name) vars.name = prof.full_name.split(" ")[0];
     }

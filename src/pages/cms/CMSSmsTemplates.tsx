@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { db } from '@/lib/supabase-db';
 import { supabase } from '@/integrations/supabase/client';
 import { MessageSquare, Send, Save, Plus, Trash2, Sparkles, Calendar, Users, Briefcase, Wallet, Bell } from 'lucide-react';
+import { SchedulePreview } from '@/components/SchedulePreview';
 
 interface SmsTemplate {
   id: string;
@@ -168,6 +169,7 @@ const CMSSmsTemplates = () => {
       <Tabs defaultValue="templates" className="space-y-6">
         <TabsList>
           <TabsTrigger value="templates" className="gap-2"><MessageSquare className="h-4 w-4" /> Templates</TabsTrigger>
+          <TabsTrigger value="schedule" className="gap-2"><Calendar className="h-4 w-4" /> Schedule</TabsTrigger>
           <TabsTrigger value="holidays" className="gap-2"><Calendar className="h-4 w-4" /> Holidays</TabsTrigger>
           <TabsTrigger value="logs">Delivery Logs</TabsTrigger>
         </TabsList>
@@ -300,6 +302,10 @@ const CMSSmsTemplates = () => {
               </div>
             );
           })()}
+        </TabsContent>
+
+        <TabsContent value="schedule">
+          <SchedulePreview mode="sms" />
         </TabsContent>
 
         <TabsContent value="holidays">

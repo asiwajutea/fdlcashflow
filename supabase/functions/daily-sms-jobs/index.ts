@@ -57,6 +57,7 @@ serve(async (req) => {
     .from("profiles")
     .select("id, full_name, phone, birthday, approval_status")
     .eq("approval_status", "approved")
+    .eq("is_active", true)
     .not("birthday", "is", null);
 
   for (const p of profiles || []) {
@@ -86,11 +87,12 @@ serve(async (req) => {
   });
 
   if (todayHoliday) {
-    // Fetch all approved users (not just those with phones — we want to email everyone)
+    // Fetch all approved AND active users
     const { data: all } = await admin
       .from("profiles")
       .select("id, full_name, phone, approval_status")
-      .eq("approval_status", "approved");
+      .eq("approval_status", "approved")
+      .eq("is_active", true);
 
     // Fetch emails from auth.users using service role
     const { data: authList } = await admin.auth.admin.listUsers({ perPage: 1000 });

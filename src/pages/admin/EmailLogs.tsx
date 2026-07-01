@@ -9,11 +9,14 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { db } from '@/lib/supabase-db';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { Mail, Search, X, RefreshCw, CheckCircle2, XCircle, MinusCircle, Send, FlaskConical } from 'lucide-react';
+import { Mail, Search, X, RefreshCw, CheckCircle2, XCircle, MinusCircle, Send, FlaskConical, CalendarDays } from 'lucide-react';
+import { SchedulePreview } from '@/components/SchedulePreview';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const PAGE_SIZE = 50;
 
@@ -104,7 +107,13 @@ export default function EmailLogs() {
           template_key: testTemplate,
           to: testEmail.trim(),
           name: 'Admin',
-          vars: { origin: window.location.origin },
+          vars: {
+            origin: window.location.origin,
+            // Holiday template needs a holiday name
+            ...(testTemplate === 'holiday_greeting' ? { holiday: 'New Year' } : {}),
+            // Inbox digest needs a count
+            ...(testTemplate === 'inbox_digest' ? { count: '3', previews: '1. Welcome to FDL<br/>2. Your payslip is ready<br/>3. Action required' } : {}),
+          },
         },
       });
       if (error || data?.error) {
@@ -132,13 +141,27 @@ export default function EmailLogs() {
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">All emails sent through the platform</p>
           </div>
-          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
-          </Button>
-          <Button size="sm" onClick={() => setTestOpen(true)} className="gap-1.5">
-            <FlaskConical className="h-3.5 w-3.5" /> Send Test Email
-          </Button>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching} className="gap-1.5">
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} /> Refresh
+            </Button>
+            <Button size="sm" onClick={() => setTestOpen(true)} className="gap-1.5">
+              <FlaskConical className="h-3.5 w-3.5" /> Send Test Email
+            </Button>
+          </div>
         </div>
+
+        <Tabs defaultValue="logs">
+          <TabsList>
+            <TabsTrigger value="logs" className="gap-1.5"><Mail className="h-3.5 w-3.5" /> Email Logs</TabsTrigger>
+            <TabsTrigger value="schedule" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> 7-Day Schedule</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="schedule" className="mt-4">
+            <SchedulePreview mode="email" />
+          </TabsContent>
+
+          <TabsContent value="logs" className="space-y-5 mt-4">
 
         {/* Summary tiles */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -274,6 +297,7 @@ export default function EmailLogs() {
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="test_email">Test Email (generic)</SelectItem>
+                  <SelectItem value="holiday_greeting">Holiday Greeting</SelectItem>
                   <SelectItem value="candidate_screening">Candidate — Screening</SelectItem>
                   <SelectItem value="candidate_interview">Candidate — Interview</SelectItem>
                   <SelectItem value="candidate_offered">Candidate — Offer</SelectItem>
@@ -296,6 +320,8 @@ export default function EmailLogs() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </TabsContent>
+      </Tabs>
     </DashboardLayout>
   );
 }

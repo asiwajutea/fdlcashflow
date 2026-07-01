@@ -58,13 +58,14 @@ serve(async (req) => {
       });
     }
 
-    // ── 2. Fetch phone numbers for those users ──────────────────────────────
+    // ── 2. Fetch phone numbers for active users only ──────────────────────────
     const userIds = [...userIdSet];
     const { data: profiles } = await admin
       .from("profiles")
       .select("id, full_name, phone")
       .in("id", userIds)
-      .not("phone", "is", null);
+      .not("phone", "is", null)
+      .eq("is_active", true);
 
     const recipients = (profiles || []).filter((p: any) => p.phone && p.phone.trim());
 
