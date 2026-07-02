@@ -316,8 +316,8 @@ const CMSSmsTemplates = () => {
         </TabsContent>
 
         <TabsContent value="holidays">
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden">
+            <CardHeader className="sticky top-0 z-10 bg-card border-b">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                   <CardTitle className="text-base">Holiday Schedule</CardTitle>
@@ -339,7 +339,7 @@ const CMSSmsTemplates = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-0 max-h-[60vh] overflow-y-auto">
               {holidays.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-10 text-center">
                   No holidays yet. Add one or use AI suggestions.
