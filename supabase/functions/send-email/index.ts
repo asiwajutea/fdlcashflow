@@ -28,7 +28,7 @@ function senderFor(key: string): string {
 }
 
 // ─── HTML shell ───────────────────────────────────────────────────────────────
-const LOGO_URL = "https://footprintsdynasty.com.ng/fdl-logo.jpg";
+const LOGO_URL = "https://uppixbfndhlyfeyjoxrg.supabase.co/storage/v1/object/public/cms-media/fdl-logo.jpg";
 
 function wrap(title: string, body: string, year = new Date().getFullYear()): string {
   return `<!DOCTYPE html>
