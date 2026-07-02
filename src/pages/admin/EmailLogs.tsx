@@ -16,7 +16,6 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Mail, Search, X, RefreshCw, CheckCircle2, XCircle, MinusCircle, Send, FlaskConical, CalendarDays } from 'lucide-react';
 import { SchedulePreview } from '@/components/SchedulePreview';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const PAGE_SIZE = 50;
 

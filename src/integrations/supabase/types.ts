@@ -738,8 +738,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           file_url: string
+          footer_html: string
+          header_html: string
           id: string
           is_active: boolean
+          pdf_url: string
           position_id: string | null
           role_name: string
           title: string
@@ -750,8 +753,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           file_url?: string
+          footer_html?: string
+          header_html?: string
           id?: string
           is_active?: boolean
+          pdf_url?: string
           position_id?: string | null
           role_name?: string
           title: string
@@ -762,8 +768,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           file_url?: string
+          footer_html?: string
+          header_html?: string
           id?: string
           is_active?: boolean
+          pdf_url?: string
           position_id?: string | null
           role_name?: string
           title?: string

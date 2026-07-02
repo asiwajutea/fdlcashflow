@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import SignatureCanvas from '@/components/SignatureCanvas';
-import { FileText, CheckCircle, Loader2, PenTool, Type } from 'lucide-react';
+import ContractRenderer from '@/components/ContractRenderer';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { FileText, CheckCircle, Loader2, PenTool, Type, Download } from 'lucide-react';
 
 export default function MyContract() {
   const { user, fullName, loading: authLoading } = useAuth();
@@ -82,45 +85,88 @@ export default function MyContract() {
   }
 
   const bodyText = contract.body_html || template?.body_html || '';
+  const headerHtml = template?.header_html || '';
+  const footerHtml = template?.footer_html || '';
+  const templatePdf = template?.pdf_url;
+  const attachedPdf = contract.contract_url;
+  const pdfHref = (p: string) =>
+    p.startsWith('http') ? p : `https://uppixbfndhlyfeyjoxrg.supabase.co/storage/v1/object/public/documents/${p}`;
+
+  const captureId = 'my-contract-doc';
+  const downloadPdf = async () => {
+    const el = document.getElementById(captureId);
+    if (!el) return;
+    const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+    const img = canvas.toDataURL('image/jpeg', 0.9);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const w = pdf.internal.pageSize.getWidth();
+    const h = (canvas.height * w) / canvas.width;
+    pdf.addImage(img, 'JPEG', 0, 0, w, h);
+    pdf.save(`contract-${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
 
   return (
     <DashboardLayout title="My Contract">
-      <div className="max-w-3xl mx-auto space-y-4">
+      <div className="max-w-4xl mx-auto space-y-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" /> Employment Contract</CardTitle>
-            <Badge variant={contract.signed_at ? 'default' : 'secondary'}>{contract.signed_at ? 'Signed' : 'Pending'}</Badge>
+          <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" /> Employment Contract
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Badge variant={contract.signed_at ? 'default' : 'secondary'}>
+                {contract.signed_at ? 'Signed' : 'Pending'}
+              </Badge>
+              <Button size="sm" variant="outline" onClick={downloadPdf}>
+                <Download className="h-4 w-4 mr-1" /> Download PDF
+              </Button>
+              {(templatePdf || attachedPdf) && (
+                <Button size="sm" variant="outline" asChild>
+                  <a href={pdfHref(attachedPdf || templatePdf)} target="_blank" rel="noopener noreferrer">
+                    <FileText className="h-4 w-4 mr-1" /> View attached PDF
+                  </a>
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {contract.contract_url && (
-              <Button variant="outline" size="sm" asChild>
-                <a href={contract.contract_url.startsWith('http') ? contract.contract_url : `https://uppixbfndhlyfeyjoxrg.supabase.co/storage/v1/object/public/documents/${contract.contract_url}`} target="_blank" rel="noopener noreferrer">
-                  <FileText className="h-4 w-4 mr-1" /> View attached PDF
-                </a>
-              </Button>
-            )}
-            {bodyText && (
-              <div className="prose prose-sm max-w-none rounded border bg-muted/30 p-4 whitespace-pre-wrap text-sm">{bodyText}</div>
-            )}
+            <ContractRenderer
+              captureId={captureId}
+              headerHtml={headerHtml}
+              bodyHtml={bodyText || '<em>Your contract is being prepared.</em>'}
+              footerHtml={footerHtml}
+            />
 
             {contract.signed_at ? (
               <div className="flex items-center gap-2 text-green-600 border-t pt-3">
                 <CheckCircle className="h-5 w-5" />
-                <span className="text-sm font-medium">Signed on {new Date(contract.signed_at).toLocaleDateString()}</span>
+                <span className="text-sm font-medium">
+                  Signed on {new Date(contract.signed_at).toLocaleDateString()}
+                </span>
               </div>
             ) : (
               <div className="border-t pt-4 space-y-3">
                 <Tabs value={signMode} onValueChange={(v: any) => setSignMode(v)}>
                   <TabsList>
-                    <TabsTrigger value="draw"><PenTool className="h-3.5 w-3.5 mr-1" /> Draw signature</TabsTrigger>
-                    <TabsTrigger value="type"><Type className="h-3.5 w-3.5 mr-1" /> Type full name</TabsTrigger>
+                    <TabsTrigger value="draw">
+                      <PenTool className="h-3.5 w-3.5 mr-1" /> Draw signature
+                    </TabsTrigger>
+                    <TabsTrigger value="type">
+                      <Type className="h-3.5 w-3.5 mr-1" /> Type full name
+                    </TabsTrigger>
                   </TabsList>
                   <TabsContent value="draw" className="pt-3">
                     <SignatureCanvas onSignatureChange={setSignature} />
                   </TabsContent>
                   <TabsContent value="type" className="pt-3 space-y-2">
-                    <p className="text-xs text-muted-foreground">Typing your full legal name has the same legal effect as a handwritten signature.</p>
-                    <Input value={typedName} onChange={(e) => setTypedName(e.target.value)} placeholder={fullName || 'Your full legal name'} />
+                    <p className="text-xs text-muted-foreground">
+                      Typing your full legal name has the same legal effect as a handwritten signature.
+                    </p>
+                    <Input
+                      value={typedName}
+                      onChange={(e) => setTypedName(e.target.value)}
+                      placeholder={fullName || 'Your full legal name'}
+                    />
                   </TabsContent>
                 </Tabs>
                 <Button onClick={sign} disabled={submitting}>
