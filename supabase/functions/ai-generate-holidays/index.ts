@@ -21,12 +21,14 @@ serve(async (req) => {
 
     const prompt = `List notable public holidays, religious observances, awareness days, and important commemorative days in ${country} between month ${startMonth} and month ${endMonth} of ${y}. Include international days widely observed in workplaces (e.g. Workers' Day, International Women's Day).
 
-Return ONLY a JSON array, no prose. Each item must have:
+Return ONLY a JSON array, no prose. Each object MUST have all three fields:
 - "date": "YYYY-MM-DD"
 - "label": short title, max 6 words (e.g. "New Year's Day") — used as email subject
-- "message": a warm, friendly SMS message body, 1–2 sentences max, suitable for sending to staff (e.g. "Happy New Year! Wishing you and your loved ones joy and prosperity in the new year. — FDL Team")
+- "message": a warm, friendly SMS message body, 1–2 sentences, suitable for sending to staff (e.g. "Happy New Year! Wishing you and your loved ones joy and prosperity in the new year. — FDL Team")
 
-Max 25 items, sorted by date.`;
+Example item: {"date":"2026-01-01","label":"New Year's Day","message":"Happy New Year! Wishing you joy, health, and prosperity in the year ahead. — FDL Team"}
+
+Max 25 items, sorted by date. Every item must include all three fields — never omit message.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -37,7 +39,7 @@ Max 25 items, sorted by date.`;
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
         messages: [
-          { role: "system", content: "You output only valid JSON arrays. No markdown, no commentary." },
+          { role: "system", content: "You output only valid JSON arrays. Each object must have exactly three string fields: date, label, and message. Never omit any field. No markdown, no commentary." },
           { role: "user", content: prompt },
         ],
       }),

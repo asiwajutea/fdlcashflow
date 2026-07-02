@@ -348,34 +348,33 @@ const CMSSmsTemplates = () => {
                 <Accordion type="single" collapsible className="divide-y">
                   {holidays.map((h, i) => (
                     <AccordionItem key={i} value={String(i)} className="border-0 px-4">
-                      <div className="flex items-center gap-3 py-2.5">
-                        {/* Date badge */}
-                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded shrink-0 text-muted-foreground min-w-[90px] text-center">
-                          {h.date || '—'}
-                        </span>
-                        {/* Title + message preview */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-foreground truncate">
-                            {h.label || <span className="text-muted-foreground italic">Untitled</span>}
-                          </p>
-                          {h.message && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">{h.message}</p>
-                          )}
-                        </div>
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          <AccordionTrigger className="p-1.5 hover:bg-muted rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-muted-foreground hover:no-underline" title="Edit" />
+                      <AccordionTrigger className="hover:no-underline hover:bg-muted/40 -mx-4 px-4 py-2.5 rounded-none [&>svg]:shrink-0 [&>svg]:text-muted-foreground [&>svg]:h-3.5 [&>svg]:w-3.5">
+                        <div className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                          {/* Date badge */}
+                          <span className="font-mono text-xs bg-muted px-2 py-1 rounded shrink-0 text-muted-foreground min-w-[90px] text-center">
+                            {h.date || '—'}
+                          </span>
+                          {/* Title + message preview */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {h.label || <span className="text-muted-foreground italic">Untitled</span>}
+                            </p>
+                            {h.message && (
+                              <p className="text-xs text-muted-foreground truncate mt-0.5">{h.message}</p>
+                            )}
+                          </div>
+                          {/* Delete — stop propagation so it doesn't toggle accordion */}
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => removeHoliday(i)}
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                            onClick={(e) => { e.stopPropagation(); removeHoliday(i); }}
                             title="Remove"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </div>
-                      </div>
+                      </AccordionTrigger>
                       <AccordionContent className="pb-3 pt-0 space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <div>
