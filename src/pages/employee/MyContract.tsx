@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import SignatureCanvas from '@/components/SignatureCanvas';
-import { FileText, CheckCircle, Loader2, PenTool, Type } from 'lucide-react';
+import ContractRenderer from '@/components/ContractRenderer';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { FileText, CheckCircle, Loader2, PenTool, Type, Download } from 'lucide-react';
 
 export default function MyContract() {
   const { user, fullName, loading: authLoading } = useAuth();
