@@ -322,69 +322,100 @@ const CMSSmsTemplates = () => {
                 <div>
                   <CardTitle className="text-base">Holiday Schedule</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Add dates when the holiday SMS template should fire to all approved users.
-                    Use a full date like <code>2026-12-25</code>, or <code>MM-DD</code> to repeat every year.
+                    Dates when SMS &amp; email greetings fire to all approved users.
+                    Use <code className="bg-muted px-1 rounded text-[11px]">YYYY-MM-DD</code> or <code className="bg-muted px-1 rounded text-[11px]">MM-DD</code> to repeat yearly.
                   </p>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Button size="sm" variant="outline" onClick={generateQuarter} disabled={generating}>
-                    <Sparkles className="h-4 w-4 mr-1" /> {generating ? 'Generating…' : 'AI: Generate this quarter'}
+                    <Sparkles className="h-4 w-4 mr-1" /> {generating ? 'Generating…' : 'AI Suggestions'}
                   </Button>
                   <Button size="sm" variant="outline" onClick={addHoliday}>
-                    <Plus className="h-4 w-4 mr-1" /> Add row
+                    <Plus className="h-4 w-4 mr-1" /> Add
                   </Button>
                   <Button size="sm" onClick={saveHolidays} disabled={savingHolidays}>
-                    <Save className="h-4 w-4 mr-1" /> {savingHolidays ? 'Saving…' : 'Save Holidays'}
+                    <Save className="h-4 w-4 mr-1" /> {savingHolidays ? 'Saving…' : 'Save'}
                   </Button>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {holidays.length === 0 && (
-                <p className="text-sm text-muted-foreground py-6 text-center">No holidays yet. Add a row or generate suggestions with AI.</p>
+            <CardContent className="p-0">
+              {holidays.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-10 text-center">
+                  No holidays yet. Add one or use AI suggestions.
+                </p>
+              ) : (
+                <Accordion type="single" collapsible className="divide-y">
+                  {holidays.map((h, i) => (
+                    <AccordionItem key={i} value={String(i)} className="border-0 px-4">
+                      <div className="flex items-center gap-3 py-2.5">
+                        {/* Date badge */}
+                        <span className="font-mono text-xs bg-muted px-2 py-1 rounded shrink-0 text-muted-foreground min-w-[90px] text-center">
+                          {h.date || '—'}
+                        </span>
+                        {/* Title + message preview */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {h.label || <span className="text-muted-foreground italic">Untitled</span>}
+                          </p>
+                          {h.message && (
+                            <p className="text-xs text-muted-foreground truncate mt-0.5">{h.message}</p>
+                          )}
+                        </div>
+                        {/* Actions */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <AccordionTrigger className="p-1.5 hover:bg-muted rounded-md [&>svg]:h-3.5 [&>svg]:w-3.5 [&>svg]:text-muted-foreground hover:no-underline" title="Edit" />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeHoliday(i)}
+                            title="Remove"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                      <AccordionContent className="pb-3 pt-0 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground mb-1 block">Date</Label>
+                            <Input
+                              placeholder="YYYY-MM-DD or MM-DD"
+                              value={h.date}
+                              onChange={(e) => updateHoliday(i, { date: e.target.value })}
+                              className="h-8 text-sm font-mono"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[11px] text-muted-foreground mb-1 block">
+                              Title <span className="opacity-60">(used in email subject)</span>
+                            </Label>
+                            <Input
+                              placeholder="e.g. New Year's Day"
+                              value={h.label}
+                              onChange={(e) => updateHoliday(i, { label: e.target.value })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-[11px] text-muted-foreground mb-1 block">
+                            SMS message <span className="opacity-60">(replaces <code className="bg-muted px-1 rounded">{'{{holiday}}'}</code> — leave blank to use title)</span>
+                          </Label>
+                          <Textarea
+                            placeholder="e.g. Happy New Year! Wishing you joy and prosperity. — FDL Team"
+                            value={h.message || ''}
+                            onChange={(e) => updateHoliday(i, { message: e.target.value })}
+                            rows={2}
+                            className="text-sm resize-none"
+                          />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
               )}
-              {holidays.map((h, i) => (
-                <div key={i} className="rounded-lg border bg-muted/10 p-3 space-y-2">
-                  <div className="grid grid-cols-12 gap-2 items-center">
-                    <div className="col-span-4 sm:col-span-3">
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">Date</Label>
-                      <Input
-                        type="text"
-                        placeholder="YYYY-MM-DD or MM-DD"
-                        value={h.date}
-                        onChange={(e) => updateHoliday(i, { date: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-span-7 sm:col-span-8">
-                      <Label className="text-[11px] text-muted-foreground mb-1 block">
-                        Title <span className="text-muted-foreground/60">(short — used in email subject)</span>
-                      </Label>
-                      <Input
-                        placeholder="e.g. New Year's Day"
-                        value={h.label}
-                        onChange={(e) => updateHoliday(i, { label: e.target.value })}
-                      />
-                    </div>
-                    <div className="col-span-1 flex justify-end items-end pb-0.5">
-                      <Button size="sm" variant="ghost" onClick={() => removeHoliday(i)} title="Remove">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-[11px] text-muted-foreground mb-1 block">
-                      SMS Message body <span className="text-muted-foreground/60">(optional — replaces <code className="bg-muted px-1 rounded">{'{{holiday}}'}</code> in the SMS template; leave blank to use the title)</span>
-                    </Label>
-                    <Textarea
-                      placeholder={`e.g. Happy New Year! Wishing you joy and prosperity in the new year. — FDL Team`}
-                      value={h.message || ''}
-                      onChange={(e) => updateHoliday(i, { message: e.target.value })}
-                      rows={2}
-                      className="text-sm font-mono resize-none"
-                    />
-                  </div>
-                </div>
-              ))}
             </CardContent>
           </Card>
         </TabsContent>
