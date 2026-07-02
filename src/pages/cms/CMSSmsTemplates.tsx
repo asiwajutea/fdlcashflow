@@ -72,7 +72,7 @@ const CMSSmsTemplates = () => {
       if (Array.isArray(v)) parsed = v;
       else if (v && v.date) parsed = [v];
     } catch { parsed = []; }
-    setHolidays(parsed.map(h => ({ date: h.date || '', label: h.label || '' })));
+    setHolidays(parsed.map(h => ({ date: h.date || '', label: h.label || '', message: h.message || '' })));
     await fetchLogs();
     setLoading(false);
   };
