@@ -28,6 +28,8 @@ function senderFor(key: string): string {
 }
 
 // ─── HTML shell ───────────────────────────────────────────────────────────────
+const LOGO_URL = "https://footprintsdynasty.com.ng/fdl-logo.jpg";
+
 function wrap(title: string, body: string, year = new Date().getFullYear()): string {
   return `<!DOCTYPE html>
 <html lang="en">
@@ -40,9 +42,11 @@ function wrap(title: string, body: string, year = new Date().getFullYear()): str
   body{background:#f1f5f9;font-family:'Segoe UI',Helvetica,Arial,sans-serif;color:#1e293b;-webkit-font-smoothing:antialiased}
   .outer{padding:32px 16px}
   .card{max-width:600px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-  .header{background:linear-gradient(135deg,#0B1F3B 0%,#1a3a6b 100%);padding:36px 40px;text-align:center}
-  .header h1{color:#ffffff;font-size:22px;font-weight:700;margin:0}
-  .header p{color:rgba(255,255,255,.65);font-size:13px;margin-top:6px}
+  .header{background:linear-gradient(135deg,#0B1F3B 0%,#1a3a6b 100%);padding:28px 40px 24px;text-align:center}
+  .header-logo{display:block;margin:0 auto 14px;height:64px;width:auto;object-fit:contain;border-radius:8px;background:#ffffff;padding:6px 12px}
+  .header-divider{border:none;border-top:1px solid rgba(255,255,255,0.15);margin:0 0 16px}
+  .header h1{color:#ffffff;font-size:18px;font-weight:600;margin:0;letter-spacing:0.01em}
+  .header p{color:rgba(255,255,255,.60);font-size:12px;margin-top:5px}
   .body{padding:36px 40px}
   .body p{line-height:1.75;margin-bottom:16px;font-size:15px;color:#334155}
   .cta{display:inline-block;background:#FF7A00;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:8px;font-weight:600;font-size:15px;margin:8px 0 20px;letter-spacing:.01em}
@@ -62,6 +66,8 @@ function wrap(title: string, body: string, year = new Date().getFullYear()): str
 <div class="outer">
 <div class="card">
   <div class="header">
+    <img src="${LOGO_URL}" alt="Footprints Dynasty Limited" class="header-logo" />
+    <hr class="header-divider"/>
     <h1>Footprints Dynasty Limited</h1>
     <p>${title}</p>
   </div>
