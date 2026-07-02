@@ -29,8 +29,10 @@ interface ScheduleEvent {
   count: number;
   /** Full profile rows needed to drive "Send Now" */
   profiles: ProfileRow[];
-  /** Holiday label, present for holiday events */
-  holidayLabel?: string;
+  /** Short holiday title (e.g. "New Year's Day") — used in email subject */
+  holidayTitle?: string;
+  /** Full holiday message body (e.g. custom SMS text) — used as {{holiday}} var */
+  holidayMessage?: string;
 }
 
 interface Props {
@@ -54,7 +56,7 @@ export function SchedulePreview({ mode }: Props) {
           .eq('is_active', true),
       ]);
 
-      let holidays: { date: string; label: string }[] = [];
+      let holidays: { date: string; label: string; message?: string }[] = [];
       try {
         const parsed = JSON.parse(holSetting?.value || '[]');
         holidays = Array.isArray(parsed) ? parsed : parsed?.date ? [parsed] : [];
@@ -124,7 +126,8 @@ export function SchedulePreview({ mode }: Props) {
               recipients: [`All ${withPhone.length} users with phone`],
               count: withPhone.length,
               profiles: withPhone,
-              holidayLabel: todayHol.label,
+              holidayTitle: todayHol.label,
+              holidayMessage: todayHol.message || todayHol.label,
             });
           }
           if (mode === 'email' || mode === 'both') {
@@ -134,7 +137,8 @@ export function SchedulePreview({ mode }: Props) {
               recipients: [`All ${allActive.length} active users`],
               count: allActive.length,
               profiles: allActive,
-              holidayLabel: todayHol.label,
+              holidayTitle: todayHol.label,
+              holidayMessage: todayHol.message || todayHol.label,
             });
           }
         }
@@ -193,13 +197,23 @@ export function SchedulePreview({ mode }: Props) {
 
         } else if (ev.type === 'holiday_sms') {
           const { error } = await supabase.functions.invoke('send-sms', {
-            body: { to: p.phone, user_id: p.id, template_key: 'holiday', vars: { name: firstName, holiday: ev.holidayLabel } },
+            body: {
+              to: p.phone,
+              user_id: p.id,
+              template_key: 'holiday',
+              vars: { name: firstName, holiday: ev.holidayMessage },
+            },
           });
           error ? failCount++ : successCount++;
 
         } else if (ev.type === 'holiday_email') {
           const { error } = await supabase.functions.invoke('send-email', {
-            body: { template_key: 'holiday_greeting', user_id: p.id, name: firstName, vars: { name: firstName, holiday: ev.holidayLabel } },
+            body: {
+              template_key: 'holiday_greeting',
+              user_id: p.id,
+              name: firstName,
+              vars: { name: firstName, title: ev.holidayTitle, holiday: ev.holidayMessage },
+            },
           });
           error ? failCount++ : successCount++;
         }

@@ -25,7 +25,7 @@ interface SmsTemplate {
   is_active: boolean;
 }
 
-interface Holiday { date: string; label: string }
+interface Holiday { date: string; label: string; message?: string }
 
 const CMSSmsTemplates = () => {
   const { toast } = useToast();
@@ -131,7 +131,11 @@ const CMSSmsTemplates = () => {
 
   const saveHolidays = async () => {
     const cleaned = holidays
-      .map(h => ({ date: (h.date || '').trim(), label: (h.label || '').trim() }))
+      .map(h => ({
+        date: (h.date || '').trim(),
+        label: (h.label || '').trim(),
+        message: (h.message || '').trim() || undefined,
+      }))
       .filter(h => h.date && h.label);
     setSavingHolidays(true);
     const { error } = await db.from('app_settings').upsert({ key: 'holidays', value: JSON.stringify(cleaned) });
@@ -152,7 +156,10 @@ const CMSSmsTemplates = () => {
         const merged = [...prev];
         for (const it of items) {
           const k = `${it.date}|${it.label.toLowerCase()}`;
-          if (!seen.has(k)) { merged.push(it); seen.add(k); }
+          if (!seen.has(k)) {
+            merged.push({ date: it.date, label: it.label, message: it.message || '' });
+            seen.add(k);
+          }
         }
         return merged.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       });
@@ -337,26 +344,44 @@ const CMSSmsTemplates = () => {
                 <p className="text-sm text-muted-foreground py-6 text-center">No holidays yet. Add a row or generate suggestions with AI.</p>
               )}
               {holidays.map((h, i) => (
-                <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                  <div className="col-span-4 sm:col-span-3">
-                    <Input
-                      type="text"
-                      placeholder="YYYY-MM-DD or MM-DD"
-                      value={h.date}
-                      onChange={(e) => updateHoliday(i, { date: e.target.value })}
-                    />
+                <div key={i} className="rounded-lg border bg-muted/10 p-3 space-y-2">
+                  <div className="grid grid-cols-12 gap-2 items-center">
+                    <div className="col-span-4 sm:col-span-3">
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">Date</Label>
+                      <Input
+                        type="text"
+                        placeholder="YYYY-MM-DD or MM-DD"
+                        value={h.date}
+                        onChange={(e) => updateHoliday(i, { date: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-7 sm:col-span-8">
+                      <Label className="text-[11px] text-muted-foreground mb-1 block">
+                        Title <span className="text-muted-foreground/60">(short — used in email subject)</span>
+                      </Label>
+                      <Input
+                        placeholder="e.g. New Year's Day"
+                        value={h.label}
+                        onChange={(e) => updateHoliday(i, { label: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-1 flex justify-end items-end pb-0.5">
+                      <Button size="sm" variant="ghost" onClick={() => removeHoliday(i)} title="Remove">
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="col-span-7 sm:col-span-8">
-                    <Input
-                      placeholder="Holiday label (e.g. Christmas Day)"
-                      value={h.label}
-                      onChange={(e) => updateHoliday(i, { label: e.target.value })}
+                  <div>
+                    <Label className="text-[11px] text-muted-foreground mb-1 block">
+                      SMS Message body <span className="text-muted-foreground/60">(optional — replaces <code className="bg-muted px-1 rounded">{'{{holiday}}'}</code> in the SMS template; leave blank to use the title)</span>
+                    </Label>
+                    <Textarea
+                      placeholder={`e.g. Happy New Year! Wishing you joy and prosperity in the new year. — FDL Team`}
+                      value={h.message || ''}
+                      onChange={(e) => updateHoliday(i, { message: e.target.value })}
+                      rows={2}
+                      className="text-sm font-mono resize-none"
                     />
-                  </div>
-                  <div className="col-span-1 flex justify-end">
-                    <Button size="sm" variant="ghost" onClick={() => removeHoliday(i)} title="Remove">
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
                 </div>
               ))}

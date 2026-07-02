@@ -262,12 +262,15 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
       };
 
     // ── Holiday greeting ─────────────────────────────────────────────
-    case "holiday_greeting":
+    // `title`   — short holiday name (e.g. "New Year's Day") → used in subject & heading
+    // `holiday` — full SMS message body → NOT used in email
+    case "holiday_greeting": {
+      const title = v.title || v.holiday || 'Holiday';
       return {
-        subject: `Happy ${v.holiday || 'Holiday'} from Footprints Dynasty! 🎉`,
-        html: wrap(`Happy ${v.holiday || 'Holiday'}!`, `
+        subject: `Happy ${title} from Footprints Dynasty! 🎉`,
+        html: wrap(`Happy ${title}!`, `
           <p>Dear <strong>${v.name || 'Team Member'}</strong>,</p>
-          <p>Happy <strong>${v.holiday || 'Holiday'}</strong> from all of us at Footprints Dynasty Limited! 🎉</p>
+          <p>Happy <strong>${title}</strong> from all of us at Footprints Dynasty Limited! 🎉</p>
           <p>Wishing you and your loved ones a wonderful celebration filled with joy, rest, and togetherness.</p>
           <div class="info-box">
             We appreciate everything you do. See you on the other side!
@@ -275,6 +278,7 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
           <p>With warm regards,<br/><strong>The Footprints Dynasty Team</strong></p>
         `),
       };
+    }
 
     // ── Daily digest — unread inbox messages ─────────────────────────
     case "inbox_digest":

@@ -19,7 +19,14 @@ serve(async (req) => {
     const startMonth = (q - 1) * 3 + 1;
     const endMonth = startMonth + 2;
 
-    const prompt = `List notable public holidays, religious observances, awareness days, and important commemorative days in ${country} between month ${startMonth} and month ${endMonth} of ${y}. Include international days widely observed in workplaces (e.g. Workers' Day, International Women's Day). Return ONLY a JSON array, no prose. Each item must be: {"date":"YYYY-MM-DD","label":"Short friendly title"}. Max 25 items, sorted by date.`;
+    const prompt = `List notable public holidays, religious observances, awareness days, and important commemorative days in ${country} between month ${startMonth} and month ${endMonth} of ${y}. Include international days widely observed in workplaces (e.g. Workers' Day, International Women's Day).
+
+Return ONLY a JSON array, no prose. Each item must have:
+- "date": "YYYY-MM-DD"
+- "label": short title, max 6 words (e.g. "New Year's Day") — used as email subject
+- "message": a warm, friendly SMS message body, 1–2 sentences max, suitable for sending to staff (e.g. "Happy New Year! Wishing you and your loved ones joy and prosperity in the new year. — FDL Team")
+
+Max 25 items, sorted by date.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -56,7 +63,11 @@ serve(async (req) => {
     // sanitize
     items = (Array.isArray(items) ? items : [])
       .filter((it) => it && it.date && it.label)
-      .map((it) => ({ date: String(it.date).slice(0, 10), label: String(it.label).slice(0, 120) }));
+      .map((it) => ({
+        date: String(it.date).slice(0, 10),
+        label: String(it.label).slice(0, 120),
+        ...(it.message ? { message: String(it.message).slice(0, 320) } : {}),
+      }));
 
     return new Response(JSON.stringify({ items }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
