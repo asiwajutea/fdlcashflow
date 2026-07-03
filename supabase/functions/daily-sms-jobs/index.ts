@@ -152,10 +152,24 @@ serve(async (req) => {
 
     for (const p of all || []) {
       const firstName = (p.full_name || "there").split(" ")[0];
-      // holiday = full message body for SMS {{holiday}} var
-      // title   = short label for email subject
-      const smsMessage = todayHoliday.message || todayHoliday.label;
-      const vars = { name: firstName, holiday: smsMessage, title: todayHoliday.label };
+      
+      // Defensive migration: if label > 50 chars but message is empty/short,
+      // assume they're swapped (old data) and swap them back.
+      let title = todayHoliday.label || '';
+      let smsMessage = todayHoliday.message || '';
+      
+      if (title.length > 50 && smsMessage.length < title.length) {
+        // Swap: label is actually the full message, derive title from it
+        smsMessage = title;
+        // Try to extract a short title from the first few words
+        const words = title.split(/\s+/);
+        title = words.slice(0, Math.min(5, words.length)).join(' ');
+        if (title.length > 40) title = title.slice(0, 40) + '…';
+      } else if (!smsMessage) {
+        smsMessage = title; // Fallback: use title as message if message is empty
+      }
+      
+      const vars = { name: firstName, holiday: smsMessage, title };
 
       // SMS
       if (p.phone) {
