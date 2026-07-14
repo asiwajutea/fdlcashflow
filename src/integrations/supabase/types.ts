@@ -1740,6 +1740,102 @@ export type Database = {
           },
         ]
       }
+      oralgen_interviews: {
+        Row: {
+          address: string | null
+          age: number | null
+          audit_accepted_at: string | null
+          audit_completed_at: string | null
+          audit_deadline: string | null
+          audit_scheduled_date: string | null
+          city: string | null
+          created_at: string
+          created_by: string
+          field_manager_id: string | null
+          full_name: string
+          gps_lat: number | null
+          gps_lng: number | null
+          home_photo_url: string | null
+          id: string
+          individual_photo_url: string | null
+          interview_completed_at: string | null
+          interview_deadline: string | null
+          interviewer_accepted_at: string | null
+          interviewer_id: string | null
+          notes: string | null
+          path_photo_url: string | null
+          pdf_url: string | null
+          phone: string | null
+          sex: string | null
+          state: string | null
+          status: string
+          updated_at: string
+          zip_url: string | null
+        }
+        Insert: {
+          address?: string | null
+          age?: number | null
+          audit_accepted_at?: string | null
+          audit_completed_at?: string | null
+          audit_deadline?: string | null
+          audit_scheduled_date?: string | null
+          city?: string | null
+          created_at?: string
+          created_by: string
+          field_manager_id?: string | null
+          full_name: string
+          gps_lat?: number | null
+          gps_lng?: number | null
+          home_photo_url?: string | null
+          id?: string
+          individual_photo_url?: string | null
+          interview_completed_at?: string | null
+          interview_deadline?: string | null
+          interviewer_accepted_at?: string | null
+          interviewer_id?: string | null
+          notes?: string | null
+          path_photo_url?: string | null
+          pdf_url?: string | null
+          phone?: string | null
+          sex?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          zip_url?: string | null
+        }
+        Update: {
+          address?: string | null
+          age?: number | null
+          audit_accepted_at?: string | null
+          audit_completed_at?: string | null
+          audit_deadline?: string | null
+          audit_scheduled_date?: string | null
+          city?: string | null
+          created_at?: string
+          created_by?: string
+          field_manager_id?: string | null
+          full_name?: string
+          gps_lat?: number | null
+          gps_lng?: number | null
+          home_photo_url?: string | null
+          id?: string
+          individual_photo_url?: string | null
+          interview_completed_at?: string | null
+          interview_deadline?: string | null
+          interviewer_accepted_at?: string | null
+          interviewer_id?: string | null
+          notes?: string | null
+          path_photo_url?: string | null
+          pdf_url?: string | null
+          phone?: string | null
+          sex?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+          zip_url?: string | null
+        }
+        Relationships: []
+      }
       partners: {
         Row: {
           created_at: string | null
