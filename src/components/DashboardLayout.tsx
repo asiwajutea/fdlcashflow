@@ -168,9 +168,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     ? CANDIDATE_NAV_SECTIONS
     : NAV_SECTIONS.map(section => ({
         ...section,
-        items: section.items.filter(item => {
-          if (!item.capability) return true;
+        items: section.items.filter((item: any) => {
           if (role === 'admin') return true;
+          if (item.anyCapability?.length) {
+            return item.anyCapability.some((c: string) => hasCapability(c));
+          }
+          if (!item.capability) return true;
           return hasCapability(item.capability);
         }),
       })).filter(section => section.items.length > 0);
