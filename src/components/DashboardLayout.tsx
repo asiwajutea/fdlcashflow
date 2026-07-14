@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt, Network, MessageSquare, Sparkles } from 'lucide-react';
+import { BarChart3, LogOut, User, Mail, Menu, LayoutDashboard, FileText, FileStack, Settings, CalendarClock, Users, Briefcase, Globe, Megaphone, BookOpen, ClipboardList, Wallet, Receipt, Network, MessageSquare, Sparkles, Compass } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
@@ -113,6 +113,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Field Operations',
+    items: [
+      { path: '/oralgen', label: 'OralGen Workflow', icon: Compass, capability: null, anyCapability: ['oralgen_book', 'oralgen_interview', 'oralgen_audit', 'oralgen_admin'] },
+    ],
+  },
+  {
     label: 'Other',
     items: [
       { path: '/jobs', label: 'Job Openings', icon: Megaphone, capability: null },
@@ -162,9 +168,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
     ? CANDIDATE_NAV_SECTIONS
     : NAV_SECTIONS.map(section => ({
         ...section,
-        items: section.items.filter(item => {
-          if (!item.capability) return true;
+        items: section.items.filter((item: any) => {
           if (role === 'admin') return true;
+          if (item.anyCapability?.length) {
+            return item.anyCapability.some((c: string) => hasCapability(c));
+          }
+          if (!item.capability) return true;
           return hasCapability(item.capability);
         }),
       })).filter(section => section.items.length > 0);
