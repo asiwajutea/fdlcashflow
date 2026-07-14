@@ -113,6 +113,12 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: 'Field Operations',
+    items: [
+      { path: '/oralgen', label: 'OralGen Workflow', icon: Compass, capability: null, anyCapability: ['oralgen_book', 'oralgen_interview', 'oralgen_audit', 'oralgen_admin'] },
+    ],
+  },
+  {
     label: 'Other',
     items: [
       { path: '/jobs', label: 'Job Openings', icon: Megaphone, capability: null },
