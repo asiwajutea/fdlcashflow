@@ -18,7 +18,7 @@ import { PrefPicker } from '@/components/oralgen/PrefPicker';
 import { StarRating } from '@/components/oralgen/StarRating';
 import {
   MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
-  Loader2, ClipboardList, Users, Gavel, Camera,
+  Loader2, ClipboardList, Users, Gavel, Camera, Navigation,
 } from 'lucide-react';
 
 type Status =
@@ -614,6 +614,9 @@ const OralGenWorkflow: React.FC = () => {
   const [rows, setRows] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [myLoc, setMyLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const [myLocLabel, setMyLocLabel] = useState<string | null>(null);
+  const [locLoading, setLocLoading] = useState(false);
+  const [locError, setLocError] = useState(false);
 
   const isAdmin = role === 'admin' || capabilities.includes('oralgen_admin');
   const canBook = isAdmin || capabilities.includes('oralgen_book');
@@ -630,13 +633,37 @@ const OralGenWorkflow: React.FC = () => {
   useEffect(() => { fetchRows(); }, []);
 
   useEffect(() => {
-    if (canInterview && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (p) => setMyLoc({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        () => {},
-      );
-    }
-  }, [canInterview]);
+    if (!navigator.geolocation) return;
+    setLocLoading(true);
+    setLocError(false);
+    navigator.geolocation.getCurrentPosition(
+      async (p) => {
+        const lat = p.coords.latitude;
+        const lng = p.coords.longitude;
+        setMyLoc({ lat, lng });
+        // Reverse geocode via Nominatim (no API key)
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+            { headers: { 'Accept-Language': 'en' } },
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const a = data.address ?? {};
+            const parts = [
+              a.road ?? a.suburb ?? a.neighbourhood,
+              a.city ?? a.town ?? a.village ?? a.county,
+              a.state,
+            ].filter(Boolean);
+            setMyLocLabel(parts.join(', ') || data.display_name?.split(',').slice(0, 3).join(',') || null);
+          }
+        } catch { /* non-fatal — coords still set */ }
+        setLocLoading(false);
+      },
+      () => { setLocError(true); setLocLoading(false); },
+      { enableHighAccuracy: true, timeout: 12_000 },
+    );
+  }, []);
 
   const sortedByProximity = useMemo(() => {
     if (!myLoc) return rows;
@@ -673,13 +700,52 @@ const OralGenWorkflow: React.FC = () => {
         {canBook && <OralGenBookingForm onSaved={fetchRows} />}
       </div>
 
+      {/* ── My current location ─────────────────────────────────────── */}
+      <div className={`mb-4 rounded-xl border px-4 py-3 flex items-center gap-3 text-sm
+        ${myLoc ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800'
+                : locError ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-200'
+                           : 'bg-muted/30 border-border'}`}>
+        {locLoading ? (
+          <><Loader2 className="h-4 w-4 animate-spin text-muted-foreground shrink-0" />
+            <span className="text-muted-foreground">Detecting your location…</span></>
+        ) : locError ? (
+          <><MapPin className="h-4 w-4 text-amber-600 shrink-0" />
+            <span className="text-amber-700 dark:text-amber-400">
+              Location unavailable — proximity distances cannot be calculated.
+              <span className="ml-1 text-xs opacity-70">Allow location access and refresh.</span>
+            </span></>
+        ) : myLoc ? (
+          <>
+            <Navigation className="h-4 w-4 text-blue-600 shrink-0" />
+            <div className="min-w-0 flex-1">
+              <span className="font-medium text-blue-700 dark:text-blue-300">Your location: </span>
+              <span className="text-foreground">
+                {myLocLabel ?? `${myLoc.lat.toFixed(5)}, ${myLoc.lng.toFixed(5)}`}
+              </span>
+              <span className="text-xs text-muted-foreground ml-2">
+                ({myLoc.lat.toFixed(5)}, {myLoc.lng.toFixed(5)})
+              </span>
+            </div>
+            <a
+              href={`https://maps.google.com/?q=${myLoc.lat},${myLoc.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 underline shrink-0 hover:text-blue-800"
+            >
+              Open map
+            </a>
+          </>
+        ) : null}
+      </div>
+
+      {/* ── Stats ───────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
-          { label: 'Total', value: stats.total },
-          { label: 'Pending', value: stats.pending },
-          { label: 'In Progress', value: stats.inProgress },
+          { label: 'Total',          value: stats.total },
+          { label: 'Pending',        value: stats.pending },
+          { label: 'In Progress',    value: stats.inProgress },
           { label: 'Awaiting Audit', value: stats.awaitingAudit },
-          { label: 'Completed', value: stats.completed },
+          { label: 'Completed',      value: stats.completed },
         ].map((s) => (
           <Card key={s.label}><CardContent className="p-4"><div className="text-xs text-muted-foreground">{s.label}</div><div className="text-2xl font-bold">{s.value}</div></CardContent></Card>
         ))}
