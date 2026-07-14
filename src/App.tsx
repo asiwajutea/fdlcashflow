@@ -277,6 +277,7 @@ const AppRoutes = () =>
       <Route path="/admin/contract-templates" element={<AvatarGuard><CapabilityGuard adminOnly><ContractTemplates /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/email-logs" element={<AvatarGuard><CapabilityGuard adminOnly><EmailLogs /></CapabilityGuard></AvatarGuard>} />
       <Route path="/my-contract" element={<AvatarGuard><MyContract /></AvatarGuard>} />
+      <Route path="/oralgen" element={<AvatarGuard><EmployeeGuard><OralGenWorkflow /></EmployeeGuard></AvatarGuard>} />
 
 
 
