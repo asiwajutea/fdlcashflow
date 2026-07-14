@@ -13,9 +13,12 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
+import { OralGenBookingForm } from '@/components/oralgen/OralGenBookingForm';
+import { PrefPicker } from '@/components/oralgen/PrefPicker';
+import { StarRating } from '@/components/oralgen/StarRating';
 import {
-  Plus, MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
-  Camera, Loader2, Download, ClipboardList, Users, Gavel,
+  MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
+  Loader2, ClipboardList, Users, Gavel, Camera,
 } from 'lucide-react';
 
 type Status =
@@ -53,6 +56,10 @@ interface Interview {
   audit_scheduled_date: string | null;
   audit_deadline: string | null;
   audit_completed_at: string | null;
+  folder_name: string | null;
+  total_names: number | null;
+  audit_pref: string[] | null;
+  acceptance_rating: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -110,101 +117,6 @@ async function signedUrl(path: string | null): Promise<string | null> {
   return data.signedUrl;
 }
 
-// ------------------ Booking Form ------------------
-
-function BookingForm({ onSaved }: { onSaved: () => void }) {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    full_name: '', age: '', sex: '', phone: '',
-    address: '', city: '', state: '', notes: '',
-    gps_lat: '' as string, gps_lng: '' as string,
-  });
-  const [files, setFiles] = useState<{ individual?: File; home?: File; path?: File }>({});
-
-  const captureGps = () => {
-    if (!navigator.geolocation) return toast({ title: 'GPS not available', variant: 'destructive' });
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setForm((f) => ({ ...f, gps_lat: String(pos.coords.latitude), gps_lng: String(pos.coords.longitude) })),
-      () => toast({ title: 'Could not read location', variant: 'destructive' }),
-    );
-  };
-
-  const save = async () => {
-    if (!form.full_name.trim()) return toast({ title: 'Name is required', variant: 'destructive' });
-    if (!user) return;
-    try {
-      setSaving(true);
-      const [ind, home, path] = await Promise.all([
-        files.individual ? uploadFile(files.individual, `photos/${user.id}`) : Promise.resolve(null),
-        files.home ? uploadFile(files.home, `photos/${user.id}`) : Promise.resolve(null),
-        files.path ? uploadFile(files.path, `photos/${user.id}`) : Promise.resolve(null),
-      ]);
-      const { error } = await db.from('oralgen_interviews').insert({
-        created_by: user.id,
-        full_name: form.full_name.trim(),
-        age: form.age ? Number(form.age) : null,
-        sex: form.sex || null,
-        phone: form.phone || null,
-        address: form.address || null,
-        city: form.city || null,
-        state: form.state || null,
-        gps_lat: form.gps_lat ? Number(form.gps_lat) : null,
-        gps_lng: form.gps_lng ? Number(form.gps_lng) : null,
-        individual_photo_url: ind,
-        home_photo_url: home,
-        path_photo_url: path,
-        notes: form.notes || null,
-        status: 'pending_interview',
-      });
-      if (error) throw error;
-      toast({ title: 'Booking created' });
-      setOpen(false);
-      setForm({ full_name: '', age: '', sex: '', phone: '', address: '', city: '', state: '', notes: '', gps_lat: '', gps_lng: '' });
-      setFiles({});
-      onSaved();
-    } catch (e: any) {
-      toast({ title: 'Error', description: e.message, variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <>
-      <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-2" /> New Booking</Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>New Interview Booking</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2"><Label>Full Name *</Label><Input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} /></div>
-            <div><Label>Age</Label><Input type="number" value={form.age} onChange={(e) => setForm({ ...form, age: e.target.value })} /></div>
-            <div><Label>Sex</Label><Input value={form.sex} onChange={(e) => setForm({ ...form, sex: e.target.value })} /></div>
-            <div><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-            <div><Label>City</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
-            <div className="md:col-span-2"><Label>Address</Label><Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
-            <div><Label>State</Label><Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} /></div>
-            <div className="flex items-end gap-2">
-              <div className="flex-1"><Label>GPS</Label><Input placeholder="lat, lng" value={form.gps_lat && form.gps_lng ? `${form.gps_lat}, ${form.gps_lng}` : ''} readOnly /></div>
-              <Button type="button" variant="outline" onClick={captureGps}><MapPin className="h-4 w-4" /></Button>
-            </div>
-            <div><Label>Individual Photo</Label><Input type="file" accept="image/*" onChange={(e) => setFiles({ ...files, individual: e.target.files?.[0] })} /></div>
-            <div><Label>Home Photo</Label><Input type="file" accept="image/*" onChange={(e) => setFiles({ ...files, home: e.target.files?.[0] })} /></div>
-            <div><Label>Path to Home Photo</Label><Input type="file" accept="image/*" onChange={(e) => setFiles({ ...files, path: e.target.files?.[0] })} /></div>
-            <div className="md:col-span-2"><Label>Notes</Label><Textarea rows={3} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Create Booking'}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
 // ------------------ Row actions ------------------
 
 function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: { lat: number; lng: number } | null; onRefresh: () => void }) {
@@ -214,6 +126,14 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
   const [pdf, setPdf] = useState<File | null>(null);
   const [zip, setZip] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Completion fields
+  const [folderName, setFolderName] = useState('');
+  const [totalNames, setTotalNames] = useState('');
+  const [auditPrefs, setAuditPrefs] = useState<string[]>([]);
+  const [acceptanceRating, setAcceptanceRating] = useState(0);
+
+  const FOLDER_PATTERN = /^[A-Z]{2}\d+_\d+_\d{8}_\d+$/;
 
   const accept = async () => {
     if (!user) return;
@@ -234,8 +154,19 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
 
   const uploadAndComplete = async () => {
     if (!user) return;
+
+    // Validate required completion fields
+    if (!folderName.trim()) return toast({ title: 'Folder name is required', variant: 'destructive' });
+    if (!FOLDER_PATTERN.test(folderName.trim())) {
+      return toast({ title: 'Invalid folder name format', description: 'Must follow pattern: NG71_650_20260502_1234', variant: 'destructive' });
+    }
+    if (!totalNames || Number(totalNames) < 1) return toast({ title: 'Total names must be at least 1', variant: 'destructive' });
+    if (auditPrefs.length === 0) return toast({ title: 'Select at least one preferred audit day/time', variant: 'destructive' });
+    if (acceptanceRating < 1) return toast({ title: 'Please rate the interviewee acceptance', variant: 'destructive' });
+
     if (pdf && pdf.size > 20 * 1024 * 1024) return toast({ title: 'PDF exceeds 20MB', variant: 'destructive' });
     if (zip && zip.size > 50 * 1024 * 1024) return toast({ title: 'ZIP exceeds 50MB', variant: 'destructive' });
+
     try {
       setBusy(true);
       const [pdfPath, zipPath] = await Promise.all([
@@ -245,12 +176,19 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
       const { error } = await db.from('oralgen_interviews').update({
         pdf_url: pdfPath,
         zip_url: zipPath,
+        folder_name: folderName.trim(),
+        total_names: Number(totalNames),
+        audit_pref: auditPrefs,
+        acceptance_rating: acceptanceRating,
         interview_completed_at: new Date().toISOString(),
         status: 'awaiting_audit',
       }).eq('id', row.id);
       if (error) throw error;
-      toast({ title: 'Marked as awaiting audit' });
+      toast({ title: 'Interview completed — moved to audit queue' });
       setUploadOpen(false);
+      // Reset fields
+      setFolderName(''); setTotalNames(''); setAuditPrefs([]); setAcceptanceRating(0);
+      setPdf(null); setZip(null);
       onRefresh();
     } catch (e: any) {
       toast({ title: 'Error', description: e.message, variant: 'destructive' });
@@ -258,6 +196,8 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
       setBusy(false);
     }
   };
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const dist = myLoc && row.gps_lat != null && row.gps_lng != null
     ? distanceKm(myLoc, { lat: Number(row.gps_lat), lng: Number(row.gps_lng) })
@@ -267,7 +207,111 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
     return (
       <div className="flex items-center gap-2">
         {dist !== null && <Badge variant="outline" className="gap-1"><MapPin className="h-3 w-3" /> {dist.toFixed(1)} km</Badge>}
+        <Button size="sm" variant="outline" onClick={() => setDetailsOpen(true)}>
+          View Details
+        </Button>
         <Button size="sm" onClick={accept} disabled={busy}>Accept</Button>
+
+        {/* Booking details dialog */}
+        <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                Booking Details
+                <Badge variant="secondary" className="text-xs">Pending Interview</Badge>
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4 text-sm">
+
+              {/* Name */}
+              <Section title="Interviewee">
+                <DetailRow label="Full Name" value={row.full_name} />
+                <DetailRow label="Age" value={row.age != null ? `${row.age} yrs` : null} />
+                <DetailRow label="Sex" value={row.sex} />
+                <DetailRow label="Phone" value={row.phone} />
+              </Section>
+
+              {/* Location */}
+              <Section title="Location">
+                {dist !== null && (
+                  <DetailRow label="Distance from you" value={`${dist.toFixed(1)} km`} highlight />
+                )}
+                <DetailRow label="Address" value={[row.address, row.city, row.state].filter(Boolean).join(', ')} />
+                {row.gps_lat != null && row.gps_lng != null && (
+                  <DetailRow
+                    label="GPS"
+                    value={`${Number(row.gps_lat).toFixed(5)}, ${Number(row.gps_lng).toFixed(5)}`}
+                    extra={
+                      <a
+                        href={`https://maps.google.com/?q=${row.gps_lat},${row.gps_lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary underline ml-2"
+                      >
+                        Open map
+                      </a>
+                    }
+                  />
+                )}
+              </Section>
+
+              {/* Interview preferences */}
+              {row.interview_pref && row.interview_pref.length > 0 && (
+                <Section title="Interview Preferences">
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {row.interview_pref.map((p) => (
+                      <span key={p} className="px-2.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-medium border border-primary/20">{p}</span>
+                    ))}
+                  </div>
+                </Section>
+              )}
+
+              {/* Acceptance rating at booking */}
+              {(row as any).booking_acceptance_rating > 0 && (
+                <Section title="Booker's Acceptance Rating">
+                  <div className="flex items-center gap-0.5 mt-1">
+                    {[1,2,3,4,5].map((n) => (
+                      <svg key={n} className={`h-5 w-5 ${(row as any).booking_acceptance_rating >= n ? 'text-primary fill-primary' : 'text-muted-foreground fill-none'}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-2">{(row as any).booking_acceptance_rating}/5</span>
+                  </div>
+                </Section>
+              )}
+
+              {/* Photos */}
+              {(row.individual_photo_url || row.home_photo_url || row.path_photo_url) && (
+                <Section title="Photos">
+                  <PhotoLinks row={row} />
+                </Section>
+              )}
+
+              {/* Notes */}
+              {row.notes && (
+                <Section title="Notes">
+                  <p className="text-muted-foreground">{row.notes}</p>
+                </Section>
+              )}
+
+              {/* Booked */}
+              <Section title="Booking Info">
+                <DetailRow label="Booked" value={new Date(row.created_at).toLocaleString()} />
+              </Section>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+              <Button
+                onClick={() => { setDetailsOpen(false); accept(); }}
+                disabled={busy}
+              >
+                {busy ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> Accepting…</> : 'Accept Interview'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -278,16 +322,69 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
         <Button size="sm" onClick={() => setUploadOpen(true)}>
           <Upload className="h-4 w-4 mr-1" /> Complete
         </Button>
-        <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
-          <DialogContent>
+        <Dialog open={uploadOpen} onOpenChange={(o) => { setUploadOpen(o); if (!o) { setFolderName(''); setTotalNames(''); setAuditPrefs([]); setAcceptanceRating(0); } }}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader><DialogTitle>Complete Interview</DialogTitle></DialogHeader>
-            <div className="space-y-3">
-              <div><Label>Scanned PDF (max 20MB, optional)</Label><Input type="file" accept="application/pdf" onChange={(e) => setPdf(e.target.files?.[0] ?? null)} /></div>
-              <div><Label>Zipped Mobile Data (max 50MB, optional)</Label><Input type="file" accept=".zip,application/zip" onChange={(e) => setZip(e.target.files?.[0] ?? null)} /></div>
+            <div className="space-y-4">
+
+              {/* ── 1. Folder name ── */}
+              <div className="space-y-1.5">
+                <Label>Interview Folder Name <span className="text-destructive">*</span></Label>
+                <Input
+                  placeholder="e.g. NG71_650_20260502_1234"
+                  value={folderName}
+                  onChange={(e) => setFolderName(e.target.value)}
+                  className={folderName && !FOLDER_PATTERN.test(folderName) ? 'border-destructive' : ''}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Pattern: <code className="bg-muted px-1 rounded">XX00_000_YYYYMMDD_0000</code> — e.g. NG71_650_20260502_1234
+                </p>
+                {folderName && !FOLDER_PATTERN.test(folderName) && (
+                  <p className="text-xs text-destructive">Invalid format. Use the pattern above.</p>
+                )}
+              </div>
+
+              {/* ── 2. Total names ── */}
+              <div className="space-y-1.5">
+                <Label>Total Names <span className="text-destructive">*</span></Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="e.g. 12"
+                  value={totalNames}
+                  onChange={(e) => setTotalNames(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">Total number of individuals recorded in this interview.</p>
+              </div>
+
+              {/* ── 3. Preferred audit day/time ── */}
+              <PrefPicker
+                label="Preferred Audit Day / Time"
+                required
+                value={auditPrefs}
+                onChange={setAuditPrefs}
+              />
+
+              {/* ── 4. Acceptance rating ── */}
+              <StarRating
+                label="Interviewee Acceptance Rating"
+                required
+                value={acceptanceRating}
+                onChange={setAcceptanceRating}
+                helpText="How willing was the interviewee to participate?"
+              />
+
+              <hr className="border-border" />
+
+              {/* ── Files (optional) ── */}
+              <div><Label>Scanned PDF <span className="text-xs text-muted-foreground">(max 20MB, optional)</span></Label><Input type="file" accept="application/pdf" onChange={(e) => setPdf(e.target.files?.[0] ?? null)} /></div>
+              <div><Label>Zipped Mobile Data <span className="text-xs text-muted-foreground">(max 50MB, optional)</span></Label><Input type="file" accept=".zip,application/zip" onChange={(e) => setZip(e.target.files?.[0] ?? null)} /></div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="mt-2">
               <Button variant="outline" onClick={() => setUploadOpen(false)}>Cancel</Button>
-              <Button onClick={uploadAndComplete} disabled={busy}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mark Completed'}</Button>
+              <Button onClick={uploadAndComplete} disabled={busy}>
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Mark Completed'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -301,8 +398,23 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
   const { user } = useAuth();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [completeOpen, setCompleteOpen] = useState(false);
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
+
+  // Editable fields pre-populated from the row
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editAge, setEditAge] = useState('');
+  const [editTotalNames, setEditTotalNames] = useState('');
+
+  const openCompleteDialog = () => {
+    setEditName(row.full_name ?? '');
+    setEditPhone(row.phone ?? '');
+    setEditAge(row.age != null ? String(row.age) : '');
+    setEditTotalNames(row.total_names != null ? String(row.total_names) : '');
+    setCompleteOpen(true);
+  };
 
   const accept = async () => {
     if (!user || !date) return toast({ title: 'Pick a scheduled audit date', variant: 'destructive' });
@@ -324,12 +436,20 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
   };
 
   const complete = async () => {
+    if (!editName.trim()) return toast({ title: 'Name is required', variant: 'destructive' });
+    setBusy(true);
     const { error } = await db.from('oralgen_interviews').update({
+      full_name: editName.trim(),
+      phone: editPhone.trim() || null,
+      age: editAge ? Number(editAge) : null,
+      total_names: editTotalNames ? Number(editTotalNames) : null,
       audit_completed_at: new Date().toISOString(),
       status: 'completed',
     }).eq('id', row.id);
+    setBusy(false);
     if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
     toast({ title: 'Audit completed' });
+    setCompleteOpen(false);
     onRefresh();
   };
 
@@ -357,13 +477,84 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
       </>
     );
   }
+
   if (row.status === 'audit_in_progress' && row.field_manager_id === user?.id) {
     return (
       <div className="flex items-center gap-2">
         <Countdown deadline={row.audit_deadline} />
         {row.pdf_url && <Button size="sm" variant="outline" onClick={() => downloadFile(row.pdf_url)}><FileText className="h-4 w-4" /></Button>}
         {row.zip_url && <Button size="sm" variant="outline" onClick={() => downloadFile(row.zip_url)}><Archive className="h-4 w-4" /></Button>}
-        <Button size="sm" onClick={complete}><CheckCircle2 className="h-4 w-4 mr-1" /> Complete</Button>
+        <Button size="sm" onClick={openCompleteDialog}>
+          <CheckCircle2 className="h-4 w-4 mr-1" /> Complete
+        </Button>
+
+        {/* Complete audit dialog */}
+        <Dialog open={completeOpen} onOpenChange={setCompleteOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Complete Audit</DialogTitle>
+            </DialogHeader>
+
+            <p className="text-sm text-muted-foreground -mt-1">
+              Review and update the details below before marking this audit as completed.
+            </p>
+
+            <div className="space-y-4 pt-1">
+              <div className="space-y-1.5">
+                <Label>Interviewee Name <span className="text-destructive">*</span></Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Full name"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Phone Number</Label>
+                <Input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  placeholder="e.g. 08012345678"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label>Age</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="120"
+                    value={editAge}
+                    onChange={(e) => setEditAge(e.target.value)}
+                    placeholder="e.g. 45"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Total Names</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={editTotalNames}
+                    onChange={(e) => setEditTotalNames(e.target.value)}
+                    placeholder="e.g. 12"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button variant="outline" onClick={() => setCompleteOpen(false)}>Cancel</Button>
+              <Button onClick={complete} disabled={busy || !editName.trim()}>
+                {busy
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> Saving…</>
+                  : <><CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Mark as Completed</>
+                }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
@@ -479,7 +670,7 @@ const OralGenWorkflow: React.FC = () => {
           <h2 className="text-2xl font-bold flex items-center gap-2"><ClipboardList className="h-6 w-6" /> Oral Genealogy Workflow</h2>
           <p className="text-muted-foreground text-sm">Book, interview, audit and track oral genealogy field jobs.</p>
         </div>
-        {canBook && <BookingForm onSaved={fetchRows} />}
+        {canBook && <OralGenBookingForm onSaved={fetchRows} />}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
@@ -543,5 +734,56 @@ const OralGenWorkflow: React.FC = () => {
     </DashboardLayout>
   );
 };
+
+// ── Details dialog helpers ─────────────────────────────────────────────────
+
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <div className="space-y-1.5">
+    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
+    <div className="space-y-1 pl-1">{children}</div>
+  </div>
+);
+
+const DetailRow: React.FC<{
+  label: string;
+  value?: string | null;
+  highlight?: boolean;
+  extra?: React.ReactNode;
+}> = ({ label, value, highlight, extra }) => {
+  if (!value) return null;
+  return (
+    <div className="flex items-baseline gap-1.5 flex-wrap">
+      <span className="text-muted-foreground shrink-0">{label}:</span>
+      <span className={`font-medium ${highlight ? 'text-primary' : 'text-foreground'}`}>{value}</span>
+      {extra}
+    </div>
+  );
+};
+
+function PhotoLinks({ row }: { row: Interview }) {
+  const { toast } = useToast();
+  const open = async (path: string | null, name: string) => {
+    if (!path) return;
+    const { data, error } = await supabase.storage.from('oralgen-files').createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) return toast({ title: `Could not load ${name}`, variant: 'destructive' });
+    window.open(data.signedUrl, '_blank');
+  };
+  return (
+    <div className="flex gap-2 flex-wrap mt-1">
+      {row.individual_photo_url && (
+        <button type="button" onClick={() => open(row.individual_photo_url, 'individual photo')}
+          className="text-xs text-primary underline">Individual photo</button>
+      )}
+      {row.home_photo_url && (
+        <button type="button" onClick={() => open(row.home_photo_url, 'home photo')}
+          className="text-xs text-primary underline">Home photo</button>
+      )}
+      {row.path_photo_url && (
+        <button type="button" onClick={() => open(row.path_photo_url, 'path photo')}
+          className="text-xs text-primary underline">Path to home</button>
+      )}
+    </div>
+  );
+}
 
 export default OralGenWorkflow;
