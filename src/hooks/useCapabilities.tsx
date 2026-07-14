@@ -32,6 +32,10 @@ export const ALL_CAPABILITIES = [
   { id: 'view_finance', label: 'View Finance', description: 'Access personal Finance page' },
   { id: 'approve_finance_requests', label: 'Approve Finance Requests', description: 'Approve/reject salary advance, reimbursement and cash advance requests' },
   { id: 'manage_finance_budgets', label: 'Manage Finance Budgets', description: 'Edit finance categories and budget limits' },
+  { id: 'oralgen_book', label: 'OralGen: Book Interviews', description: 'Field Relations Officer: create new interviewee bookings' },
+  { id: 'oralgen_interview', label: 'OralGen: Conduct Interviews', description: 'Interviewer/Field Agent: pick up pending interviews, upload results' },
+  { id: 'oralgen_audit', label: 'OralGen: Audit Interviews', description: 'Field Manager: pick up audits and complete them' },
+  { id: 'oralgen_admin', label: 'OralGen: Oversight', description: 'Field Coordinator / Field Operations Manager: full oversight of all interviews' },
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];
