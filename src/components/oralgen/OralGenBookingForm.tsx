@@ -272,7 +272,7 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
 
             {/* ── SECTION: Photos ────────────────────────────────────────── */}
             <Section title="Photos">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-3">
                 <PhotoCapture label="Individual Photo" required value={photoIndividual} onChange={setPhotoIndividual} defaultCamera="user" />
                 <PhotoCapture label="Home Photo" value={photoHome} onChange={setPhotoHome} defaultCamera="environment" />
                 <PhotoCapture label="Path to Home" value={photoPath} onChange={setPhotoPath} defaultCamera="environment" />

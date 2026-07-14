@@ -1,14 +1,14 @@
 import React, { useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Camera, Upload, X, RotateCcw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Camera, Images, X, RefreshCw } from 'lucide-react';
 
 interface PhotoCaptureProps {
   label: string;
   required?: boolean;
   value: File | null;
   onChange: (file: File | null) => void;
-  /** Default facing mode. Defaults to 'environment' (back camera). */
+  /** Which camera to open first. 'environment' = back (default), 'user' = front. */
   defaultCamera?: 'environment' | 'user';
 }
 
@@ -19,10 +19,12 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
   onChange,
   defaultCamera = 'environment',
 }) => {
-  const fileRef = useRef<HTMLInputElement>(null);
-  const cameraRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [facingMode, setFacingMode] = useState<'environment' | 'user'>(defaultCamera);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const cameraRef  = useRef<HTMLInputElement>(null);
+
+  const [preview,     setPreview]     = useState<string | null>(null);
+  const [lightbox,    setLightbox]    = useState(false);
+  const [facingMode,  setFacingMode]  = useState<'environment' | 'user'>(defaultCamera);
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
@@ -32,83 +34,110 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const clear = () => {
+  const clear = (e: React.MouseEvent) => {
+    e.stopPropagation();
     onChange(null);
     setPreview(null);
-    if (fileRef.current) fileRef.current.value = '';
-    if (cameraRef.current) cameraRef.current.value = '';
+    if (galleryRef.current) galleryRef.current.value = '';
+    if (cameraRef.current)  cameraRef.current.value  = '';
   };
 
-  const toggleCamera = () =>
+  const flipCamera = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setFacingMode((m) => (m === 'environment' ? 'user' : 'environment'));
+  };
 
   return (
-    <div className="space-y-1.5">
-      <Label className="flex items-center gap-1">
-        {label}
-        {required && <span className="text-destructive">*</span>}
-      </Label>
+    <>
+      {/* Card */}
+      <div className="flex flex-col gap-1.5">
+        {/* Label */}
+        <span className="text-sm font-medium leading-none flex items-center gap-1">
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </span>
 
-      {preview ? (
-        <div className="relative w-full rounded-lg overflow-hidden border bg-muted">
-          <img src={preview} alt={label} className="w-full h-36 object-cover" />
-          <button
-            type="button"
-            onClick={clear}
-            className="absolute top-1.5 right-1.5 rounded-full bg-black/60 text-white p-1 hover:bg-black/80"
+        {preview ? (
+          /* ── Preview state ── */
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={() => setLightbox(true)}
+            onKeyDown={(e) => e.key === 'Enter' && setLightbox(true)}
+            className="relative rounded-xl overflow-hidden border-2 border-primary/30 cursor-pointer group"
+            style={{ aspectRatio: '4/3' }}
+            title={`View ${label}`}
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ) : (
-        <div className="flex gap-2">
-          {/* Gallery / file pick */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={() => fileRef.current?.click()}
-          >
-            <Upload className="h-3.5 w-3.5" /> Gallery
-          </Button>
-
-          {/* Camera capture */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
+            <img
+              src={preview}
+              alt={label}
+              className="w-full h-full object-cover transition-transform group-hover:scale-[1.02]"
+            />
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+              <span className="opacity-0 group-hover:opacity-100 text-white text-xs font-medium bg-black/50 px-2 py-1 rounded-full transition-opacity">
+                Tap to view
+              </span>
+            </div>
+            {/* Remove button */}
+            <button
+              type="button"
+              onClick={clear}
+              className="absolute top-1.5 right-1.5 rounded-full bg-black/60 text-white p-1 hover:bg-destructive transition-colors z-10"
+              title="Remove photo"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ) : (
+          /* ── Empty state — camera is primary action ── */
+          <div
+            className="relative rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+            style={{ aspectRatio: '4/3' }}
             onClick={() => cameraRef.current?.click()}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && cameraRef.current?.click()}
+            title={`Take ${label}`}
           >
-            <Camera className="h-3.5 w-3.5" />
-            {facingMode === 'environment' ? 'Back Camera' : 'Front Camera'}
-          </Button>
+            {/* Flip camera — top-right */}
+            <button
+              type="button"
+              onClick={flipCamera}
+              className="absolute top-2 right-2 rounded-full bg-muted text-muted-foreground p-1.5 hover:bg-accent transition-colors z-10"
+              title={`Switch to ${facingMode === 'environment' ? 'front' : 'back'} camera`}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </button>
 
-          {/* Flip camera toggle */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            title="Switch camera"
-            onClick={toggleCamera}
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
+            {/* Gallery picker — top-left */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); galleryRef.current?.click(); }}
+              className="absolute top-2 left-2 rounded-full bg-muted text-muted-foreground p-1.5 hover:bg-accent transition-colors z-10"
+              title="Choose from gallery"
+            >
+              <Images className="h-3.5 w-3.5" />
+            </button>
 
-      {/* Hidden file inputs */}
+            {/* Primary camera icon */}
+            <Camera className="h-8 w-8 text-muted-foreground/60" />
+            <span className="text-xs text-muted-foreground text-center px-2">
+              {facingMode === 'environment' ? 'Back camera' : 'Front camera'}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Hidden inputs */}
       <input
-        ref={fileRef}
+        ref={galleryRef}
         type="file"
         accept="image/*"
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
-      {/* Camera capture: capture attribute forces camera, facingMode via accept hint isn't CSS-level
-          so we use a data-key trick — remount when facingMode changes so the browser re-reads it */}
+      {/* key={facingMode} forces remount so browser re-reads the capture attribute */}
       <input
         key={facingMode}
         ref={cameraRef}
@@ -118,6 +147,25 @@ export const PhotoCapture: React.FC<PhotoCaptureProps> = ({
         className="hidden"
         onChange={(e) => handleFile(e.target.files?.[0])}
       />
-    </div>
+
+      {/* Lightbox */}
+      <Dialog open={lightbox} onOpenChange={setLightbox}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-muted-foreground" />
+              {label}
+            </DialogTitle>
+          </DialogHeader>
+          {preview && (
+            <img
+              src={preview}
+              alt={label}
+              className="w-full object-contain max-h-[70vh]"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
