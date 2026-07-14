@@ -129,9 +129,48 @@ export type Database = {
         }
         Relationships: []
       }
+      activity_form_submission_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          event_type: string
+          id: string
+          note: string | null
+          submission_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          note?: string | null
+          submission_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          note?: string | null
+          submission_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_form_submission_events_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "activity_form_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       activity_form_submissions: {
         Row: {
           answers: Json
+          approval_status: string
+          approver_id: string | null
+          approver_note: string | null
+          decided_at: string | null
           form_id: string
           id: string
           period_key: string
@@ -140,6 +179,10 @@ export type Database = {
         }
         Insert: {
           answers?: Json
+          approval_status?: string
+          approver_id?: string | null
+          approver_note?: string | null
+          decided_at?: string | null
           form_id: string
           id?: string
           period_key: string
@@ -148,6 +191,10 @@ export type Database = {
         }
         Update: {
           answers?: Json
+          approval_status?: string
+          approver_id?: string | null
+          approver_note?: string | null
+          decided_at?: string | null
           form_id?: string
           id?: string
           period_key?: string
@@ -169,6 +216,9 @@ export type Database = {
           analytics_employee_visible: boolean
           analytics_visible_fields: Json
           analytics_visible_to_submitter: boolean
+          approval_capability: string | null
+          approval_type: string | null
+          approval_user_id: string | null
           created_at: string
           created_by: string
           description: string | null
@@ -180,6 +230,7 @@ export type Database = {
           is_active: boolean
           manager_visible: boolean
           reminders_enabled: boolean
+          requires_approval: boolean
           title: string
           updated_at: string
         }
@@ -187,6 +238,9 @@ export type Database = {
           analytics_employee_visible?: boolean
           analytics_visible_fields?: Json
           analytics_visible_to_submitter?: boolean
+          approval_capability?: string | null
+          approval_type?: string | null
+          approval_user_id?: string | null
           created_at?: string
           created_by: string
           description?: string | null
@@ -198,6 +252,7 @@ export type Database = {
           is_active?: boolean
           manager_visible?: boolean
           reminders_enabled?: boolean
+          requires_approval?: boolean
           title: string
           updated_at?: string
         }
@@ -205,6 +260,9 @@ export type Database = {
           analytics_employee_visible?: boolean
           analytics_visible_fields?: Json
           analytics_visible_to_submitter?: boolean
+          approval_capability?: string | null
+          approval_type?: string | null
+          approval_user_id?: string | null
           created_at?: string
           created_by?: string
           description?: string | null
@@ -216,6 +274,7 @@ export type Database = {
           is_active?: boolean
           manager_visible?: boolean
           reminders_enabled?: boolean
+          requires_approval?: boolean
           title?: string
           updated_at?: string
         }
