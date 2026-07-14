@@ -561,6 +561,145 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
   return <span className="text-xs text-muted-foreground">—</span>;
 }
 
+// ------------------ Booking details (read-only, available from all statuses) ------------------
+
+function BookingDetailsButton({ row, myLoc }: { row: Interview; myLoc: { lat: number; lng: number } | null }) {
+  const [open, setOpen] = useState(false);
+  const dist = myLoc && row.gps_lat != null && row.gps_lng != null
+    ? distanceKm(myLoc, { lat: Number(row.gps_lat), lng: Number(row.gps_lng) })
+    : null;
+
+  return (
+    <>
+      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1" onClick={() => setOpen(true)}>
+        <FileText className="h-3.5 w-3.5" /> Details
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
+              Booking Details
+              <Badge variant={STATUS_META[row.status].variant} className="text-xs">
+                {STATUS_META[row.status].label}
+              </Badge>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 text-sm">
+
+            <Section title="Interviewee">
+              <DetailRow label="Full Name"  value={row.full_name} />
+              <DetailRow label="Age"        value={row.age != null ? `${row.age} yrs` : null} />
+              <DetailRow label="Sex"        value={row.sex} />
+              <DetailRow label="Phone"      value={row.phone} />
+            </Section>
+
+            <Section title="Location">
+              {dist !== null && <DetailRow label="Distance from you" value={`${dist.toFixed(1)} km`} highlight />}
+              <DetailRow label="Address" value={[row.address, row.city, row.state].filter(Boolean).join(', ')} />
+              {row.gps_lat != null && row.gps_lng != null && (
+                <DetailRow
+                  label="GPS"
+                  value={`${Number(row.gps_lat).toFixed(5)}, ${Number(row.gps_lng).toFixed(5)}`}
+                  extra={
+                    <a href={`https://maps.google.com/?q=${row.gps_lat},${row.gps_lng}`}
+                       target="_blank" rel="noopener noreferrer"
+                       className="text-xs text-primary underline ml-2">
+                      Open map
+                    </a>
+                  }
+                />
+              )}
+            </Section>
+
+            {row.interview_pref && row.interview_pref.length > 0 && (
+              <Section title="Interview Preferences">
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {row.interview_pref.map((p) => (
+                    <span key={p} className="px-2.5 py-0.5 rounded-full text-xs bg-primary/10 text-primary font-medium border border-primary/20">{p}</span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {(row as any).booking_acceptance_rating > 0 && (
+              <Section title="Booker's Acceptance Rating">
+                <div className="flex items-center gap-0.5 mt-1">
+                  {[1,2,3,4,5].map((n) => (
+                    <svg key={n} className={`h-5 w-5 ${(row as any).booking_acceptance_rating >= n ? 'text-primary fill-primary' : 'text-muted-foreground fill-none'}`}
+                         viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-2">{(row as any).booking_acceptance_rating}/5</span>
+                </div>
+              </Section>
+            )}
+
+            {row.audit_pref && row.audit_pref.length > 0 && (
+              <Section title="Preferred Audit Day / Time">
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {row.audit_pref.map((p) => (
+                    <span key={p} className="px-2.5 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 font-medium border border-amber-200">{p}</span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {row.acceptance_rating != null && row.acceptance_rating > 0 && (
+              <Section title="Interviewer's Acceptance Rating">
+                <div className="flex items-center gap-0.5 mt-1">
+                  {[1,2,3,4,5].map((n) => (
+                    <svg key={n} className={`h-5 w-5 ${(row.acceptance_rating ?? 0) >= n ? 'text-primary fill-primary' : 'text-muted-foreground fill-none'}`}
+                         viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                  ))}
+                  <span className="text-xs text-muted-foreground ml-2">{row.acceptance_rating}/5</span>
+                </div>
+              </Section>
+            )}
+
+            {row.folder_name && (
+              <Section title="Interview Files">
+                <DetailRow label="Folder"      value={row.folder_name} />
+                <DetailRow label="Total Names" value={row.total_names != null ? String(row.total_names) : null} />
+              </Section>
+            )}
+
+            {(row.individual_photo_url || row.home_photo_url || row.path_photo_url) && (
+              <Section title="Photos">
+                <PhotoLinks row={row} />
+              </Section>
+            )}
+
+            {row.notes && (
+              <Section title="Notes">
+                <p className="text-muted-foreground">{row.notes}</p>
+              </Section>
+            )}
+
+            <Section title="Timeline">
+              <DetailRow label="Booked"           value={new Date(row.created_at).toLocaleString()} />
+              {row.interviewer_accepted_at && <DetailRow label="Interview accepted" value={new Date(row.interviewer_accepted_at).toLocaleString()} />}
+              {row.interview_completed_at  && <DetailRow label="Interview completed" value={new Date(row.interview_completed_at).toLocaleString()} />}
+              {row.audit_accepted_at       && <DetailRow label="Audit accepted"     value={new Date(row.audit_accepted_at).toLocaleString()} />}
+              {row.audit_scheduled_date    && <DetailRow label="Audit scheduled"    value={new Date(row.audit_scheduled_date).toLocaleString()} />}
+              {row.audit_completed_at      && <DetailRow label="Audit completed"    value={new Date(row.audit_completed_at).toLocaleString()} />}
+            </Section>
+
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button variant="outline" onClick={() => setOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 // ------------------ List ------------------
 
 function InterviewTable({
@@ -595,10 +734,15 @@ function InterviewTable({
             </TableCell>
             <TableCell><Badge variant={STATUS_META[r.status].variant}>{STATUS_META[r.status].label}</Badge></TableCell>
             <TableCell className="text-right">
-              {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
-              {mode === 'audit' && <FieldManagerActions row={r} onRefresh={onRefresh} />}
-              {mode === 'booking' && <span className="text-xs text-muted-foreground">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
-              {mode === 'admin' && <span className="text-xs text-muted-foreground">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+              <div className="flex items-center gap-1 justify-end">
+                {/* Details always visible regardless of mode/status */}
+                <BookingDetailsButton row={r} myLoc={myLoc} />
+                {/* Mode-specific actions */}
+                {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
+                {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
+                {mode === 'booking'     && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
+                {mode === 'admin'       && <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+              </div>
             </TableCell>
           </TableRow>
         ))}
@@ -763,7 +907,7 @@ const OralGenWorkflow: React.FC = () => {
           <TabsContent value="bookings" className="mt-4">
             <Card><CardHeader><CardTitle>My Bookings</CardTitle><CardDescription>Interviews you created.</CardDescription></CardHeader>
               <CardContent>{loading ? <Loader2 className="animate-spin mx-auto" /> :
-                <InterviewTable rows={myBookings} myLoc={null} onRefresh={fetchRows} mode="booking" />}</CardContent>
+                <InterviewTable rows={myBookings} myLoc={myLoc} onRefresh={fetchRows} mode="booking" />}</CardContent>
             </Card>
           </TabsContent>
         )}
@@ -782,10 +926,10 @@ const OralGenWorkflow: React.FC = () => {
         {canAudit && (
           <TabsContent value="audits" className="mt-4 space-y-4">
             <Card><CardHeader><CardTitle>Audit Pool</CardTitle><CardDescription>Interviews awaiting audit.</CardDescription></CardHeader>
-              <CardContent><InterviewTable rows={auditPool} myLoc={null} onRefresh={fetchRows} mode="audit" /></CardContent>
+              <CardContent><InterviewTable rows={auditPool} myLoc={myLoc} onRefresh={fetchRows} mode="audit" /></CardContent>
             </Card>
             <Card><CardHeader><CardTitle>My Active Audits</CardTitle><CardDescription>Complete within 48 hours of the scheduled audit date.</CardDescription></CardHeader>
-              <CardContent><InterviewTable rows={myAudits} myLoc={null} onRefresh={fetchRows} mode="audit" /></CardContent>
+              <CardContent><InterviewTable rows={myAudits} myLoc={myLoc} onRefresh={fetchRows} mode="audit" /></CardContent>
             </Card>
           </TabsContent>
         )}
