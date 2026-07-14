@@ -95,6 +95,7 @@ const OrgChart = lazy(() => import("./pages/OrgChart"));
 const CMSSmsTemplates = lazy(() => import("./pages/cms/CMSSmsTemplates"));
 const ChatPolicies = lazy(() => import("./pages/admin/ChatPolicies"));
 const AIAssistant = lazy(() => import("./pages/admin/AIAssistant"));
+const OralGenWorkflow = lazy(() => import("./pages/OralGenWorkflow"));
 
 import { CapabilityGuard } from "@/components/CapabilityGuard";
 
