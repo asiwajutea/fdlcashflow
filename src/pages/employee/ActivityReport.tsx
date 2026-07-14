@@ -8,12 +8,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { db } from '@/lib/supabase-db';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { BarChart3, ClipboardList, CheckCircle2, Calendar, Clock, History, TrendingUp } from 'lucide-react';
+import { BarChart3, ClipboardList, CheckCircle2, Calendar, Clock, History, TrendingUp, Plus } from 'lucide-react';
 import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const periodKey = (frequency: string): string => {
   const now = new Date();
+  // Anytime: always generate a unique ISO timestamp key so UNIQUE(form_id, user_id, period_key) is never violated
+  if (frequency === 'anytime') return now.toISOString();
   if (frequency === 'daily') return now.toISOString().slice(0, 10);
   if (frequency === 'weekly') {
     const start = new Date(now.getFullYear(), 0, 1);
@@ -23,6 +26,21 @@ const periodKey = (frequency: string): string => {
   }
   if (frequency === 'monthly') return now.toISOString().slice(0, 7);
   return 'once';
+};
+
+const ApprovalBadge = ({ status, note }: { status?: string; note?: string }) => {
+  if (!status || status === 'not_required') return null;
+  if (status === 'pending') return <Badge className="bg-yellow-500 hover:bg-yellow-500 text-white">Awaiting Approval</Badge>;
+  if (status === 'approved') return <Badge className="bg-green-600 hover:bg-green-600 text-white">Approved</Badge>;
+  if (status === 'rejected') {
+    return (
+      <div className="flex flex-col gap-1">
+        <Badge variant="destructive">Rejected</Badge>
+        {note && <span className="text-xs text-muted-foreground">{note}</span>}
+      </div>
+    );
+  }
+  return null;
 };
 
 const ActivityReport = () => {
@@ -73,12 +91,61 @@ const ActivityReport = () => {
 
   useEffect(() => { loadAll(); }, [user?.id]);
 
-  const openForm = (form: any) => {
+  const openForm = (form: any, forceNew = false) => {
     const pk = periodKey(form.frequency);
-    const existing = (submissionsByForm[form.id] || []).find((s: any) => s.period_key === pk);
+    // For anytime forms, always open fresh (unless we're editing an existing specific submission)
+    const existing = (form.frequency === 'anytime' && !forceNew)
+      ? undefined
+      : (submissionsByForm[form.id] || []).find((s: any) => s.period_key === pk);
     setAnswers(existing?.answers || {});
     setActiveStep(0);
-    setActive({ ...form, period_key: pk, existing });
+    setActive({ ...form, period_key: pk, existing: existing || null });
+  };
+
+  const notifyApprover = async (form: any, submissionId: string) => {
+    try {
+      if (form.approval_type === 'leader') {
+        // Notify via notify-staff targeting leaders/managers
+        supabase.functions.invoke('notify-staff', {
+          body: {
+            template_key: 'form_submission_pending',
+            roles: ['admin'],
+            capabilities: ['manage_activity_forms'],
+            vars: {
+              submitter: user!.id,
+              form: form.title,
+              link: `${window.location.origin}/cms/activity-forms/${form.id}/submissions`,
+            },
+          },
+        }).catch(() => {});
+      } else if (form.approval_type === 'capability' && form.approval_capability) {
+        supabase.functions.invoke('notify-staff', {
+          body: {
+            template_key: 'form_submission_pending',
+            capabilities: [form.approval_capability],
+            vars: {
+              submitter: user!.id,
+              form: form.title,
+              link: `${window.location.origin}/cms/activity-forms/${form.id}/submissions`,
+            },
+          },
+        }).catch(() => {});
+      } else if (form.approval_type === 'specific_user' && form.approval_user_id) {
+        supabase.functions.invoke('send-sms', {
+          body: {
+            user_id: form.approval_user_id,
+            template_key: 'form_submission_pending',
+            vars: {
+              submitter: user!.id,
+              form: form.title,
+              link: `${window.location.origin}/cms/activity-forms/${form.id}/submissions`,
+            },
+          },
+        }).catch(() => {});
+      }
+    } catch (e) {
+      console.error('Approval notification failed', e);
+    }
   };
 
   const handleSubmit = async () => {
@@ -94,31 +161,77 @@ const ActivityReport = () => {
       }
     }
     setSubmitting(true);
-    const payload = {
-      form_id: active.id,
-      user_id: user.id,
-      period_key: active.period_key,
-      answers,
-    };
-    let error;
-    if (active.existing) {
-      ({ error } = await db.from('activity_form_submissions').update({ answers, submitted_at: new Date().toISOString() }).eq('id', active.existing.id));
+
+    const requiresApproval = !!active.requires_approval;
+    const approvalStatus = requiresApproval ? 'pending' : 'not_required';
+
+    // For anytime, always insert a fresh row with a unique period_key (timestamp)
+    const isAnytime = active.frequency === 'anytime';
+    const isUpdate = !isAnytime && !!active.existing;
+
+    let submissionId: string | null = null;
+    let error: any;
+
+    if (isUpdate) {
+      // Update existing submission for non-anytime forms
+      const { error: e } = await db.from('activity_form_submissions').update({
+        answers,
+        submitted_at: new Date().toISOString(),
+        // Reset approval if re-submitted
+        approval_status: approvalStatus,
+        approver_id: null,
+        approver_note: null,
+        decided_at: null,
+      }).eq('id', active.existing.id);
+      error = e;
+      submissionId = active.existing.id;
     } else {
-      ({ error } = await db.from('activity_form_submissions').insert(payload));
+      // Insert new submission (always for anytime, first-time for others)
+      const { data: inserted, error: e } = await db.from('activity_form_submissions').insert({
+        form_id: active.id,
+        user_id: user.id,
+        period_key: active.period_key,
+        answers,
+        approval_status: approvalStatus,
+      }).select('id').single();
+      error = e;
+      submissionId = inserted?.id || null;
     }
+
+    if (error) { toast.error(error.message); setSubmitting(false); return; }
+
+    // Log submission event and notify approver if needed
+    if (requiresApproval && submissionId) {
+      await db.from('activity_form_submission_events').insert({
+        submission_id: submissionId,
+        actor_id: user.id,
+        event_type: 'submitted',
+        note: '',
+      }).then(() => {});
+
+      await notifyApprover(active, submissionId);
+      toast.success('Submitted — awaiting approval');
+    } else {
+      toast.success(isUpdate ? 'Updated' : 'Submitted');
+    }
+
     setSubmitting(false);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Submitted');
     setActive(null);
     loadAll();
   };
 
   const dueForms = useMemo(() => forms.filter((f) => {
+    // Anytime forms are always "due" — users can always submit
+    if (f.frequency === 'anytime') return true;
     const pk = periodKey(f.frequency);
     return !(submissionsByForm[f.id] || []).some((s: any) => s.period_key === pk);
   }), [forms, submissionsByForm]);
 
-  const completedNow = forms.length - dueForms.length;
+  const completedNow = useMemo(() => forms.filter((f) => {
+    if (f.frequency === 'anytime') return false; // anytime never "completed"
+    const pk = periodKey(f.frequency);
+    return (submissionsByForm[f.id] || []).some((s: any) => s.period_key === pk);
+  }).length, [forms, submissionsByForm]);
 
   return (
     <DashboardLayout title="Activity Report">
@@ -144,7 +257,7 @@ const ActivityReport = () => {
           {dueForms.length === 0 ? (
             <Card><CardContent className="pt-6 text-center text-muted-foreground">🎉 You're all caught up!</CardContent></Card>
           ) : dueForms.map((f) => (
-            <FormCard key={f.id} form={f} onClick={() => openForm(f)} />
+            <FormCard key={f.id} form={f} onClick={() => openForm(f, true)} />
           ))}
         </TabsContent>
 
@@ -152,9 +265,19 @@ const ActivityReport = () => {
           {forms.length === 0 ? (
             <Card><CardContent className="pt-6 text-center text-muted-foreground">No forms have been assigned to you yet.</CardContent></Card>
           ) : forms.map((f) => {
+            const isAnytime = f.frequency === 'anytime';
             const pk = periodKey(f.frequency);
-            const done = (submissionsByForm[f.id] || []).some((s: any) => s.period_key === pk);
-            return <FormCard key={f.id} form={f} done={done} onClick={() => openForm(f)} />;
+            const done = !isAnytime && (submissionsByForm[f.id] || []).some((s: any) => s.period_key === pk);
+            const latestSub = isAnytime ? (submissionsByForm[f.id] || [])[0] : null;
+            return (
+              <FormCard
+                key={f.id}
+                form={f}
+                done={done}
+                latestApprovalStatus={isAnytime ? latestSub?.approval_status : undefined}
+                onClick={() => openForm(f, isAnytime)}
+              />
+            );
           })}
         </TabsContent>
 
@@ -173,7 +296,10 @@ const ActivityReport = () => {
                       <div className="text-xs text-muted-foreground">Period {s.period_key}</div>
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">{new Date(s.submitted_at).toLocaleString()}</div>
+                  <div className="flex items-center gap-3">
+                    <ApprovalBadge status={s.approval_status} note={s.approver_note} />
+                    <div className="text-xs text-muted-foreground">{new Date(s.submitted_at).toLocaleString()}</div>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -187,7 +313,24 @@ const ActivityReport = () => {
             <DialogTitle>{active?.title}</DialogTitle>
           </DialogHeader>
           {active?.description && <p className="text-sm text-muted-foreground">{active.description}</p>}
-          <div className="text-xs text-muted-foreground flex items-center gap-2"><Calendar className="h-3 w-3" /> Period: {active?.period_key} {active?.existing && <Badge variant="secondary" className="ml-2">Already submitted — editing</Badge>}</div>
+          <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+            <Calendar className="h-3 w-3" />
+            {active?.frequency === 'anytime'
+              ? <span>Anytime — new submission</span>
+              : <span>Period: {active?.period_key}</span>
+            }
+            {active?.existing && active?.frequency !== 'anytime' && (
+              <Badge variant="secondary" className="ml-2">Already submitted — editing</Badge>
+            )}
+          </div>
+
+          {/* Current approval status for existing non-anytime submissions */}
+          {active?.existing && active?.frequency !== 'anytime' && (
+            <div className="mt-1">
+              <ApprovalBadge status={active.existing.approval_status} note={active.existing.approver_note} />
+            </div>
+          )}
+
           {(() => {
             const allFields = fieldsByForm[active?.id] || [];
             const steps = computeSteps(allFields, (active as any)?.first_step_name || '');
@@ -227,7 +370,12 @@ const ActivityReport = () => {
                     {steps.length > 1 && !isLast ? (
                       <Button onClick={() => setActiveStep(activeStep + 1)}>Next</Button>
                     ) : (
-                      <Button onClick={handleSubmit} disabled={submitting}>{submitting ? 'Submitting…' : (active?.existing ? 'Update' : 'Submit')}</Button>
+                      <Button onClick={handleSubmit} disabled={submitting}>
+                        {submitting ? 'Submitting…' : (
+                          active?.frequency === 'anytime' ? 'Submit' :
+                          active?.existing ? 'Update' : 'Submit'
+                        )}
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -240,24 +388,50 @@ const ActivityReport = () => {
   );
 };
 
-const FormCard = ({ form, done, onClick }: { form: any; done?: boolean; onClick: () => void }) => {
+const FormCard = ({
+  form,
+  done,
+  latestApprovalStatus,
+  onClick,
+}: {
+  form: any;
+  done?: boolean;
+  latestApprovalStatus?: string;
+  onClick: () => void;
+}) => {
+  const isAnytime = form.frequency === 'anytime';
   const showAnalytics = form.analytics_visible_to_submitter !== false || form.analytics_employee_visible;
   return (
     <Card className="hover:shadow-md transition-all">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 cursor-pointer" onClick={onClick}>
-            <CardTitle className="text-lg flex items-center gap-2">
+            <CardTitle className="text-lg flex items-center gap-2 flex-wrap">
               {form.title}
               {done && <Badge className="bg-green-600 hover:bg-green-600">Completed</Badge>}
+              {isAnytime && latestApprovalStatus && latestApprovalStatus !== 'not_required' && (
+                <Badge className={
+                  latestApprovalStatus === 'pending' ? 'bg-yellow-500 hover:bg-yellow-500 text-white' :
+                  latestApprovalStatus === 'approved' ? 'bg-green-600 hover:bg-green-600 text-white' :
+                  'bg-destructive'
+                }>
+                  {latestApprovalStatus === 'pending' ? 'Awaiting Approval' :
+                   latestApprovalStatus === 'approved' ? 'Last: Approved' : 'Last: Rejected'}
+                </Badge>
+              )}
             </CardTitle>
             {form.description && <CardDescription>{form.description}</CardDescription>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {showAnalytics && (
               <Link to={`/activity-report/${form.id}/analytics`} onClick={(e) => e.stopPropagation()}>
                 <Button variant="outline" size="sm"><TrendingUp className="h-3 w-3 mr-1" /> Analytics</Button>
               </Link>
+            )}
+            {isAnytime && (
+              <Button size="sm" onClick={onClick}>
+                <Plus className="h-3 w-3 mr-1" /> Submit again
+              </Button>
             )}
             <Badge variant="outline" className="capitalize">{form.frequency.replace('_', ' ')}</Badge>
           </div>

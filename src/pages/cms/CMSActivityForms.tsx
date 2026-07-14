@@ -14,12 +14,25 @@ const CMSActivityForms = () => {
   const navigate = useNavigate();
   const [forms, setForms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingCounts, setPendingCounts] = useState<Record<string, number>>({});
 
   const fetchForms = async () => {
     setLoading(true);
-    const { data, error } = await db.from('activity_forms').select('*').order('created_at', { ascending: false });
+    const [{ data, error }, { data: pendingData }] = await Promise.all([
+      db.from('activity_forms').select('*').order('created_at', { ascending: false }),
+      db.from('activity_form_submissions')
+        .select('form_id')
+        .eq('approval_status', 'pending'),
+    ]);
     if (error) toast.error(error.message);
     setForms(data || []);
+
+    // Count pending per form
+    const counts: Record<string, number> = {};
+    (pendingData || []).forEach((row: any) => {
+      counts[row.form_id] = (counts[row.form_id] || 0) + 1;
+    });
+    setPendingCounts(counts);
     setLoading(false);
   };
 
@@ -75,7 +88,16 @@ const CMSActivityForms = () => {
               <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No forms yet. Create your first one.</TableCell></TableRow>
             ) : forms.map((f) => (
               <TableRow key={f.id}>
-                <TableCell className="font-medium">{f.title}</TableCell>
+                <TableCell className="font-medium">
+                  <div className="flex items-center gap-2">
+                    {f.title}
+                    {pendingCounts[f.id] > 0 && (
+                      <Badge className="bg-orange-500 hover:bg-orange-500 text-white text-xs">
+                        {pendingCounts[f.id]} pending
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell><Badge variant="outline" className="capitalize">{f.frequency.replace('_', ' ')}</Badge></TableCell>
                 <TableCell>{f.is_active ? <Badge>Active</Badge> : <Badge variant="secondary">Draft</Badge>}</TableCell>
                 <TableCell className="text-muted-foreground text-sm">{new Date(f.created_at).toLocaleDateString()}</TableCell>

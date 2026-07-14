@@ -44,6 +44,7 @@ const FREQUENCIES = [
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' },
   { value: 'one_off', label: 'One-off' },
+  { value: 'anytime', label: 'Anytime (unlimited per day)' },
 ];
 
 const ASSIGNMENT_TYPES = [
@@ -145,6 +146,7 @@ const CMSActivityFormBuilder = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [leaders, setLeaders] = useState<{ id: string; full_name: string | null; roles: string[] }[]>([]);
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  const [allEmployees, setAllEmployees] = useState<{ id: string; full_name: string | null }[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -189,6 +191,8 @@ const CMSActivityFormBuilder = () => {
       const oMap: Record<string, boolean> = {};
       (ovs as any)?.data?.forEach((o: any) => { oMap[o.user_id] = o.can_view; });
       setOverrides(oMap);
+
+      setAllEmployees((emps.data || []).map((e: any) => ({ id: e.id, full_name: e.full_name || null })));
     })();
   }, [id]);
 
@@ -276,6 +280,10 @@ const CMSActivityFormBuilder = () => {
       is_active: form.is_active,
       manager_visible: form.manager_visible,
       first_step_name: form.first_step_name || null,
+      requires_approval: !!form.requires_approval,
+      approval_type: form.approval_type || 'leader',
+      approval_capability: form.approval_capability || null,
+      approval_user_id: form.approval_user_id || null,
     }).eq('id', id);
     if (fErr) { toast.error(fErr.message); setSaving(false); return; }
 
@@ -346,6 +354,7 @@ const CMSActivityFormBuilder = () => {
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="fields">Fields ({fields.length})</TabsTrigger>
           <TabsTrigger value="assignments">Assignments ({assignments.length})</TabsTrigger>
+          <TabsTrigger value="approval">Approval</TabsTrigger>
           <TabsTrigger value="leader-access">Leader Access ({leaders.length})</TabsTrigger>
         </TabsList>
 
@@ -546,10 +555,185 @@ const CMSActivityFormBuilder = () => {
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="approval" className="mt-6">
+          <Card>
+            <CardHeader><CardTitle>Approval Workflow</CardTitle></CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-3">
+                <Switch
+                  checked={!!form.requires_approval}
+                  onCheckedChange={(v) => updateForm({ requires_approval: v })}
+                />
+                <div>
+                  <Label className="text-base">Require approval before submission is counted</Label>
+                  <p className="text-sm text-muted-foreground">When enabled, each submission will be marked "Pending" until a designated approver reviews it.</p>
+                </div>
+              </div>
+
+              {form.requires_approval && (
+                <div className="space-y-4 border-t pt-4">
+                  <div>
+                    <Label>Approver type</Label>
+                    <Select
+                      value={form.approval_type || 'leader'}
+                      onValueChange={(v) => updateForm({ approval_type: v, approval_capability: null, approval_user_id: null })}
+                    >
+                      <SelectTrigger className="w-full md:w-72"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="leader">Leader (direct manager / team lead)</SelectItem>
+                        <SelectItem value="specific_user">Specific user</SelectItem>
+                        <SelectItem value="capability">Capability holders</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {form.approval_type === 'leader' && (
+                    <div className="rounded-lg bg-muted/50 border px-4 py-3 text-sm text-muted-foreground">
+                      The submitter's direct manager or team lead will receive the approval request.
+                    </div>
+                  )}
+
+                  {form.approval_type === 'specific_user' && (
+                    <div>
+                      <Label>Approver</Label>
+                      <Select
+                        value={form.approval_user_id || ''}
+                        onValueChange={(v) => updateForm({ approval_user_id: v })}
+                      >
+                        <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Search employee…" /></SelectTrigger>
+                        <SelectContent>
+                          {allEmployees.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.full_name || e.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {form.approval_type === 'capability' && (
+                    <div>
+                      <Label>Capability</Label>
+                      <Select
+                        value={form.approval_capability || ''}
+                        onValueChange={(v) => updateForm({ approval_capability: v })}
+                      >
+                        <SelectTrigger className="w-full md:w-72"><SelectValue placeholder="Pick capability" /></SelectTrigger>
+                        <SelectContent>
+                          {ALL_CAPABILITIES.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {form.frequency === 'anytime' && (
+                <div className="rounded-lg bg-blue-500/10 border border-blue-500/20 px-4 py-3 text-sm text-blue-700 dark:text-blue-300">
+                  <strong>Note:</strong> For "Anytime" frequency forms, users can always submit new entries even while previous ones are pending review.
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="approval" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><ChevronRight className="h-4 w-4" /> Approval Workflow</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex items-center justify-between gap-4 p-4 rounded-lg border bg-muted/30">
+                <div>
+                  <p className="font-medium text-sm">Require leader approval</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Submissions will be marked <span className="font-semibold text-amber-600">Pending</span> until an approver reviews them.
+                  </p>
+                </div>
+                <Switch
+                  checked={!!form.requires_approval}
+                  onCheckedChange={(v) => updateForm({ requires_approval: v })}
+                />
+              </div>
+
+              {form.requires_approval && (
+                <div className="space-y-4 pl-1">
+                  <div className="space-y-1.5">
+                    <Label>Who approves submissions?</Label>
+                    <Select
+                      value={form.approval_type || 'leader'}
+                      onValueChange={(v) => updateForm({ approval_type: v, approval_capability: null, approval_user_id: null })}
+                    >
+                      <SelectTrigger className="max-w-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="leader">Direct manager / team lead</SelectItem>
+                        <SelectItem value="capability">Capability holders</SelectItem>
+                        <SelectItem value="specific_user">Specific user</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {form.approval_type === 'leader' && (
+                    <div className="rounded-lg border bg-blue-50 dark:bg-blue-950/20 border-blue-200 px-4 py-3 text-sm text-blue-800 dark:text-blue-300">
+                      The submitter's direct manager or team lead will receive an SMS notification and must approve the submission in the Submissions view.
+                    </div>
+                  )}
+
+                  {form.approval_type === 'capability' && (
+                    <div className="space-y-1.5 max-w-sm">
+                      <Label>Capability</Label>
+                      <Select
+                        value={form.approval_capability || ''}
+                        onValueChange={(v) => updateForm({ approval_capability: v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Pick capability…" /></SelectTrigger>
+                        <SelectContent>
+                          {ALL_CAPABILITIES.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">All users with this capability will be notified and can approve.</p>
+                    </div>
+                  )}
+
+                  {form.approval_type === 'specific_user' && (
+                    <div className="space-y-1.5 max-w-sm">
+                      <Label>Approver</Label>
+                      <Select
+                        value={form.approval_user_id || ''}
+                        onValueChange={(v) => updateForm({ approval_user_id: v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Pick approver…" /></SelectTrigger>
+                        <SelectContent>
+                          {allEmployees.map((e) => (
+                            <SelectItem key={e.id} value={e.id}>{e.full_name || e.id}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  {form.frequency === 'anytime' && (
+                    <div className="rounded-lg border bg-amber-50 dark:bg-amber-950/20 border-amber-200 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+                      <span className="font-semibold">Anytime form:</span> users can always submit new entries even while previous ones are pending review.
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground pt-2">
+                Remember to <span className="font-semibold">Save changes</span> after updating approval settings.
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="leader-access" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Who can view this form's submissions & analytics?</CardTitle>
+              <CardTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Who can view this form's submissions &amp; analytics?</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
