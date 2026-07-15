@@ -17,7 +17,9 @@ import {
   Users, Eye, FileText, ExternalLink, Brain, Calendar, Upload,
   Loader2, RefreshCw, Search, ArrowUpDown, ArrowUp, ArrowDown,
   ChevronLeft, ChevronRight, AlertTriangle, X, CheckCircle2,
+  Archive, ArchiveRestore, Trash2,
 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
 import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
@@ -29,6 +31,7 @@ interface ApplicationRow {
   status: string;
   applied_at: string;
   updated_at?: string | null;
+  archived_at?: string | null;
   candidate: {
     id: string; phone: string | null; education: string | null;
     experience_summary: string | null; resume_url: string | null; user_id: string;
@@ -131,6 +134,10 @@ const Applications = () => {
   const [bulkStatus, setBulkStatus] = useState('');
   const [bulkUpdating, setBulkUpdating] = useState(false);
 
+  // Archive / delete
+  const [showArchived, setShowArchived] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<ApplicationRow | null>(null);
+
   const canManageRecruitment = role === 'admin' || hasCapability('manage_recruitment');
 
   useEffect(() => {
@@ -141,7 +148,7 @@ const Applications = () => {
   useEffect(() => { if (canManageRecruitment) fetchApplications(); }, [canManageRecruitment]);
 
   // Reset to page 1 when filters change
-  useEffect(() => { setPage(1); setSelected(new Set()); }, [search, filterStatus, filterDept, sortField, sortDir]);
+  useEffect(() => { setPage(1); setSelected(new Set()); }, [search, filterStatus, filterDept, sortField, sortDir, showArchived]);
 
   const fetchApplications = async () => {
     const { data, error } = await (supabase as any)
@@ -176,6 +183,7 @@ const Applications = () => {
       const prof = profileMap.get(a.candidates.user_id);
       return {
         id: a.id, cover_letter: a.cover_letter, status: a.status, applied_at: a.applied_at, updated_at: a.updated_at || null,
+        archived_at: a.archived_at || null,
         candidate: a.candidates, job: a.job_positions,
         candidate_name: prof?.name || 'Unknown',
         candidate_avatar: prof?.avatar || null,
@@ -193,7 +201,15 @@ const Applications = () => {
 
   const filtered = useMemo(() => {
     let list = [...applications];
-    if (filterStatus !== 'all') list = list.filter(a => a.status === filterStatus);
+    // By default hide archived; show them when toggle is on
+    if (showArchived) {
+      list = list.filter(a => !!a.archived_at);
+    } else {
+      list = list.filter(a => !a.archived_at);
+    }
+    if (!showArchived) {
+      if (filterStatus !== 'all') list = list.filter(a => a.status === filterStatus);
+    }
     if (filterDept !== 'all') list = list.filter(a => a.job.department === filterDept);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -215,15 +231,17 @@ const Applications = () => {
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return list;
-  }, [applications, filterStatus, filterDept, search, sortField, sortDir]);
+  }, [applications, filterStatus, filterDept, search, sortField, sortDir, showArchived]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   // Pipeline counts
   const pipeline = useMemo(() => {
+    const active = applications.filter(a => !a.archived_at);
     const counts: Record<string, number> = {};
-    STATUS_OPTIONS.forEach(s => { counts[s] = applications.filter(a => a.status === s).length; });
+    STATUS_OPTIONS.forEach(s => { counts[s] = active.filter(a => a.status === s).length; });
+    counts['archived'] = applications.filter(a => !!a.archived_at).length;
     return counts;
   }, [applications]);
 
@@ -260,6 +278,32 @@ const Applications = () => {
       setBulkStatus('');
     }
     setBulkUpdating(false);
+  };
+
+  const handleArchive = async (appId: string) => {
+    const { error } = await (supabase as any).from('applications')
+      .update({ archived_at: new Date().toISOString() })
+      .eq('id', appId);
+    if (error) { toast({ title: 'Archive failed', description: error.message, variant: 'destructive' }); return; }
+    setApplications(prev => prev.map(a => a.id === appId ? { ...a, archived_at: new Date().toISOString() } : a));
+    toast({ title: 'Application archived' });
+  };
+
+  const handleRestore = async (appId: string) => {
+    const { error } = await (supabase as any).from('applications')
+      .update({ archived_at: null })
+      .eq('id', appId);
+    if (error) { toast({ title: 'Restore failed', description: error.message, variant: 'destructive' }); return; }
+    setApplications(prev => prev.map(a => a.id === appId ? { ...a, archived_at: null } : a));
+    toast({ title: 'Application restored' });
+  };
+
+  const handleDelete = async (appId: string) => {
+    const { error } = await (supabase as any).from('applications').delete().eq('id', appId);
+    if (error) { toast({ title: 'Delete failed', description: error.message, variant: 'destructive' }); return; }
+    setApplications(prev => prev.filter(a => a.id !== appId));
+    setDeleteTarget(null);
+    toast({ title: 'Application permanently deleted' });
   };
 
   const triggerScreeningGeneration = async (appId: string) => {
@@ -372,7 +416,20 @@ const Applications = () => {
               {staleCount > 0 && <span className="ml-2 text-amber-600 font-medium flex items-center gap-1 inline-flex"><AlertTriangle className="h-3.5 w-3.5" /> {staleCount} stale</span>}
             </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate('/jobs')}>View Job Listings</Button>
+          <div className="flex gap-2 flex-wrap">
+            {pipeline['archived'] > 0 && (
+              <Button
+                variant={showArchived ? 'default' : 'outline'}
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setShowArchived(v => !v)}
+              >
+                <Archive className="h-3.5 w-3.5" />
+                {showArchived ? 'Hide Archived' : `Archived (${pipeline['archived']})`}
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={() => navigate('/jobs')}>View Job Listings</Button>
+          </div>
         </div>
 
         {/* Pipeline summary */}
@@ -468,7 +525,7 @@ const Applications = () => {
                   const days = daysAgo(app.applied_at);
                   const stale = isStale(app);
                   return (
-                    <TableRow key={app.id} className={selected.has(app.id) ? 'bg-primary/5' : stale ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}>
+                    <TableRow key={app.id} className={selected.has(app.id) ? 'bg-primary/5' : app.archived_at ? 'opacity-60 bg-muted/30' : stale ? 'bg-amber-50/40 dark:bg-amber-950/10' : ''}>
                       <TableCell><Checkbox checked={selected.has(app.id)} onCheckedChange={() => toggleOne(app.id)} aria-label={`Select ${app.candidate_name}`} /></TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
@@ -487,12 +544,18 @@ const Applications = () => {
                       <TableCell>
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-1.5">
+                            {app.archived_at ? (
+                              <Badge variant="secondary" className="text-xs gap-1 text-muted-foreground">
+                                <Archive className="h-3 w-3" /> Archived
+                              </Badge>
+                            ) : (
                             <Select value={app.status} onValueChange={(v) => handleStatusChange(app.id, v)}>
                               <SelectTrigger className="w-[120px] h-7 text-xs border-0 p-0 shadow-none focus:ring-0">
                                 <Badge className={`text-xs font-medium border capitalize ${statusColor[app.status]}`}>{app.status}</Badge>
                               </SelectTrigger>
                               <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}</SelectContent>
                             </Select>
+                            )}
                             {generatingScreening === app.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
                           </div>
                           {app.updated_at && (
@@ -535,6 +598,36 @@ const Applications = () => {
                           )}
                           {app.status === 'offered' && (
                             <Tooltip><TooltipTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setContractAppId(app.id)}><Upload className="h-3.5 w-3.5" /></Button></TooltipTrigger><TooltipContent>Manage contract</TooltipContent></Tooltip>
+                          )}
+                          {/* Archive / Restore / Delete */}
+                          {!app.archived_at ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-amber-600" onClick={() => handleArchive(app.id)}>
+                                  <Archive className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Archive application</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-amber-600 hover:text-foreground" onClick={() => handleRestore(app.id)}>
+                                  <ArchiveRestore className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Restore application</TooltipContent>
+                            </Tooltip>
+                          )}
+                          {role === 'admin' && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(app)}>
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Permanently delete</TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                       </TableCell>
@@ -623,6 +716,27 @@ const Applications = () => {
         <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
         <InterviewScheduleDialog applicationId={interviewAppId} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
         <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
+
+        {/* Permanent delete confirmation */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Permanently Delete Application?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete <span className="font-semibold">{deleteTarget?.candidate_name}</span>'s application for <span className="font-semibold">{deleteTarget?.job.title}</span>, including all screening responses, interviews, and contracts. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                onClick={() => deleteTarget && handleDelete(deleteTarget.id)}
+              >
+                Delete Permanently
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
     </TooltipProvider>

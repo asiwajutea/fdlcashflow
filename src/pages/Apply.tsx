@@ -49,6 +49,7 @@ const Apply = () => {
   const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted]   = useState(false);
+  const [activeApplication, setActiveApplication] = useState<{ id: string; status: string } | null>(null);
 
   // Form fields
   const [phone, setPhone]                   = useState('');
@@ -65,12 +66,30 @@ const Apply = () => {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, []);
 
-  // Load job
+  // Load job + check for existing active application
   useEffect(() => {
     if (!jobId) { setLoading(false); return; }
     (supabase as any).from('job_positions').select('*').eq('id', jobId).single()
       .then(({ data, error }: any) => { if (!error && data) setJob(data); setLoading(false); });
   }, [jobId]);
+
+  // Check for active application once user is known
+  useEffect(() => {
+    if (!user || !jobId) return;
+    (async () => {
+      const { data: cand } = await (supabase as any)
+        .from('candidates').select('id').eq('user_id', user.id).maybeSingle();
+      if (!cand) return;
+      const { data: app } = await (supabase as any)
+        .from('applications')
+        .select('id, status')
+        .eq('candidate_id', cand.id)
+        .eq('job_id', jobId)
+        .neq('status', 'rejected')
+        .maybeSingle();
+      if (app) setActiveApplication(app);
+    })();
+  }, [user, jobId]);
 
   // Restore draft + auto-submit after login
   useEffect(() => {
@@ -149,6 +168,28 @@ const Apply = () => {
         if (cErr) throw cErr;
         candidateId = newC.id;
       }
+      // Block duplicate active applications — only allow reapply after rejection
+      const { data: activeApp } = await (supabase as any)
+        .from('applications')
+        .select('id, status')
+        .eq('candidate_id', candidateId)
+        .eq('job_id', jobId)
+        .neq('status', 'rejected')
+        .maybeSingle();
+
+      if (activeApp) {
+        const statusMsg: Record<string, string> = {
+          submitted: 'Your application is currently under review.',
+          screening: 'Your application is in the screening stage.',
+          interview: 'You have an interview scheduled for this position.',
+          offered:   'You have a pending offer for this position.',
+          hired:     'You have already been hired for this position.',
+        };
+        throw new Error(
+          `You already have an active application for this position. ${statusMsg[activeApp.status] || ''} You can reapply once your current application has been rejected.`
+        );
+      }
+
       const { error: appErr } = await (supabase as any)
         .from('applications').insert({ candidate_id: candidateId, job_id: jobId, cover_letter: data.coverLetter });
       if (appErr) throw appErr;
@@ -277,6 +318,27 @@ const Apply = () => {
                   {!user && <p className="text-xs text-muted-foreground mt-1">Fill in your details. You'll create a free account when you submit.</p>}
                 </CardHeader>
                 <CardContent className="pt-6">
+
+                  {/* Already applied banner */}
+                  {activeApplication && (
+                    <div className="mb-5 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-4 space-y-2">
+                      <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300 text-sm">
+                        <Info className="h-4 w-4 shrink-0" />
+                        You have an active application for this position
+                      </div>
+                      <p className="text-xs text-amber-700 dark:text-amber-400">
+                        {{
+                          submitted: 'Your application is currently under review.',
+                          screening: 'Your application is in the screening stage — check your inbox for the questionnaire.',
+                          interview: 'You have an interview scheduled for this position.',
+                          offered:   'You have a pending offer — please review and sign your contract.',
+                          hired:     'You have already been hired for this position.',
+                        }[activeApplication.status] || 'Your application is being processed.'}
+                        {' '}You can only reapply after your current application has been rejected.
+                      </p>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} className="space-y-4">
 
                     {/* Phone — required */}
@@ -333,11 +395,11 @@ const Apply = () => {
                     </div>
 
                     {/* Submit */}
-                    {user ? (
-                      <Button type="submit" className="w-full" disabled={submitting}>
-                        {submitting ? 'Submitting…' : 'Submit Application'}
-                      </Button>
-                    ) : (
+                  {user ? (
+                    <Button type="submit" className="w-full" disabled={submitting || !!activeApplication}>
+                      {submitting ? 'Submitting…' : activeApplication ? 'Already Applied' : 'Submit Application'}
+                    </Button>
+                  ) : (
                       <div className="space-y-2">
                         <Button type="submit" className="w-full gap-2" disabled={submitting}>
                           <LogIn className="h-4 w-4" />
