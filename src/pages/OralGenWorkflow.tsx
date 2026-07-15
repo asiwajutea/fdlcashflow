@@ -615,8 +615,6 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
     }
   };
 
-  const [detailsOpen, setDetailsOpen] = useState(false);
-
   /** Drop locked interview — release back to pool */
   const drop = async () => {
     if (!confirm('Drop this interview? It will be released back to the available pool.')) return;
@@ -636,26 +634,6 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
   const dist = myLoc && row.gps_lat != null && row.gps_lng != null
     ? distanceKm(myLoc, { lat: Number(row.gps_lat), lng: Number(row.gps_lng) })
     : null;
-
-  const dist = myLoc && row.gps_lat != null && row.gps_lng != null
-    ? distanceKm(myLoc, { lat: Number(row.gps_lat), lng: Number(row.gps_lng) })
-    : null;
-
-  /** Drop locked interview — release back to pool */
-  const drop = async () => {
-    if (!confirm('Drop this interview? It will be released back to the available pool.')) return;
-    setBusy(true);
-    const { error } = await db.from('oralgen_interviews').update({
-      interviewer_id: null,
-      interviewer_accepted_at: null,
-      interview_deadline: null,
-      status: 'pending_interview',
-    }).eq('id', row.id).eq('interviewer_id', user!.id);
-    setBusy(false);
-    if (error) return toast({ title: 'Could not drop', description: error.message, variant: 'destructive' });
-    toast({ title: 'Interview dropped — back in pool' });
-    onRefresh();
-  };
 
   if (row.status === 'pending_interview') {
     return (
@@ -1013,12 +991,6 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
   }
   return <span className="text-xs text-muted-foreground">—</span>;
 }
-    setBusy(false);
-    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: 'Audit completed' });
-    setCompleteOpen(false);
-    onRefresh();
-  };
 
 // ------------------ Booking details (read-only, available from all statuses) ------------------
 
