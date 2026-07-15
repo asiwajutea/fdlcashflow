@@ -2,7 +2,7 @@
 INSERT INTO public.sms_templates (key, name, body, variables, is_active) VALUES (
   'candidate_interview_scheduled',
   'Candidate: Interview Scheduled',
-  'Hi {{name}}, your interview for the {{job}} role at Footprints Dynasty has been scheduled for {{date}}. Join via: {{link}}. Reply to this message if you have questions.',
+  'Hi {{name}}, your interview for the {{job}} role at Footprints Dynasty has been scheduled for {{date}}. Join via: {{link}}. Login to https://footprintsdynasty.com.ng.',
   '["name","job","date","link"]'::jsonb,
   true
 )
