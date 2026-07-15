@@ -88,10 +88,58 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Saved', description: interview ? 'Interview updated.' : 'Interview scheduled.' });
+
+      // Send SMS to candidate if a date was set or changed
+      if (date) {
+        notifyCandidateSms(applicationId, date, meetingLink);
+      }
+
       onOpenChange(false);
       onSaved?.();
     }
     setSaving(false);
+  };
+
+  /** Fire-and-forget SMS to the candidate with interview date/time */
+  const notifyCandidateSms = async (appId: string, interviewDate: string, link: string) => {
+    try {
+      // Resolve candidate user_id and job title from the application
+      const { data: app } = await supabase
+        .from('applications')
+        .select('candidate_id, job_positions!inner(title)')
+        .eq('id', appId)
+        .maybeSingle();
+      if (!app) return;
+
+      const { data: candidate } = await supabase
+        .from('candidates')
+        .select('user_id')
+        .eq('id', app.candidate_id)
+        .maybeSingle();
+      if (!candidate?.user_id) return;
+
+      // Format the date nicely e.g. "Wednesday, 16 Jul 2026 at 10:00 AM"
+      const formatted = new Date(interviewDate).toLocaleString('en-GB', {
+        weekday: 'long', day: 'numeric', month: 'short',
+        year: 'numeric', hour: '2-digit', minute: '2-digit',
+      });
+
+      const jobTitle = (app as any).job_positions?.title || 'the position';
+
+      supabase.functions.invoke('send-sms', {
+        body: {
+          user_id:      candidate.user_id,
+          template_key: 'candidate_interview_scheduled',
+          vars: {
+            job:  jobTitle,
+            date: formatted,
+            link: link || `${window.location.origin}/interviews`,
+          },
+        },
+      }).catch(() => {});
+    } catch (e) {
+      console.error('Interview SMS notification failed:', e);
+    }
   };
 
   return (
