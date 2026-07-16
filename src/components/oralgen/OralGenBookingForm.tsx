@@ -354,21 +354,24 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
                   <Field label="First Name" required>
                     <Input
                       value={form.first_name}
-                      onChange={(e) => set({ first_name: titleCase(e.target.value) })}
+                      onChange={(e) => set({ first_name: e.target.value })}
+                      onBlur={(e) => set({ first_name: titleCase(e.target.value) })}
                       placeholder="e.g. John"
                     />
                   </Field>
                   <Field label="Surname" required>
                     <Input
                       value={form.surname}
-                      onChange={(e) => set({ surname: titleCase(e.target.value) })}
+                      onChange={(e) => set({ surname: e.target.value })}
+                      onBlur={(e) => set({ surname: titleCase(e.target.value) })}
                       placeholder="e.g. Adeyemi"
                     />
                   </Field>
                   <Field label="Other Names" hint="optional" className="sm:col-span-2">
                     <Input
                       value={form.other_names}
-                      onChange={(e) => set({ other_names: titleCase(e.target.value) })}
+                      onChange={(e) => set({ other_names: e.target.value })}
+                      onBlur={(e) => set({ other_names: titleCase(e.target.value) })}
                       placeholder="Middle name(s)"
                     />
                   </Field>

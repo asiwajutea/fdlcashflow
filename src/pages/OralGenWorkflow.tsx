@@ -1270,9 +1270,9 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
 
             {step === 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: titleCase(e.target.value) })} placeholder="e.g. John" /></EF>
-                <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: titleCase(e.target.value) })} placeholder="e.g. Adeyemi" /></EF>
-                <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
+                <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} onBlur={(e) => set({ first_name: titleCase(e.target.value) })} placeholder="e.g. John" /></EF>
+                <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: e.target.value })} onBlur={(e) => set({ surname: titleCase(e.target.value) })} placeholder="e.g. Adeyemi" /></EF>
+                <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: e.target.value })} onBlur={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
                 <EF label="Age"><Input type="number" min="1" max="120" value={form.age} onChange={(e) => set({ age: e.target.value })} /></EF>
                 <EF label="Sex" required>
                   <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
@@ -1618,9 +1618,9 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
 
             <ES title="Personal Details">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: titleCase(e.target.value) })} /></EF>
-                <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: titleCase(e.target.value) })} /></EF>
-                <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
+                <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} onBlur={(e) => set({ first_name: titleCase(e.target.value) })} /></EF>
+                <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: e.target.value })} onBlur={(e) => set({ surname: titleCase(e.target.value) })} /></EF>
+                <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: e.target.value })} onBlur={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
                 <EF label="Age"><Input type="number" min="1" max="120" value={form.age} onChange={(e) => set({ age: e.target.value })} /></EF>
                 <EF label="Sex" required>
                   <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
