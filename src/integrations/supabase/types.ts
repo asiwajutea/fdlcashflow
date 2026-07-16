@@ -1340,6 +1340,7 @@ export type Database = {
           meeting_link: string | null
           office_address: string | null
           outcome: string | null
+          reminder_sent_at: string | null
           score: number | null
         }
         Insert: {
@@ -1355,6 +1356,7 @@ export type Database = {
           meeting_link?: string | null
           office_address?: string | null
           outcome?: string | null
+          reminder_sent_at?: string | null
           score?: number | null
         }
         Update: {
@@ -1370,6 +1372,7 @@ export type Database = {
           meeting_link?: string | null
           office_address?: string | null
           outcome?: string | null
+          reminder_sent_at?: string | null
           score?: number | null
         }
         Relationships: [
