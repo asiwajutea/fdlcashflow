@@ -101,12 +101,17 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
     setSaving(true);
 
+    // Convert datetime-local string (no timezone) to an ISO string anchored to
+    // Africa/Lagos (UTC+1). Without this, PostgreSQL stores it as UTC which is
+    // 1 hour behind Lagos time — causing emails and reminders to be 1 hour ahead.
+    const dateAsWat = date ? new Date(date + ':00+01:00').toISOString() : null;
+
     // Detect if the date/time changed (so we can reset the reminder flag)
-    const dateChanged = interview && interview.interview_date !== new Date(date).toISOString();
+    const dateChanged = interview && interview.interview_date !== dateAsWat;
 
     const payload: Record<string, any> = {
       application_id:    applicationId,
-      interview_date:    date || null,
+      interview_date:    dateAsWat,
       interview_type:    interviewType,
       location_platform: interviewType === 'virtual' ? locationPlatform : 'office',
       meeting_link:      interviewType === 'virtual' ? (meetingLink || null) : null,
@@ -141,7 +146,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
       // Notify candidate via SMS and email
       if (date) {
-        notifyCandidateSms(applicationId, date, payload);
+        notifyCandidateSms(applicationId, dateAsWat!, payload);
         if (savedId) notifyCandidateEmail(savedId, applicationId, isUpdate);
       }
 

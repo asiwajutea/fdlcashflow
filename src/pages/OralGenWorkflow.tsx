@@ -23,6 +23,7 @@ import {
   MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
   Loader2, ClipboardList, Users, Gavel, Camera, Navigation,
   Search, X, Pencil, Plus, ChevronLeft, ChevronRight,
+  ChevronDown, SlidersHorizontal,
 } from 'lucide-react';
 
 type Status =
@@ -184,6 +185,7 @@ function FilterBar({ rows, myLoc, onFiltered }: FilterBarProps) {
   const [proximity, setProximity] = useState('any');
   const [rating, setRating] = useState('any');
   const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const allStates = useMemo(() => {
     // Use STATE_LIST as the canonical list; filter to only states present in data
@@ -294,6 +296,17 @@ function FilterBar({ rows, myLoc, onFiltered }: FilterBarProps) {
 
   return (
     <div className="space-y-3 pb-4">
+      {/* Mobile toggle */}
+      <div className="flex items-center justify-between mb-2 md:hidden">
+        <p className="text-xs text-muted-foreground">{rows.length} result{rows.length !== 1 ? 's' : ''}</p>
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setMobileOpen(v => !v)}>
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          {hasFilters ? 'Filters (active)' : 'Filter & Sort'}
+        </Button>
+      </div>
+
+      {/* Filter controls — always visible on desktop, toggleable on mobile */}
+      <div className={`space-y-2 ${mobileOpen ? 'block' : 'hidden'} md:block`}>
       <div className="flex items-center gap-2 flex-wrap">
         {/* Search */}
         <div className="relative flex-1 min-w-[180px]">
@@ -411,6 +424,7 @@ function FilterBar({ rows, myLoc, onFiltered }: FilterBarProps) {
             <X className="h-3.5 w-3.5" /> Clear
           </Button>
         )}
+      </div>
       </div>
     </div>
   );
@@ -701,6 +715,11 @@ function InterviewerActions({ row, myLoc, onRefresh }: { row: Interview; myLoc: 
                 <Section title="Booker's Acceptance Rating"><StarDisplay value={row.booking_acceptance_rating} /></Section>
               )}
               {row.notes && <Section title="Notes"><p className="text-muted-foreground">{row.notes}</p></Section>}
+              {(row.individual_photo_url || row.home_photo_url || row.path_photo_url) && (
+                <Section title="Photos">
+                  <InterviewerPhotoPreview row={row} />
+                </Section>
+              )}
               <Section title="Booking Info"><DetailRow label="Booked" value={new Date(row.created_at).toLocaleString()} /></Section>
             </div>
             <DialogFooter className="pt-2 gap-2">
@@ -990,6 +1009,62 @@ function FieldManagerActions({ row, onRefresh }: { row: Interview; onRefresh: ()
     );
   }
   return <span className="text-xs text-muted-foreground">—</span>;
+}
+
+// ── Shared photo preview for interviewer details dialog ───────────────────────
+
+function InterviewerPhotoPreview({ row }: { row: Interview }) {
+  const { toast } = useToast();
+  const [lightbox, setLightbox] = useState<{ url: string; label: string } | null>(null);
+
+  const openPhoto = async (path: string | null, label: string) => {
+    if (!path) return;
+    const { data, error } = await supabase.storage.from('oralgen-files').createSignedUrl(path, 3600);
+    if (error || !data?.signedUrl) return toast({ title: `Could not load ${label}`, variant: 'destructive' });
+    setLightbox({ url: data.signedUrl, label });
+  };
+
+  const Thumb = ({ path, label }: { path: string | null; label: string }) => {
+    if (!path) return null;
+    return (
+      <div className="space-y-1">
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <button type="button" onClick={() => openPhoto(path, label)}
+          className="relative w-full rounded-lg overflow-hidden border bg-muted group"
+          style={{ aspectRatio: '4/3' }}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-muted-foreground group-hover:bg-primary/5 transition-colors">
+            <Camera className="h-6 w-6" />
+            <span className="text-xs font-medium">Tap to view</span>
+          </div>
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <div className="grid grid-cols-3 gap-2 mt-1">
+        <Thumb path={row.individual_photo_url} label="Individual Photo" />
+        <Thumb path={row.home_photo_url}       label="Home Photo" />
+        <Thumb path={row.path_photo_url}       label="Path to Home" />
+      </div>
+
+      {/* Lightbox */}
+      <Dialog open={!!lightbox} onOpenChange={(o) => { if (!o) setLightbox(null); }}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="px-4 pt-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <Camera className="h-4 w-4 text-muted-foreground" />
+              {lightbox?.label}
+            </DialogTitle>
+          </DialogHeader>
+          {lightbox?.url && (
+            <img src={lightbox.url} alt={lightbox.label ?? ''} className="w-full object-contain max-h-[70vh]" />
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 
 // ------------------ Booking details (read-only, available from all statuses) ------------------
@@ -1877,55 +1952,118 @@ function InterviewTable({
   mode: 'interviewer' | 'audit' | 'admin' | 'booking';
   currentUserId?: string | null;
 }) {
+  const [openId, setOpenId] = useState<string | null>(null);
+
   if (!rows.length) return <p className="text-sm text-muted-foreground py-8 text-center">Nothing here yet.</p>;
+
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Interviewee</TableHead>
-          <TableHead>Location</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className="text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((r) => (
-          <LazyRow key={r.id}>
-            <TableCell>
-              <div className="font-medium">{r.full_name}</div>
-              <div className="text-xs text-muted-foreground">{r.phone ?? '—'} · {r.age ? `${r.age}y` : ''} {r.sex ?? ''}</div>
-            </TableCell>
-            <TableCell className="text-sm">
-              <div>{[r.city, r.state].filter(Boolean).join(', ') || '—'}</div>
-              {r.gps_lat != null && r.gps_lng != null && (
-                <div className="text-xs text-muted-foreground">{Number(r.gps_lat).toFixed(3)}, {Number(r.gps_lng).toFixed(3)}</div>
+    <>
+      {/* MOBILE: accordion cards */}
+      <div className="md:hidden space-y-2">
+        {rows.map((r) => {
+          const isOpen = openId === r.id;
+          return (
+            <div key={r.id} className="rounded-xl border bg-card overflow-hidden">
+              {/* Tappable header */}
+              <button
+                type="button"
+                className="w-full flex items-center justify-between gap-2 px-4 py-3 text-left"
+                onClick={() => setOpenId(isOpen ? null : r.id)}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{r.full_name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[r.phone, r.age && `${r.age}y`, r.sex].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Badge variant={STATUS_META[r.status].variant}>{STATUS_META[r.status].label}</Badge>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </div>
+              </button>
+              {/* Expandable body */}
+              {isOpen && (
+                <div className="px-4 pb-4 pt-1 border-t space-y-3">
+                  {/* Location */}
+                  <div className="text-sm text-muted-foreground">
+                    {[r.city, r.state].filter(Boolean).join(', ') || '—'}
+                    {r.gps_lat != null && r.gps_lng != null && (
+                      <span className="block text-xs">{Number(r.gps_lat).toFixed(3)}, {Number(r.gps_lng).toFixed(3)}</span>
+                    )}
+                  </div>
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-2">
+                    {r.status === 'pending_interview' && currentUserId && (
+                      <AssignInterviewerButton row={r} onSaved={onRefresh} />
+                    )}
+                    {r.status === 'pending_interview' && currentUserId &&
+                      (r.created_by === currentUserId || (r as any).updated_by === currentUserId) && (
+                      <EditBookingButton row={r} onSaved={onRefresh} />
+                    )}
+                    <BookingDetailsButton row={r} myLoc={myLoc} />
+                    {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
+                    {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
+                    {mode === 'booking'     && <span className="text-xs text-muted-foreground">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
+                    {mode === 'admin'       && <span className="text-xs text-muted-foreground">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+                  </div>
+                </div>
               )}
-            </TableCell>
-            <TableCell><Badge variant={STATUS_META[r.status].variant}>{STATUS_META[r.status].label}</Badge></TableCell>
-            <TableCell className="text-right">
-              <div className="flex items-center gap-1 justify-end">
-                {/* Assign — for managers/admins on pending rows */}
-                {r.status === 'pending_interview' && currentUserId && (
-                  <AssignInterviewerButton row={r} onSaved={onRefresh} />
-                )}
-                {/* Edit — only on pending_interview rows owned by the current user */}
-                {r.status === 'pending_interview' && currentUserId &&
-                  (r.created_by === currentUserId || (r as any).updated_by === currentUserId) && (
-                  <EditBookingButton row={r} onSaved={onRefresh} />
-                )}
-                {/* Details always visible regardless of mode/status */}
-                <BookingDetailsButton row={r} myLoc={myLoc} />
-                {/* Mode-specific actions */}
-                {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
-                {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
-                {mode === 'booking'     && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
-                {mode === 'admin'       && <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
-              </div>
-            </TableCell>
-          </LazyRow>
-        ))}
-      </TableBody>
-    </Table>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* DESKTOP: existing table */}
+      <div className="hidden md:block overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Interviewee</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((r) => (
+              <LazyRow key={r.id}>
+                <TableCell>
+                  <div className="font-medium">{r.full_name}</div>
+                  <div className="text-xs text-muted-foreground">{r.phone ?? '—'} · {r.age ? `${r.age}y` : ''} {r.sex ?? ''}</div>
+                </TableCell>
+                <TableCell className="text-sm">
+                  <div>{[r.city, r.state].filter(Boolean).join(', ') || '—'}</div>
+                  {r.gps_lat != null && r.gps_lng != null && (
+                    <div className="text-xs text-muted-foreground">{Number(r.gps_lat).toFixed(3)}, {Number(r.gps_lng).toFixed(3)}</div>
+                  )}
+                </TableCell>
+                <TableCell><Badge variant={STATUS_META[r.status].variant}>{STATUS_META[r.status].label}</Badge></TableCell>
+                <TableCell className="text-right">
+                  <div className="flex items-center gap-1 justify-end">
+                    {/* Assign — for managers/admins on pending rows */}
+                    {r.status === 'pending_interview' && currentUserId && (
+                      <AssignInterviewerButton row={r} onSaved={onRefresh} />
+                    )}
+                    {/* Edit — only on pending_interview rows owned by the current user */}
+                    {r.status === 'pending_interview' && currentUserId &&
+                      (r.created_by === currentUserId || (r as any).updated_by === currentUserId) && (
+                      <EditBookingButton row={r} onSaved={onRefresh} />
+                    )}
+                    {/* Details always visible regardless of mode/status */}
+                    <BookingDetailsButton row={r} myLoc={myLoc} />
+                    {/* Mode-specific actions */}
+                    {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
+                    {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
+                    {mode === 'booking'     && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
+                    {mode === 'admin'       && <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+                  </div>
+                </TableCell>
+              </LazyRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    </>
   );
 }
 
