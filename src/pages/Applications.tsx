@@ -153,7 +153,7 @@ const Applications = () => {
   const fetchApplications = async () => {
     const { data, error } = await (supabase as any)
       .from('applications')
-      .select(`id, cover_letter, status, applied_at, updated_at,
+      .select(`id, cover_letter, status, applied_at, updated_at, archived_at,
         candidates!inner(id, phone, education, experience_summary, resume_url, user_id),
         job_positions!inner(id, title, department, description, requirements)`)
       .order('applied_at', { ascending: false });
