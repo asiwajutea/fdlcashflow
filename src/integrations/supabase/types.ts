@@ -1329,35 +1329,50 @@ export type Database = {
       interviews: {
         Row: {
           application_id: string
+          contact_phone: string | null
           created_at: string
           feedback: string | null
           id: string
           interview_date: string | null
+          interview_type: string | null
           interviewer: string | null
+          location_platform: string | null
           meeting_link: string | null
+          office_address: string | null
           outcome: string | null
+          reminder_sent_at: string | null
           score: number | null
         }
         Insert: {
           application_id: string
+          contact_phone?: string | null
           created_at?: string
           feedback?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
           interviewer?: string | null
+          location_platform?: string | null
           meeting_link?: string | null
+          office_address?: string | null
           outcome?: string | null
+          reminder_sent_at?: string | null
           score?: number | null
         }
         Update: {
           application_id?: string
+          contact_phone?: string | null
           created_at?: string
           feedback?: string | null
           id?: string
           interview_date?: string | null
+          interview_type?: string | null
           interviewer?: string | null
+          location_platform?: string | null
           meeting_link?: string | null
+          office_address?: string | null
           outcome?: string | null
+          reminder_sent_at?: string | null
           score?: number | null
         }
         Relationships: [
