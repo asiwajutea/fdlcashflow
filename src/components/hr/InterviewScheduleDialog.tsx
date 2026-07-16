@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin, Phone, Video, Building2 } from 'lucide-react';
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
@@ -21,6 +21,15 @@ const VIRTUAL_PLATFORMS = [
   { value: 'zoom',        label: 'Zoom' },
   { value: 'whatsapp',    label: 'WhatsApp Video' },
 ];
+
+/** Format date/time in GMT+1 (West Africa Time) */
+function formatGmt1(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Africa/Lagos',
+    weekday: 'long', day: 'numeric', month: 'short',
+    year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }) + ' (GMT+1)';
+}
 
 const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   applicationId,
@@ -92,20 +101,29 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
     setSaving(true);
 
-    const payload = {
-      application_id: applicationId,
-      interview_date: date || null,
-      meeting_link: meetingLink || null,
-      interviewer: interviewer || null,
-      score: score ? Number(score) : null,
-      feedback: feedback || null,
-      outcome:  outcome  || null,
+    // Detect if the date/time changed (so we can reset the reminder flag)
+    const dateChanged = interview && interview.interview_date !== new Date(date).toISOString();
+
+    const payload: Record<string, any> = {
+      application_id:    applicationId,
+      interview_date:    date || null,
+      interview_type:    interviewType,
+      location_platform: interviewType === 'virtual' ? locationPlatform : 'office',
+      meeting_link:      interviewType === 'virtual' ? (meetingLink || null) : null,
+      office_address:    interviewType === 'physical' ? (officeAddress || null) : null,
+      contact_phone:     contactPhone || null,
+      interviewer:       interviewer || null,
+      score:             score    ? Number(score) : null,
+      feedback:          feedback || null,
+      outcome:           outcome  || null,
     };
-    // If time changed, clear reminder flag so the 1-hour reminder can fire again
+
+    // If date changed, clear reminder so the 1-hour reminder can fire again
     if (dateChanged) payload.reminder_sent_at = null;
 
-    let error;
+    let error: any;
     let savedId = interview?.id as string | undefined;
+
     if (interview) {
       ({ error } = await supabase.from('interviews').update(payload).eq('id', interview.id));
     } else {
@@ -118,20 +136,28 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Saved', description: interview ? 'Interview updated.' : 'Interview scheduled.' });
+      const isUpdate = !!interview;
+      toast({ title: 'Saved', description: isUpdate ? 'Interview updated.' : 'Interview scheduled.' });
 
-      // Send SMS to candidate if a date was set or changed
+      // Notify candidate via SMS and email
       if (date) {
-        notifyCandidateSms(applicationId, date, meetingLink);
+        notifyCandidateSms(applicationId, date, payload);
+        if (savedId) notifyCandidateEmail(savedId, applicationId, isUpdate);
       }
+
       onOpenChange(false);
       onSaved?.();
     }
     setSaving(false);
   };
 
-  /** Email the candidate with full interview details (schedule or update). */
-  const notifyCandidate = async (interviewId: string, appId: string, isUpdate: boolean) => {
+  // ── Email notification ────────────────────────────────────────────────────
+
+  const notifyCandidateEmail = async (
+    interviewId: string,
+    appId: string,
+    isUpdate: boolean,
+  ) => {
     try {
       const { data: iv } = await supabase
         .from('interviews')
@@ -151,64 +177,59 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       const { data: job } = await supabase
         .from('job_positions').select('title').eq('id', app.job_id).maybeSingle();
 
-      await supabase.functions.invoke('send-email', {
+      const platformLabels: Record<string, string> = {
+        google_meet: 'Google Meet',
+        zoom: 'Zoom',
+        whatsapp: 'WhatsApp Video',
+        office: 'In-Person',
+      };
+
+      supabase.functions.invoke('send-email', {
         body: {
-          user_id: candidate.user_id,
+          user_id:      candidate.user_id,
           template_key: isUpdate ? 'candidate_interview_updated' : 'candidate_interview',
           vars: {
-            job: job?.title || 'the position',
-            date: formatGmt1(iv.interview_date),
-            interview_type: iv.interview_type || '',
-            location: iv.location_platform || '',
-            address: iv.office_address || '',
-            interviewer: iv.interviewer || '',
-            contact_phone: iv.contact_phone || '',
-            link: iv.meeting_link || '',
-            origin: window.location.origin,
+            job:            job?.title || 'the position',
+            date:           formatGmt1(iv.interview_date),
+            interview_type: iv.interview_type === 'physical' ? 'In-Person' : 'Virtual',
+            location:       platformLabels[iv.location_platform || ''] || iv.location_platform || '',
+            address:        iv.office_address || '',
+            interviewer:    iv.interviewer || '',
+            contact_phone:  iv.contact_phone || '',
+            link:           iv.meeting_link || '',
+            origin:         window.location.origin,
           },
         },
-      });
+      }).catch((e: any) => console.error('Interview email failed:', e));
     } catch (e) {
       console.error('Interview email notification failed:', e);
     }
   };
 
+  // ── SMS notification ──────────────────────────────────────────────────────
 
-
-  /** Fire-and-forget SMS to the candidate with full interview details */
-  const notifyCandidateSms = async (appId: string, interviewDate: string, details: Record<string, any>) => {
+  const notifyCandidateSms = async (
+    appId: string,
+    interviewDate: string,
+    details: Record<string, any>,
+  ) => {
     try {
       const { data: app, error: appError } = await supabase
-        .from('applications')
-        .select('candidate_id, job_id')
-        .eq('id', appId)
-        .maybeSingle();
-
+        .from('applications').select('candidate_id, job_id').eq('id', appId).maybeSingle();
       if (appError) { console.error('Interview SMS: application fetch failed', appError.message); return; }
       if (!app)     { console.error('Interview SMS: application not found', appId); return; }
 
       const { data: candidate, error: candError } = await supabase
-        .from('candidates')
-        .select('user_id')
-        .eq('id', app.candidate_id)
-        .maybeSingle();
-
+        .from('candidates').select('user_id').eq('id', app.candidate_id).maybeSingle();
       if (candError) { console.error('Interview SMS: candidate fetch failed', candError.message); return; }
       if (!candidate?.user_id) { console.error('Interview SMS: no user_id', app.candidate_id); return; }
 
       const { data: job } = await supabase
-        .from('job_positions')
-        .select('title')
-        .eq('id', app.job_id)
-        .maybeSingle();
+        .from('job_positions').select('title').eq('id', app.job_id).maybeSingle();
 
       const jobTitle = job?.title || 'the position';
-      const formatted = new Date(interviewDate).toLocaleString('en-GB', {
-        weekday: 'long', day: 'numeric', month: 'short',
-        year: 'numeric', hour: '2-digit', minute: '2-digit',
-      });
+      const formatted = formatGmt1(interviewDate);
 
-      // Build location text for SMS
       const isVirtual = details.interview_type === 'virtual';
       const platformLabels: Record<string, string> = {
         google_meet: 'Google Meet',
@@ -217,31 +238,29 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       };
       const locationText = isVirtual
         ? `${platformLabels[details.location_platform] || 'Online'}${details.meeting_link ? `: ${details.meeting_link}` : ''}`
-        : `Physical — ${details.office_address || 'Office address to be confirmed'}`;
-      const contactText = details.contact_phone ? ` Contact: ${details.contact_phone}.` : '';
+        : `In-Person — ${details.office_address || 'address to be confirmed'}`;
 
       const { error: smsError } = await supabase.functions.invoke('send-sms', {
         body: {
           user_id:      candidate.user_id,
           template_key: 'candidate_interview_scheduled',
           vars: {
-            job:      jobTitle,
-            date:     formatted,
-            link:     locationText,
-            contact:  details.contact_phone || '',
+            job:     jobTitle,
+            date:    formatted,
+            link:    locationText,
+            contact: details.contact_phone || '',
           },
         },
       });
 
-      if (smsError) {
-        console.error('Interview SMS: send-sms failed', smsError.message);
-      } else {
-        console.log('Interview SMS: sent to user', candidate.user_id, 'for job', jobTitle);
-      }
+      if (smsError) console.error('Interview SMS failed:', smsError.message);
+      else console.log('Interview SMS sent to', candidate.user_id);
     } catch (e) {
       console.error('Interview SMS notification failed:', e);
     }
   };
+
+  // ── JSX ───────────────────────────────────────────────────────────────────
 
   const isVirtual = interviewType === 'virtual';
 
@@ -267,22 +286,12 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
             <div className="space-y-1.5">
               <Label>Interview Type <span className="text-destructive">*</span></Label>
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setInterviewType('virtual')}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'
-                  }`}
-                >
+                <button type="button" onClick={() => setInterviewType('virtual')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'}`}>
                   <Video className="h-4 w-4" /> Virtual
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setInterviewType('physical')}
-                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    !isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'
-                  }`}
-                >
+                <button type="button" onClick={() => setInterviewType('physical')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${!isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'}`}>
                   <Building2 className="h-4 w-4" /> Physical
                 </button>
               </div>
@@ -296,20 +305,14 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
                   <Select value={locationPlatform} onValueChange={setLocationPlatform}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {VIRTUAL_PLATFORMS.map(p => (
-                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                      ))}
+                      {VIRTUAL_PLATFORMS.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Meeting Link <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder={
-                      locationPlatform === 'google_meet' ? 'https://meet.google.com/...' :
-                      locationPlatform === 'zoom'        ? 'https://zoom.us/j/...' :
-                      'WhatsApp number or meeting link'
-                    }
+                    placeholder={locationPlatform === 'google_meet' ? 'https://meet.google.com/...' : locationPlatform === 'zoom' ? 'https://zoom.us/j/...' : 'WhatsApp number or meeting link'}
                     value={meetingLink}
                     onChange={(e) => setMeetingLink(e.target.value)}
                   />
@@ -321,38 +324,24 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
             {!isVirtual && (
               <div className="space-y-1.5">
                 <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Office Address <span className="text-destructive">*</span></Label>
-                <Textarea
-                  placeholder="e.g. Footprints Dynasty Limited, 12 Main Street, Lagos"
-                  value={officeAddress}
-                  onChange={(e) => setOfficeAddress(e.target.value)}
-                  rows={3}
-                />
+                <Textarea placeholder="e.g. Footprints Dynasty Limited, 12 Main Street, Lagos" value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} rows={3} />
               </div>
             )}
 
-            {/* Contact phone */}
+            {/* HR contact phone */}
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> HR Contact Phone</Label>
-              <Input
-                type="tel"
-                placeholder="e.g. 08012345678"
-                value={contactPhone}
-                onChange={(e) => setContactPhone(e.target.value)}
-              />
+              <Input type="tel" placeholder="e.g. 08012345678" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
               <p className="text-xs text-muted-foreground">Shared with the candidate so they can reach HR if needed.</p>
             </div>
 
             {/* Interviewer */}
             <div className="space-y-1.5">
               <Label>Interviewer</Label>
-              <Input
-                placeholder="Interviewer name"
-                value={interviewer}
-                onChange={(e) => setInterviewer(e.target.value)}
-              />
+              <Input placeholder="Interviewer name" value={interviewer} onChange={(e) => setInterviewer(e.target.value)} />
             </div>
 
-            {/* Feedback section (only when editing an existing interview) */}
+            {/* Feedback — only when editing */}
             {interview && (
               <>
                 <hr className="border-border" />
