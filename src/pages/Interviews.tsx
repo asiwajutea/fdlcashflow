@@ -7,23 +7,29 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Calendar, Video, CalendarPlus } from 'lucide-react';
+import { Calendar, Video, CalendarPlus, MapPin, Phone, Building2, Monitor } from 'lucide-react';
 
 // Generate a Google Calendar URL for an interview
 function googleCalendarUrl(interview: any, jobTitle: string): string {
   if (!interview.interview_date) return '';
   const start = new Date(interview.interview_date);
-  const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hour default
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const locationLine = interview.interview_type === 'physical'
+    ? interview.office_address || ''
+    : interview.meeting_link || '';
   const details = [
     interview.interviewer ? `Interviewer: ${interview.interviewer}` : '',
-    interview.meeting_link ? `Meeting link: ${interview.meeting_link}` : '',
+    interview.interview_type === 'physical' ? `Type: In-Person` : `Type: Virtual (${PLATFORM_LABELS[interview.location_platform] || ''})`,
+    interview.meeting_link && interview.interview_type !== 'physical' ? `Meeting link: ${interview.meeting_link}` : '',
+    interview.office_address && interview.interview_type === 'physical' ? `Address: ${interview.office_address}` : '',
+    interview.contact_phone ? `HR Contact: ${interview.contact_phone}` : '',
   ].filter(Boolean).join('\n');
   return `https://calendar.google.com/calendar/render?action=TEMPLATE`
     + `&text=${encodeURIComponent(`Interview: ${jobTitle}`)}`
     + `&dates=${fmt(start)}/${fmt(end)}`
     + `&details=${encodeURIComponent(details)}`
-    + (interview.meeting_link ? `&location=${encodeURIComponent(interview.meeting_link)}` : '');
+    + (locationLine ? `&location=${encodeURIComponent(locationLine)}` : '');
 }
 
 // Generate an .ics file download for Apple Calendar / Outlook
@@ -33,6 +39,16 @@ function downloadICS(interview: any, jobTitle: string) {
   const end = new Date(start.getTime() + 60 * 60 * 1000);
   const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const uid = `interview-${interview.id}@fdlworkforce`;
+  const locationLine = interview.interview_type === 'physical'
+    ? interview.office_address || ''
+    : interview.meeting_link || '';
+  const descParts = [
+    interview.interviewer   ? `Interviewer: ${interview.interviewer}` : '',
+    interview.interview_type === 'physical' ? 'Type: In-Person' : `Type: Virtual`,
+    interview.meeting_link  && interview.interview_type !== 'physical' ? `Meeting link: ${interview.meeting_link}` : '',
+    interview.office_address && interview.interview_type === 'physical' ? `Address: ${interview.office_address}` : '',
+    interview.contact_phone ? `HR Contact: ${interview.contact_phone}` : '',
+  ].filter(Boolean).join('\\n');
   const ics = [
     'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FDL Workforce//Interview//EN',
     'BEGIN:VEVENT',
@@ -40,8 +56,8 @@ function downloadICS(interview: any, jobTitle: string) {
     `DTSTART:${fmt(start)}`,
     `DTEND:${fmt(end)}`,
     `SUMMARY:Interview: ${jobTitle}`,
-    interview.interviewer ? `DESCRIPTION:Interviewer: ${interview.interviewer}` : '',
-    interview.meeting_link ? `LOCATION:${interview.meeting_link}` : '',
+    descParts ? `DESCRIPTION:${descParts}` : '',
+    locationLine ? `LOCATION:${locationLine}` : '',
     'END:VEVENT', 'END:VCALENDAR',
   ].filter(Boolean).join('\r\n');
   const blob = new Blob([ics], { type: 'text/calendar' });
@@ -50,6 +66,13 @@ function downloadICS(interview: any, jobTitle: string) {
   a.href = url; a.download = `interview-${jobTitle.replace(/\s+/g, '-')}.ics`;
   a.click(); URL.revokeObjectURL(url);
 }
+
+const PLATFORM_LABELS: Record<string, string> = {
+  google_meet: 'Google Meet',
+  zoom: 'Zoom',
+  whatsapp: 'WhatsApp Video',
+  office: 'In-Person',
+};
 
 const Interviews = () => {
   const navigate = useNavigate();
@@ -161,13 +184,73 @@ const Interviews = () => {
                       <p className="font-medium">{interview.interviewer || 'To be confirmed'}</p>
                     </div>
                   </div>
-                  {interview.meeting_link && (
+
+                  {/* Interview type & location */}
+                  <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                    <div className="flex items-center gap-2 font-medium">
+                      {interview.interview_type === 'physical'
+                        ? <><Building2 className="h-4 w-4 text-primary shrink-0" /> In-Person Interview</>
+                        : <><Monitor className="h-4 w-4 text-primary shrink-0" /> Virtual Interview</>
+                      }
+                      {interview.location_platform && interview.location_platform !== 'office' && (
+                        <span className="text-xs text-muted-foreground font-normal">
+                          via {PLATFORM_LABELS[interview.location_platform] || interview.location_platform}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Virtual: meeting link */}
+                    {interview.interview_type !== 'physical' && interview.meeting_link && (
+                      <div className="flex items-start gap-2">
+                        <Video className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <p className="text-xs text-muted-foreground">Meeting link</p>
+                          <a
+                            href={interview.meeting_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline break-all text-xs"
+                          >
+                            {interview.meeting_link}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Physical: office address */}
+                    {interview.interview_type === 'physical' && interview.office_address && (
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Office address</p>
+                          <p className="text-sm whitespace-pre-line">{interview.office_address}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* HR contact phone */}
+                    {interview.contact_phone && (
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">HR contact</p>
+                          <a href={`tel:${interview.contact_phone}`} className="text-sm font-medium hover:underline">
+                            {interview.contact_phone}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Join button for virtual */}
+                  {interview.interview_type !== 'physical' && interview.meeting_link && (
                     <Button variant="outline" size="sm" asChild>
                       <a href={interview.meeting_link} target="_blank" rel="noopener noreferrer">
-                        <Video className="h-4 w-4 mr-1" /> Join Meeting
+                        <Video className="h-4 w-4 mr-1" /> Join {PLATFORM_LABELS[interview.location_platform] || 'Meeting'}
                       </a>
                     </Button>
                   )}
+
                   {/* Add to Calendar */}
                   {interview.interview_date && (
                     <div className="space-y-2">
@@ -192,6 +275,7 @@ const Interviews = () => {
                       </div>
                     </div>
                   )}
+
                   {interview.feedback && (
                     <div className="border-t pt-3 mt-3">
                       <p className="text-xs text-muted-foreground">Feedback</p>

@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MapPin, Phone, Video, Building2 } from 'lucide-react';
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
@@ -15,6 +15,12 @@ interface InterviewScheduleDialogProps {
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
 }
+
+const VIRTUAL_PLATFORMS = [
+  { value: 'google_meet', label: 'Google Meet' },
+  { value: 'zoom',        label: 'Zoom' },
+  { value: 'whatsapp',    label: 'WhatsApp Video' },
+];
 
 const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   applicationId,
@@ -26,12 +32,20 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   const [interview, setInterview] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [date, setDate] = useState('');
-  const [meetingLink, setMeetingLink] = useState('');
-  const [interviewer, setInterviewer] = useState('');
-  const [score, setScore] = useState('');
+
+  // Scheduling fields
+  const [date,             setDate]             = useState('');
+  const [interviewType,    setInterviewType]    = useState<'virtual' | 'physical'>('virtual');
+  const [locationPlatform, setLocationPlatform] = useState('google_meet');
+  const [meetingLink,      setMeetingLink]      = useState('');
+  const [officeAddress,    setOfficeAddress]    = useState('');
+  const [contactPhone,     setContactPhone]     = useState('');
+  const [interviewer,      setInterviewer]      = useState('');
+
+  // Feedback fields
+  const [score,    setScore]    = useState('');
   const [feedback, setFeedback] = useState('');
-  const [outcome, setOutcome] = useState('');
+  const [outcome,  setOutcome]  = useState('');
 
   useEffect(() => {
     if (open && applicationId) {
@@ -45,18 +59,19 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
           setInterview(d);
           if (d) {
             setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
+            setInterviewType(d.interview_type || 'virtual');
+            setLocationPlatform(d.location_platform || 'google_meet');
             setMeetingLink(d.meeting_link || '');
+            setOfficeAddress(d.office_address || '');
+            setContactPhone(d.contact_phone || '');
             setInterviewer(d.interviewer || '');
             setScore(d.score?.toString() || '');
             setFeedback(d.feedback || '');
             setOutcome(d.outcome || '');
           } else {
-            setDate('');
-            setMeetingLink('');
-            setInterviewer('');
-            setScore('');
-            setFeedback('');
-            setOutcome('');
+            setDate(''); setInterviewType('virtual'); setLocationPlatform('google_meet');
+            setMeetingLink(''); setOfficeAddress(''); setContactPhone('');
+            setInterviewer(''); setScore(''); setFeedback(''); setOutcome('');
           }
           setLoading(false);
         });
@@ -65,16 +80,30 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
   const handleSave = async () => {
     if (!applicationId) return;
+
+    // Validation
+    if (!date) { toast({ title: 'Please set an interview date and time', variant: 'destructive' }); return; }
+    if (interviewType === 'virtual' && !meetingLink.trim()) {
+      toast({ title: 'Please provide a meeting link for the virtual interview', variant: 'destructive' }); return;
+    }
+    if (interviewType === 'physical' && !officeAddress.trim()) {
+      toast({ title: 'Please provide the office address for the physical interview', variant: 'destructive' }); return;
+    }
+
     setSaving(true);
 
-    const payload = {
-      application_id: applicationId,
-      interview_date: date || null,
-      meeting_link: meetingLink || null,
-      interviewer: interviewer || null,
-      score: score ? Number(score) : null,
+    const payload: Record<string, any> = {
+      application_id:   applicationId,
+      interview_date:   date || null,
+      interview_type:   interviewType,
+      location_platform: interviewType === 'virtual' ? locationPlatform : 'office',
+      meeting_link:     interviewType === 'virtual' ? (meetingLink || null) : null,
+      office_address:   interviewType === 'physical' ? (officeAddress || null) : null,
+      contact_phone:    contactPhone || null,
+      interviewer:      interviewer || null,
+      score:    score    ? Number(score) : null,
       feedback: feedback || null,
-      outcome: outcome || null,
+      outcome:  outcome  || null,
     };
 
     let error;
@@ -88,22 +117,18 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Saved', description: interview ? 'Interview updated.' : 'Interview scheduled.' });
-
-      // Send SMS to candidate if a date was set or changed
       if (date) {
-        notifyCandidateSms(applicationId, date, meetingLink);
+        notifyCandidateSms(applicationId, date, payload);
       }
-
       onOpenChange(false);
       onSaved?.();
     }
     setSaving(false);
   };
 
-  /** Fire-and-forget SMS to the candidate with interview date/time */
-  const notifyCandidateSms = async (appId: string, interviewDate: string, link: string) => {
+  /** Fire-and-forget SMS to the candidate with full interview details */
+  const notifyCandidateSms = async (appId: string, interviewDate: string, details: Record<string, any>) => {
     try {
-      // Step 1: get candidate_id and job_id from the application (no join — avoids RLS/FK name issues)
       const { data: app, error: appError } = await supabase
         .from('applications')
         .select('candidate_id, job_id')
@@ -111,9 +136,8 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
         .maybeSingle();
 
       if (appError) { console.error('Interview SMS: application fetch failed', appError.message); return; }
-      if (!app) { console.error('Interview SMS: application not found for id', appId); return; }
+      if (!app)     { console.error('Interview SMS: application not found', appId); return; }
 
-      // Step 2: get candidate user_id
       const { data: candidate, error: candError } = await supabase
         .from('candidates')
         .select('user_id')
@@ -121,9 +145,8 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
         .maybeSingle();
 
       if (candError) { console.error('Interview SMS: candidate fetch failed', candError.message); return; }
-      if (!candidate?.user_id) { console.error('Interview SMS: no user_id for candidate', app.candidate_id); return; }
+      if (!candidate?.user_id) { console.error('Interview SMS: no user_id', app.candidate_id); return; }
 
-      // Step 3: get job title separately
       const { data: job } = await supabase
         .from('job_positions')
         .select('title')
@@ -131,21 +154,32 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
         .maybeSingle();
 
       const jobTitle = job?.title || 'the position';
-
-      // Step 4: format date — use en-NG locale for Nigeria-friendly output
       const formatted = new Date(interviewDate).toLocaleString('en-GB', {
         weekday: 'long', day: 'numeric', month: 'short',
         year: 'numeric', hour: '2-digit', minute: '2-digit',
       });
+
+      // Build location text for SMS
+      const isVirtual = details.interview_type === 'virtual';
+      const platformLabels: Record<string, string> = {
+        google_meet: 'Google Meet',
+        zoom: 'Zoom',
+        whatsapp: 'WhatsApp Video',
+      };
+      const locationText = isVirtual
+        ? `${platformLabels[details.location_platform] || 'Online'}${details.meeting_link ? `: ${details.meeting_link}` : ''}`
+        : `Physical — ${details.office_address || 'Office address to be confirmed'}`;
+      const contactText = details.contact_phone ? ` Contact: ${details.contact_phone}.` : '';
 
       const { error: smsError } = await supabase.functions.invoke('send-sms', {
         body: {
           user_id:      candidate.user_id,
           template_key: 'candidate_interview_scheduled',
           vars: {
-            job:  jobTitle,
-            date: formatted,
-            link: link || `${window.location.origin}/interviews`,
+            job:      jobTitle,
+            date:     formatted,
+            link:     locationText,
+            contact:  details.contact_phone || '',
           },
         },
       });
@@ -160,9 +194,11 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     }
   };
 
+  const isVirtual = interviewType === 'virtual';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{interview ? 'Manage Interview' : 'Schedule Interview'}</DialogTitle>
         </DialogHeader>
@@ -171,19 +207,94 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
           <p className="text-muted-foreground">Loading...</p>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Interview Date & Time</Label>
+
+            {/* Date & time */}
+            <div className="space-y-1.5">
+              <Label>Interview Date & Time <span className="text-destructive">*</span></Label>
               <Input type="datetime-local" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
-            <div className="space-y-2">
-              <Label>Meeting Link</Label>
-              <Input
-                placeholder="https://meet.google.com/..."
-                value={meetingLink}
-                onChange={(e) => setMeetingLink(e.target.value)}
-              />
+
+            {/* Interview type */}
+            <div className="space-y-1.5">
+              <Label>Interview Type <span className="text-destructive">*</span></Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInterviewType('virtual')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                    isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  <Video className="h-4 w-4" /> Virtual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setInterviewType('physical')}
+                  className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
+                    !isVirtual ? 'bg-primary text-primary-foreground border-primary' : 'bg-background text-foreground border-border hover:bg-muted'
+                  }`}
+                >
+                  <Building2 className="h-4 w-4" /> Physical
+                </button>
+              </div>
             </div>
-            <div className="space-y-2">
+
+            {/* Virtual: platform + meeting link */}
+            {isVirtual && (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Platform</Label>
+                  <Select value={locationPlatform} onValueChange={setLocationPlatform}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {VIRTUAL_PLATFORMS.map(p => (
+                        <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Meeting Link <span className="text-destructive">*</span></Label>
+                  <Input
+                    placeholder={
+                      locationPlatform === 'google_meet' ? 'https://meet.google.com/...' :
+                      locationPlatform === 'zoom'        ? 'https://zoom.us/j/...' :
+                      'WhatsApp number or meeting link'
+                    }
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Physical: office address */}
+            {!isVirtual && (
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Office Address <span className="text-destructive">*</span></Label>
+                <Textarea
+                  placeholder="e.g. Footprints Dynasty Limited, 12 Main Street, Lagos"
+                  value={officeAddress}
+                  onChange={(e) => setOfficeAddress(e.target.value)}
+                  rows={3}
+                />
+              </div>
+            )}
+
+            {/* Contact phone */}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5" /> HR Contact Phone</Label>
+              <Input
+                type="tel"
+                placeholder="e.g. 08012345678"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Shared with the candidate so they can reach HR if needed.</p>
+            </div>
+
+            {/* Interviewer */}
+            <div className="space-y-1.5">
               <Label>Interviewer</Label>
               <Input
                 placeholder="Interviewer name"
@@ -192,34 +303,23 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
               />
             </div>
 
+            {/* Feedback section (only when editing an existing interview) */}
             {interview && (
               <>
-                <hr className="my-2 border-border" />
+                <hr className="border-border" />
                 <h4 className="text-sm font-semibold text-foreground">Interview Feedback</h4>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Score (1-10)</Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    max="10"
-                    value={score}
-                    onChange={(e) => setScore(e.target.value)}
-                  />
+                  <Input type="number" min="1" max="10" value={score} onChange={(e) => setScore(e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Feedback</Label>
-                  <Textarea
-                    placeholder="Interview feedback..."
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                  />
+                  <Textarea placeholder="Interview feedback..." value={feedback} onChange={(e) => setFeedback(e.target.value)} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Outcome</Label>
                   <Select value={outcome} onValueChange={setOutcome}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select outcome" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="pass">Pass</SelectItem>
                       <SelectItem value="fail">Fail</SelectItem>
