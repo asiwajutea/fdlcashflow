@@ -9,6 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 
+/** Format an ISO date in GMT+1 (Africa/Lagos) for display in emails/SMS */
+function formatGmt1(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    timeZone: 'Africa/Lagos',
+    weekday: 'long', day: 'numeric', month: 'short',
+    year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }) + ' (GMT+1)';
+}
+
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
   open: boolean;
