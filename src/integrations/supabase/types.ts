@@ -430,6 +430,7 @@ export type Database = {
       applications: {
         Row: {
           applied_at: string
+          archived_at: string | null
           candidate_id: string
           cover_letter: string | null
           id: string
@@ -439,6 +440,7 @@ export type Database = {
         }
         Insert: {
           applied_at?: string
+          archived_at?: string | null
           candidate_id: string
           cover_letter?: string | null
           id?: string
@@ -448,6 +450,7 @@ export type Database = {
         }
         Update: {
           applied_at?: string
+          archived_at?: string | null
           candidate_id?: string
           cover_letter?: string | null
           id?: string
@@ -1742,95 +1745,140 @@ export type Database = {
       }
       oralgen_interviews: {
         Row: {
+          acceptance_rating: number | null
           address: string | null
           age: number | null
           audit_accepted_at: string | null
           audit_completed_at: string | null
           audit_deadline: string | null
+          audit_pref: string[] | null
           audit_scheduled_date: string | null
+          booking_acceptance_rating: number | null
           city: string | null
           created_at: string
           created_by: string
           field_manager_id: string | null
+          first_name: string | null
+          folder_name: string | null
           full_name: string
           gps_lat: number | null
           gps_lng: number | null
           home_photo_url: string | null
+          house_number: string | null
           id: string
           individual_photo_url: string | null
           interview_completed_at: string | null
           interview_deadline: string | null
+          interview_pref: string[] | null
           interviewer_accepted_at: string | null
           interviewer_id: string | null
+          is_draft: boolean
           notes: string | null
+          other_names: string | null
           path_photo_url: string | null
           pdf_url: string | null
           phone: string | null
+          q_cooperative: boolean | null
+          q_high_school: boolean | null
+          q_scholarship: boolean | null
+          q_vocational: boolean | null
           sex: string | null
           state: string | null
           status: string
+          surname: string | null
+          total_names: number | null
           updated_at: string
           zip_url: string | null
         }
         Insert: {
+          acceptance_rating?: number | null
           address?: string | null
           age?: number | null
           audit_accepted_at?: string | null
           audit_completed_at?: string | null
           audit_deadline?: string | null
+          audit_pref?: string[] | null
           audit_scheduled_date?: string | null
+          booking_acceptance_rating?: number | null
           city?: string | null
           created_at?: string
           created_by: string
           field_manager_id?: string | null
+          first_name?: string | null
+          folder_name?: string | null
           full_name: string
           gps_lat?: number | null
           gps_lng?: number | null
           home_photo_url?: string | null
+          house_number?: string | null
           id?: string
           individual_photo_url?: string | null
           interview_completed_at?: string | null
           interview_deadline?: string | null
+          interview_pref?: string[] | null
           interviewer_accepted_at?: string | null
           interviewer_id?: string | null
+          is_draft?: boolean
           notes?: string | null
+          other_names?: string | null
           path_photo_url?: string | null
           pdf_url?: string | null
           phone?: string | null
+          q_cooperative?: boolean | null
+          q_high_school?: boolean | null
+          q_scholarship?: boolean | null
+          q_vocational?: boolean | null
           sex?: string | null
           state?: string | null
           status?: string
+          surname?: string | null
+          total_names?: number | null
           updated_at?: string
           zip_url?: string | null
         }
         Update: {
+          acceptance_rating?: number | null
           address?: string | null
           age?: number | null
           audit_accepted_at?: string | null
           audit_completed_at?: string | null
           audit_deadline?: string | null
+          audit_pref?: string[] | null
           audit_scheduled_date?: string | null
+          booking_acceptance_rating?: number | null
           city?: string | null
           created_at?: string
           created_by?: string
           field_manager_id?: string | null
+          first_name?: string | null
+          folder_name?: string | null
           full_name?: string
           gps_lat?: number | null
           gps_lng?: number | null
           home_photo_url?: string | null
+          house_number?: string | null
           id?: string
           individual_photo_url?: string | null
           interview_completed_at?: string | null
           interview_deadline?: string | null
+          interview_pref?: string[] | null
           interviewer_accepted_at?: string | null
           interviewer_id?: string | null
+          is_draft?: boolean
           notes?: string | null
+          other_names?: string | null
           path_photo_url?: string | null
           pdf_url?: string | null
           phone?: string | null
+          q_cooperative?: boolean | null
+          q_high_school?: boolean | null
+          q_scholarship?: boolean | null
+          q_vocational?: boolean | null
           sex?: string | null
           state?: string | null
           status?: string
+          surname?: string | null
+          total_names?: number | null
           updated_at?: string
           zip_url?: string | null
         }
