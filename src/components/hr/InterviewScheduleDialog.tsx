@@ -103,30 +103,42 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   /** Fire-and-forget SMS to the candidate with interview date/time */
   const notifyCandidateSms = async (appId: string, interviewDate: string, link: string) => {
     try {
-      // Resolve candidate user_id and job title from the application
-      const { data: app } = await supabase
+      // Step 1: get candidate_id and job_id from the application (no join — avoids RLS/FK name issues)
+      const { data: app, error: appError } = await supabase
         .from('applications')
-        .select('candidate_id, job_positions!inner(title)')
+        .select('candidate_id, job_id')
         .eq('id', appId)
         .maybeSingle();
-      if (!app) return;
 
-      const { data: candidate } = await supabase
+      if (appError) { console.error('Interview SMS: application fetch failed', appError.message); return; }
+      if (!app) { console.error('Interview SMS: application not found for id', appId); return; }
+
+      // Step 2: get candidate user_id
+      const { data: candidate, error: candError } = await supabase
         .from('candidates')
         .select('user_id')
         .eq('id', app.candidate_id)
         .maybeSingle();
-      if (!candidate?.user_id) return;
 
-      // Format the date nicely e.g. "Wednesday, 16 Jul 2026 at 10:00 AM"
+      if (candError) { console.error('Interview SMS: candidate fetch failed', candError.message); return; }
+      if (!candidate?.user_id) { console.error('Interview SMS: no user_id for candidate', app.candidate_id); return; }
+
+      // Step 3: get job title separately
+      const { data: job } = await supabase
+        .from('job_positions')
+        .select('title')
+        .eq('id', app.job_id)
+        .maybeSingle();
+
+      const jobTitle = job?.title || 'the position';
+
+      // Step 4: format date — use en-NG locale for Nigeria-friendly output
       const formatted = new Date(interviewDate).toLocaleString('en-GB', {
         weekday: 'long', day: 'numeric', month: 'short',
         year: 'numeric', hour: '2-digit', minute: '2-digit',
       });
 
-      const jobTitle = (app as any).job_positions?.title || 'the position';
-
-      supabase.functions.invoke('send-sms', {
+      const { error: smsError } = await supabase.functions.invoke('send-sms', {
         body: {
           user_id:      candidate.user_id,
           template_key: 'candidate_interview_scheduled',
@@ -136,7 +148,13 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
             link: link || `${window.location.origin}/interviews`,
           },
         },
-      }).catch(() => {});
+      });
+
+      if (smsError) {
+        console.error('Interview SMS: send-sms failed', smsError.message);
+      } else {
+        console.log('Interview SMS: sent to user', candidate.user_id, 'for job', jobTitle);
+      }
     } catch (e) {
       console.error('Interview SMS notification failed:', e);
     }
