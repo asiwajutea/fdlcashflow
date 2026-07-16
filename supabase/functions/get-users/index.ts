@@ -26,15 +26,25 @@ serve(async (req) => {
       .from('user_roles').select('role').eq('user_id', requestingUser.id).single();
     if (roleError || roleData?.role !== 'admin') throw new Error('Only admins can view all users');
 
-    const { data: authUsers, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
-    if (usersError) throw usersError;
+    // Fetch ALL users by paginating (default page size is 50 — we want everything)
+    const allAuthUsers: any[] = [];
+    let fetchPage = 1;
+    while (true) {
+      const { data: pageData, error: pageError } = await supabaseAdmin.auth.admin.listUsers({
+        perPage: 1000,
+        page: fetchPage,
+      });
+      if (pageError) throw pageError;
+      allAuthUsers.push(...(pageData.users || []));
+      if (!pageData.users || pageData.users.length < 1000) break;
+      fetchPage++;
+    }
 
-    // Bulk fetch presence
     const { data: presenceRows } = await supabaseAdmin.from('user_presence').select('user_id, last_seen_at');
     const presenceMap = new Map<string, string>((presenceRows || []).map((r: any) => [r.user_id, r.last_seen_at]));
 
     const users = await Promise.all(
-      authUsers.users.map(async (user) => {
+      allAuthUsers.map(async (user) => {
         const [profileResult, roleResult, capabilitiesResult] = await Promise.all([
           supabaseAdmin.from('profiles').select('*').eq('id', user.id).single(),
           supabaseAdmin.from('user_roles').select('role').eq('user_id', user.id).single(),
