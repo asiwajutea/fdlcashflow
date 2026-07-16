@@ -109,20 +109,54 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
       };
 
     case "candidate_interview":
+    case "candidate_interview_updated":
+    case "candidate_interview_reminder": {
+      const isUpdate = key === "candidate_interview_updated";
+      const isReminder = key === "candidate_interview_reminder";
+      const heading = isReminder
+        ? "Interview Reminder"
+        : isUpdate ? "Interview Schedule Updated" : "Interview Scheduled";
+      const subject = isReminder
+        ? `Reminder: Your ${v.job} interview starts in 1 hour`
+        : isUpdate
+          ? `Update: Your Interview Schedule for ${v.job}`
+          : `You've Been Shortlisted — Interview Details for ${v.job}`;
+      const intro = isReminder
+        ? `This is a friendly reminder that your interview for the <strong>${v.job}</strong> position is scheduled to begin in <strong>1 hour</strong>.`
+        : isUpdate
+          ? `Your interview for the <strong>${v.job}</strong> position has been <strong>rescheduled</strong>. Please review the updated details below.`
+          : `Congratulations! You've been shortlisted for an interview for the <strong>${v.job}</strong> position. Please find your interview details below.`;
+
+      const rows: string[] = [];
+      if (v.date)           rows.push(`<tr><td class="label">Date &amp; Time (GMT+1)</td><td class="value">${v.date}</td></tr>`);
+      if (v.interview_type) rows.push(`<tr><td class="label">Interview Type</td><td class="value">${v.interview_type}</td></tr>`);
+      if (v.location)       rows.push(`<tr><td class="label">Location / Platform</td><td class="value">${v.location}</td></tr>`);
+      if (v.address)        rows.push(`<tr><td class="label">Office Address</td><td class="value">${v.address}</td></tr>`);
+      if (v.interviewer)    rows.push(`<tr><td class="label">Interviewer</td><td class="value">${v.interviewer}</td></tr>`);
+      if (v.contact_phone)  rows.push(`<tr><td class="label">Contact Phone</td><td class="value">${v.contact_phone}</td></tr>`);
+
+      const linkBtn = v.link
+        ? `<a href="${v.link}" class="cta">Join Interview →</a>`
+        : `<a href="${origin}/interviews" class="cta">View Interview Details →</a>`;
+
       return {
-        subject: `You've Been Shortlisted — Interview Details for ${v.job}`,
-        html: wrap("Interview Scheduled", `
+        subject,
+        html: wrap(heading, `
           <p>Dear <strong>${v.name}</strong>,</p>
-          <p>Congratulations! You've been shortlisted for an interview for the <strong>${v.job}</strong> position.</p>
-          <p>Please click the button below to view your interview details, including the date, time, and joining link:</p>
-          <a href="${origin}/interviews" class="cta">View Interview Details →</a>
+          <p>${intro}</p>
+          <table class="detail">${rows.join('')}</table>
+          ${linkBtn}
           <div class="info-box">
-            Ensure you are available at the scheduled time. Check the platform for the meeting link or location information.
+            ${isReminder
+              ? 'Please be ready a few minutes before the start time. All times are shown in GMT+1 (West Africa Time).'
+              : 'Please add this to your calendar and ensure you are available at the scheduled time. All times are in GMT+1 (West Africa Time).'}
           </div>
           <p>We look forward to speaking with you!</p>
           <p>Best regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>
         `),
       };
+    }
+
 
     case "candidate_offered":
       return {
