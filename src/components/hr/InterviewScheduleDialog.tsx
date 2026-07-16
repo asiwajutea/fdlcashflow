@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, MapPin, Phone, Video, Building2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
@@ -92,39 +92,88 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
     setSaving(true);
 
-    const payload: Record<string, any> = {
-      application_id:   applicationId,
-      interview_date:   date || null,
-      interview_type:   interviewType,
-      location_platform: interviewType === 'virtual' ? locationPlatform : 'office',
-      meeting_link:     interviewType === 'virtual' ? (meetingLink || null) : null,
-      office_address:   interviewType === 'physical' ? (officeAddress || null) : null,
-      contact_phone:    contactPhone || null,
-      interviewer:      interviewer || null,
-      score:    score    ? Number(score) : null,
+    const payload = {
+      application_id: applicationId,
+      interview_date: date || null,
+      meeting_link: meetingLink || null,
+      interviewer: interviewer || null,
+      score: score ? Number(score) : null,
       feedback: feedback || null,
       outcome:  outcome  || null,
     };
+    // If time changed, clear reminder flag so the 1-hour reminder can fire again
+    if (dateChanged) payload.reminder_sent_at = null;
 
     let error;
+    let savedId = interview?.id as string | undefined;
     if (interview) {
       ({ error } = await supabase.from('interviews').update(payload).eq('id', interview.id));
     } else {
-      ({ error } = await supabase.from('interviews').insert(payload));
+      const { data: inserted, error: insErr } = await supabase
+        .from('interviews').insert(payload).select('id').maybeSingle();
+      error = insErr;
+      savedId = inserted?.id;
     }
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Saved', description: interview ? 'Interview updated.' : 'Interview scheduled.' });
+
+      // Send SMS to candidate if a date was set or changed
       if (date) {
-        notifyCandidateSms(applicationId, date, payload);
+        notifyCandidateSms(applicationId, date, meetingLink);
       }
       onOpenChange(false);
       onSaved?.();
     }
     setSaving(false);
   };
+
+  /** Email the candidate with full interview details (schedule or update). */
+  const notifyCandidate = async (interviewId: string, appId: string, isUpdate: boolean) => {
+    try {
+      const { data: iv } = await supabase
+        .from('interviews')
+        .select('interview_date, meeting_link, interviewer, interview_type, location_platform, office_address, contact_phone')
+        .eq('id', interviewId)
+        .maybeSingle();
+      if (!iv?.interview_date) return;
+
+      const { data: app } = await supabase
+        .from('applications').select('candidate_id, job_id').eq('id', appId).maybeSingle();
+      if (!app) return;
+
+      const { data: candidate } = await supabase
+        .from('candidates').select('user_id').eq('id', app.candidate_id).maybeSingle();
+      if (!candidate?.user_id) return;
+
+      const { data: job } = await supabase
+        .from('job_positions').select('title').eq('id', app.job_id).maybeSingle();
+
+      await supabase.functions.invoke('send-email', {
+        body: {
+          user_id: candidate.user_id,
+          template_key: isUpdate ? 'candidate_interview_updated' : 'candidate_interview',
+          vars: {
+            job: job?.title || 'the position',
+            date: formatGmt1(iv.interview_date),
+            interview_type: iv.interview_type || '',
+            location: iv.location_platform || '',
+            address: iv.office_address || '',
+            interviewer: iv.interviewer || '',
+            contact_phone: iv.contact_phone || '',
+            link: iv.meeting_link || '',
+            origin: window.location.origin,
+          },
+        },
+      });
+    } catch (e) {
+      console.error('Interview email notification failed:', e);
+    }
+  };
+
+
 
   /** Fire-and-forget SMS to the candidate with full interview details */
   const notifyCandidateSms = async (appId: string, interviewDate: string, details: Record<string, any>) => {
