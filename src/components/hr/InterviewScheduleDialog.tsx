@@ -76,7 +76,13 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     if (!applicationId) return;
     setSaving(true);
 
-    const payload = {
+    const wasScheduled = !!interview;
+    const previousDate = interview?.interview_date || null;
+    const previousLink = interview?.meeting_link || null;
+    const dateChanged = previousDate !== (date || null);
+    const linkChanged = previousLink !== (meetingLink || null);
+
+    const payload: any = {
       application_id: applicationId,
       interview_date: date || null,
       meeting_link: meetingLink || null,
@@ -85,12 +91,18 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       feedback: feedback || null,
       outcome: outcome || null,
     };
+    // If time changed, clear reminder flag so the 1-hour reminder can fire again
+    if (dateChanged) payload.reminder_sent_at = null;
 
     let error;
+    let savedId = interview?.id as string | undefined;
     if (interview) {
       ({ error } = await supabase.from('interviews').update(payload).eq('id', interview.id));
     } else {
-      ({ error } = await supabase.from('interviews').insert(payload));
+      const { data: inserted, error: insErr } = await supabase
+        .from('interviews').insert(payload).select('id').maybeSingle();
+      error = insErr;
+      savedId = inserted?.id;
     }
 
     if (error) {
@@ -98,8 +110,9 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     } else {
       toast({ title: 'Saved', description: interview ? 'Interview updated.' : 'Interview scheduled.' });
 
-      // Send SMS to candidate if a date was set or changed
-      if (date) {
+      if (date && savedId) {
+        const isUpdate = wasScheduled && (dateChanged || linkChanged);
+        notifyCandidate(savedId, applicationId, isUpdate);
         notifyCandidateSms(applicationId, date, meetingLink);
       }
 
@@ -108,6 +121,51 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     }
     setSaving(false);
   };
+
+  /** Email the candidate with full interview details (schedule or update). */
+  const notifyCandidate = async (interviewId: string, appId: string, isUpdate: boolean) => {
+    try {
+      const { data: iv } = await supabase
+        .from('interviews')
+        .select('interview_date, meeting_link, interviewer, interview_type, location_platform, office_address, contact_phone')
+        .eq('id', interviewId)
+        .maybeSingle();
+      if (!iv?.interview_date) return;
+
+      const { data: app } = await supabase
+        .from('applications').select('candidate_id, job_id').eq('id', appId).maybeSingle();
+      if (!app) return;
+
+      const { data: candidate } = await supabase
+        .from('candidates').select('user_id').eq('id', app.candidate_id).maybeSingle();
+      if (!candidate?.user_id) return;
+
+      const { data: job } = await supabase
+        .from('job_positions').select('title').eq('id', app.job_id).maybeSingle();
+
+      await supabase.functions.invoke('send-email', {
+        body: {
+          user_id: candidate.user_id,
+          template_key: isUpdate ? 'candidate_interview_updated' : 'candidate_interview',
+          vars: {
+            job: job?.title || 'the position',
+            date: formatGmt1(iv.interview_date),
+            interview_type: iv.interview_type || '',
+            location: iv.location_platform || '',
+            address: iv.office_address || '',
+            interviewer: iv.interviewer || '',
+            contact_phone: iv.contact_phone || '',
+            link: iv.meeting_link || '',
+            origin: window.location.origin,
+          },
+        },
+      });
+    } catch (e) {
+      console.error('Interview email notification failed:', e);
+    }
+  };
+
+
 
   /** Fire-and-forget SMS to the candidate with interview date/time */
   const notifyCandidateSms = async (appId: string, interviewDate: string, link: string) => {
