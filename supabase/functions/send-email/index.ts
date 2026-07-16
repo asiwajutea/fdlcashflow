@@ -18,7 +18,7 @@ const REPLY_TO = "footprintsdynasty@gmail.com";
 
 // ─── Template → sender mapping ────────────────────────────────────────────────
 function senderFor(key: string): string {
-  const hr      = ["candidate_screening","candidate_interview","candidate_offered","candidate_hired","candidate_rejected","user_approved","account_created","candidate_stage"];
+  const hr      = ["candidate_screening","candidate_interview","candidate_interview_updated","candidate_interview_reminder","candidate_offered","candidate_hired","candidate_rejected","user_approved","account_created","candidate_stage"];
   const finance = ["payslip","finance_decision"];
   const platform = ["test_email","new_message"];
   if (hr.includes(key))      return FROM.hr;
