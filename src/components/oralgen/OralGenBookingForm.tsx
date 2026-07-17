@@ -149,10 +149,13 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
       });
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
-      toast({ title: 'Saved as draft', description: 'You can continue later from the bookings list.' });
-      setOpen(false);
-      reset();
-      onSaved();
+      // Stay on the form — don't reset or close.
+      // Photos must be taken while the form is open; they cannot be saved to DB without uploading.
+      toast({
+        title: 'Draft saved',
+        description: 'Your progress is saved. Continue adding photos or submit when ready.',
+      });
+      onSaved(); // refresh the bookings list in the background
     } catch (e: any) {
       toast({ title: 'Could not save draft', description: e.message, variant: 'destructive' });
     } finally {

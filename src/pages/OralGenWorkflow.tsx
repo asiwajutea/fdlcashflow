@@ -1489,6 +1489,9 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
   const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
   const [interviewPrefs, setInterviewPrefs] = useState<string[]>([]);
   const [acceptanceRating, setAcceptanceRating] = useState(0);
+  const [photoIndividual, setPhotoIndividual] = useState<File | null>(null);
+  const [photoHome,       setPhotoHome]       = useState<File | null>(null);
+  const [photoPath,       setPhotoPath]       = useState<File | null>(null);
   const cities = form.state ? (NIGERIA_STATES[form.state] ?? []) : [];
 
   const openEdit = () => {
@@ -1513,6 +1516,9 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
     });
     setInterviewPrefs((row as any).interview_pref ?? []);
     setAcceptanceRating(row.booking_acceptance_rating ?? 0);
+    setPhotoIndividual(null);
+    setPhotoHome(null);
+    setPhotoPath(null);
     setOpen(true);
   };
 
@@ -1549,6 +1555,20 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
     if (!acceptanceRating)       return toast({ title: 'Acceptance rating is required', variant: 'destructive' });
     const fullName = [form.first_name, form.surname, form.other_names].filter(Boolean).join(' ');
     setSaving(true);
+
+    // Upload any new photos; fall back to existing URLs if none taken
+    let indPath   = row.individual_photo_url;
+    let homePath  = row.home_photo_url;
+    let pathPath_ = row.path_photo_url;
+    try {
+      if (photoIndividual) indPath   = await uploadFile(photoIndividual, `photos/${row.id}`);
+      if (photoHome)       homePath  = await uploadFile(photoHome,       `photos/${row.id}`);
+      if (photoPath)       pathPath_ = await uploadFile(photoPath,       `photos/${row.id}`);
+    } catch (e: any) {
+      setSaving(false);
+      return toast({ title: 'Photo upload failed', description: e.message, variant: 'destructive' });
+    }
+
     const { error } = await db.from('oralgen_interviews').update({
       full_name:   fullName,
       first_name:  form.first_name,
@@ -1563,6 +1583,9 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
       state:       form.state   || null,
       gps_lat:     form.gps_lat ? Number(form.gps_lat) : null,
       gps_lng:     form.gps_lng ? Number(form.gps_lng) : null,
+      individual_photo_url: indPath,
+      home_photo_url:       homePath,
+      path_photo_url:       pathPath_,
       notes:       form.notes   || null,
       interview_pref: interviewPrefs.length ? interviewPrefs : null,
       booking_acceptance_rating: acceptanceRating || null,
@@ -1575,6 +1598,7 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
     if (error) return toast({ title: 'Could not save', description: error.message, variant: 'destructive' });
     toast({ title: 'Booking updated' });
     setOpen(false);
+    setPhotoIndividual(null); setPhotoHome(null); setPhotoPath(null);
     onSaved();
   };
 
@@ -1612,7 +1636,9 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              Edit Booking <Badge variant="secondary" className="text-xs font-normal">Pending Interview</Badge>
+              Edit Booking <Badge variant={row.status === 'draft' ? 'outline' : 'secondary'} className="text-xs font-normal">
+                {row.status === 'draft' ? 'Draft' : 'Pending Interview'}
+              </Badge>
             </DialogTitle>
           </DialogHeader>
 
@@ -1663,6 +1689,16 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
                 </EF>
                 <EF label="House Number" hint="optional"><Input value={form.house_number} onChange={(e) => set({ house_number: e.target.value })} placeholder="e.g. 12B" /></EF>
               </div>
+            </ES>
+
+            <ES title="Photos">
+              <p className="text-sm text-muted-foreground -mt-1">
+                Take photos of the interviewee, their home, and the path to it.
+                {row.individual_photo_url && ' Existing photos are kept unless you take new ones.'}
+              </p>
+              <PhotoCapture label="Individual Photo" value={photoIndividual} onChange={setPhotoIndividual} defaultCamera="environment" />
+              <PhotoCapture label="Home Photo"       value={photoHome}       onChange={setPhotoHome}       defaultCamera="environment" />
+              <PhotoCapture label="Path to Home"     value={photoPath}       onChange={setPhotoPath}       defaultCamera="environment" />
             </ES>
 
             <ES title="Incentive Qualification">
