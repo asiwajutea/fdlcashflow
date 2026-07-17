@@ -2077,6 +2077,7 @@ const OralGenWorkflow: React.FC = () => {
   const [myLocLabel, setMyLocLabel] = useState<string | null>(null);
   const [locLoading, setLocLoading] = useState(false);
   const [locError, setLocError] = useState(false);
+  const [userPosition, setUserPosition] = useState<string | null>(null);
 
   const isAdmin = role === 'admin' || capabilities.includes('oralgen_admin');
   const canBook = isAdmin || capabilities.includes('oralgen_book');
@@ -2085,8 +2086,18 @@ const OralGenWorkflow: React.FC = () => {
 
   const fetchRows = async () => {
     setLoading(true);
-    const { data, error } = await db.from('oralgen_interviews').select('*').order('created_at', { ascending: false });
+    const [{ data, error }, posResult] = await Promise.all([
+      db.from('oralgen_interviews').select('*').order('created_at', { ascending: false }),
+      user?.id
+        ? db.from('profiles')
+            .select('positions(name)')
+            .eq('id', user.id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
     if (!error) setRows((data as Interview[]) ?? []);
+    const posName = (posResult.data as any)?.positions?.name ?? null;
+    setUserPosition(posName);
     setLoading(false);
   };
 
@@ -2155,7 +2166,14 @@ const OralGenWorkflow: React.FC = () => {
       <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-2xl font-bold flex items-center gap-2"><ClipboardList className="h-6 w-6" /> Oral Genealogy Workflow</h2>
-          <p className="text-muted-foreground text-sm">Book, interview, audit and track oral genealogy field jobs.</p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <p className="text-muted-foreground text-sm">Book, interview, audit and track oral genealogy field jobs.</p>
+            {userPosition && (
+              <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                {userPosition}
+              </span>
+            )}
+          </div>
         </div>
         {canBook && <OralGenBookingForm onSaved={fetchRows} />}
       </div>
