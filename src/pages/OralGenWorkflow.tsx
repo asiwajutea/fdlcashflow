@@ -23,10 +23,11 @@ import {
   MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
   Loader2, ClipboardList, Users, Gavel, Camera, Navigation,
   Search, X, Pencil, Plus, ChevronLeft, ChevronRight,
-  ChevronDown, SlidersHorizontal,
+  ChevronDown, SlidersHorizontal, Trash2,
 } from 'lucide-react';
 
 type Status =
+  | 'draft'
   | 'pending_interview'
   | 'in_progress'
   | 'awaiting_audit'
@@ -74,11 +75,12 @@ interface Interview {
 }
 
 const STATUS_META: Record<Status, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+  draft:             { label: 'Draft',            variant: 'outline' },
   pending_interview: { label: 'Pending Interview', variant: 'secondary' },
-  in_progress: { label: 'In Progress', variant: 'default' },
-  awaiting_audit: { label: 'Awaiting Audit', variant: 'secondary' },
+  in_progress:       { label: 'In Progress',       variant: 'default' },
+  awaiting_audit:    { label: 'Awaiting Audit',    variant: 'secondary' },
   audit_in_progress: { label: 'Audit In Progress', variant: 'default' },
-  completed: { label: 'Completed', variant: 'outline' },
+  completed:         { label: 'Completed',          variant: 'outline' },
 };
 
 /** Distance in km between two GPS coords (Haversine). */
@@ -1568,7 +1570,7 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
       q_vocational:  form.q_vocational,
       q_high_school: form.q_high_school,
       q_cooperative: form.q_cooperative,
-    }).eq('id', row.id).eq('status', 'pending_interview');
+    }).eq('id', row.id).in('status', ['pending_interview', 'draft']);
     setSaving(false);
     if (error) return toast({ title: 'Could not save', description: error.message, variant: 'destructive' });
     toast({ title: 'Booking updated' });
@@ -1943,6 +1945,36 @@ function BookingDetailsButton({ row, myLoc }: { row: Interview; myLoc: { lat: nu
   );
 }
 
+// ── Delete draft booking ──────────────────────────────────────────────────────
+
+function DraftDeleteButton({ row, onDeleted }: { row: Interview; onDeleted: () => void }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const deleteDraft = async () => {
+    if (!confirm(`Delete draft booking for "${row.full_name}"? This cannot be undone.`)) return;
+    setBusy(true);
+    const { error } = await db.from('oralgen_interviews').delete().eq('id', row.id).eq('status', 'draft');
+    setBusy(false);
+    if (error) return toast({ title: 'Could not delete', description: error.message, variant: 'destructive' });
+    toast({ title: 'Draft deleted' });
+    onDeleted();
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+      onClick={deleteDraft}
+      disabled={busy}
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+      Delete
+    </Button>
+  );
+}
+
 // ------------------ List ------------------
 
 function InterviewTable({
@@ -1996,14 +2028,17 @@ function InterviewTable({
                     {r.status === 'pending_interview' && currentUserId && (
                       <AssignInterviewerButton row={r} onSaved={onRefresh} />
                     )}
-                    {r.status === 'pending_interview' && currentUserId &&
+                    {(r.status === 'pending_interview' || r.status === 'draft') && currentUserId &&
                       (r.created_by === currentUserId || (r as any).updated_by === currentUserId) && (
                       <EditBookingButton row={r} onSaved={onRefresh} />
                     )}
                     <BookingDetailsButton row={r} myLoc={myLoc} />
                     {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
                     {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
-                    {mode === 'booking'     && <span className="text-xs text-muted-foreground">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
+                    {mode === 'booking'     && r.status === 'draft' && currentUserId && r.created_by === currentUserId && (
+                      <DraftDeleteButton row={r} onDeleted={onRefresh} />
+                    )}
+                    {mode === 'booking'     && r.status !== 'draft' && <span className="text-xs text-muted-foreground">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
                     {mode === 'admin'       && <span className="text-xs text-muted-foreground">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
                   </div>
                 </div>
@@ -2044,8 +2079,8 @@ function InterviewTable({
                     {r.status === 'pending_interview' && currentUserId && (
                       <AssignInterviewerButton row={r} onSaved={onRefresh} />
                     )}
-                    {/* Edit — only on pending_interview rows owned by the current user */}
-                    {r.status === 'pending_interview' && currentUserId &&
+                    {/* Edit — pending or draft rows owned by the current user */}
+                    {(r.status === 'pending_interview' || r.status === 'draft') && currentUserId &&
                       (r.created_by === currentUserId || (r as any).updated_by === currentUserId) && (
                       <EditBookingButton row={r} onSaved={onRefresh} />
                     )}
@@ -2054,7 +2089,10 @@ function InterviewTable({
                     {/* Mode-specific actions */}
                     {mode === 'interviewer' && <InterviewerActions row={r} myLoc={myLoc} onRefresh={onRefresh} />}
                     {mode === 'audit'       && <FieldManagerActions row={r} onRefresh={onRefresh} />}
-                    {mode === 'booking'     && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
+                    {mode === 'booking'     && r.status === 'draft' && currentUserId && r.created_by === currentUserId && (
+                      <DraftDeleteButton row={r} onDeleted={onRefresh} />
+                    )}
+                    {mode === 'booking'     && r.status !== 'draft' && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
                     {mode === 'admin'       && <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
                   </div>
                 </TableCell>

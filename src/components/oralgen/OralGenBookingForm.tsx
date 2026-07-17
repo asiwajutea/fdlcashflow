@@ -144,7 +144,7 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
         q_vocational:  form.q_vocational,
         q_high_school: form.q_high_school,
         q_cooperative: form.q_cooperative,
-        status:    'pending_interview',
+        status:    'draft',
         is_draft:  true,
       });
       localStorage.removeItem(DRAFT_KEY);
