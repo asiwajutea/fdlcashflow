@@ -155,7 +155,8 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
         title: 'Draft saved',
         description: 'Your progress is saved. Continue adding photos or submit when ready.',
       });
-      onSaved(); // refresh the bookings list in the background
+      // Do NOT call onSaved() here — it would re-render the parent page and
+      // reset the dialog scroll position. The list refreshes on close/submit.
     } catch (e: any) {
       toast({ title: 'Could not save draft', description: e.message, variant: 'destructive' });
     } finally {

@@ -1633,8 +1633,8 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[92vh] flex flex-col p-0 gap-0">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2">
               Edit Booking <Badge variant={row.status === 'draft' ? 'outline' : 'secondary'} className="text-xs font-normal">
                 {row.status === 'draft' ? 'Draft' : 'Pending Interview'}
@@ -1642,7 +1642,7 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5 py-1">
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
 
             <ES title="Personal Details">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1736,7 +1736,7 @@ function EditBookingButton({ row, onSaved }: { row: Interview; onSaved: () => vo
 
           </div>
 
-          <DialogFooter className="pt-2">
+          <DialogFooter className="px-6 py-4 border-t shrink-0">
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>Cancel</Button>
             <Button onClick={save} disabled={saving}>
               {saving ? <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Saving…</> : 'Save Changes'}
