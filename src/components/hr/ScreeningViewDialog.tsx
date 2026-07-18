@@ -10,6 +10,7 @@ import { Loader2, Save, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 interface ScreeningViewDialogProps {
   applicationId: string | null;
+  candidateName?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScored?: () => void;
