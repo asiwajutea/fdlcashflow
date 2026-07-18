@@ -302,6 +302,9 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
               </Badge>
             )}
           </div>
+          {candidateName && (
+            <p className="text-sm text-muted-foreground mt-0.5">Candidate: <span className="font-medium text-foreground">{candidateName}</span></p>
+          )}
         </DialogHeader>
 
         {loading ? (
