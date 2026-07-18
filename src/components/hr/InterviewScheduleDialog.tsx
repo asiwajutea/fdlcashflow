@@ -35,6 +35,7 @@ function formatWat(iso: string): string {
 
 const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   applicationId,
+  candidateName,
   open,
   onOpenChange,
   onSaved,
