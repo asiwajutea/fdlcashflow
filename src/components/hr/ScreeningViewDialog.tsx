@@ -41,7 +41,7 @@ function computePercent(parsed: Record<string, number>, questionCount: number): 
 
 const AUTO_SAVE_DELAY = 1500; // ms after last keystroke
 
-const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, open, onOpenChange, onScored }) => {
+const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, candidateName, open, onOpenChange, onScored }) => {
   const { toast }             = useToast();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(false);
