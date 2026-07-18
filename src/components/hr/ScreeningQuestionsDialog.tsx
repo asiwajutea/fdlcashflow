@@ -19,7 +19,7 @@ import {
 export interface ScreeningQuestion {
   id: string;
   question: string;
-  type: 'multiple_choice' | 'short_answer';
+  type: 'multiple_choice' | 'short_answer' | 'voice_only';
   options?: string[];
 }
 
