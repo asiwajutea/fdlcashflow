@@ -713,8 +713,8 @@ const Applications = () => {
           </DialogContent>
         </Dialog>
 
-        <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
-        <InterviewScheduleDialog applicationId={interviewAppId} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
+        <ScreeningViewDialog applicationId={screeningAppId} candidateName={applications.find(a => a.id === screeningAppId)?.candidate_name || null} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
+        <InterviewScheduleDialog applicationId={interviewAppId} candidateName={applications.find(a => a.id === interviewAppId)?.candidate_name || null} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
         <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
 
         {/* Permanent delete confirmation */}
