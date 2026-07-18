@@ -12,6 +12,7 @@ import { Loader2, MapPin, Phone, Video, Building2, CheckCircle2, Save } from 'lu
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
+  candidateName?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
