@@ -303,7 +303,7 @@ const ScreeningQuestionsDialog: React.FC<Props> = ({
                       <Label className="text-xs">Answer type</Label>
                       <Select
                         value={q.type}
-                        onValueChange={(v: 'multiple_choice' | 'short_answer') => {
+                        onValueChange={(v: 'multiple_choice' | 'short_answer' | 'voice_only') => {
                           updateQuestion(idx, {
                             type: v,
                             options: v === 'multiple_choice' ? (q.options?.length ? q.options : ['', '']) : [],
@@ -315,6 +315,7 @@ const ScreeningQuestionsDialog: React.FC<Props> = ({
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="short_answer">Short answer (text / voice)</SelectItem>
+                          <SelectItem value="voice_only">Voice only</SelectItem>
                           <SelectItem value="multiple_choice">Multiple choice</SelectItem>
                         </SelectContent>
                       </Select>
