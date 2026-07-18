@@ -55,39 +55,56 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   const [contactPhone,     setContactPhone]     = useState('');
   const [interviewer,      setInterviewer]      = useState('');
 
-  // Feedback fields (separate save — no candidate notification)
+  // Feedback fields (separate save — no candidate notification) — per-HR
   const [score,    setScore]    = useState('');
   const [feedback, setFeedback] = useState('');
-  const [outcome,  setOutcome]  = useState('');
+  const [outcome,  setOutcome]  = useState('awaiting_decision');
+  const [aggregate, setAggregate] = useState<{ hr_count: number; avg_score: number | null }>({ hr_count: 0, avg_score: null });
 
   useEffect(() => {
     if (open && applicationId) {
       setLoading(true);
-      supabase
-        .from('interviews')
-        .select('*')
-        .eq('application_id', applicationId)
-        .maybeSingle()
-        .then(({ data: d }) => {
-          setInterview(d);
-          if (d) {
-            setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
-            setInterviewType((d.interview_type as 'virtual' | 'physical') || 'virtual');
-            setLocationPlatform(d.location_platform || 'google_meet');
-            setMeetingLink(d.meeting_link || '');
-            setOfficeAddress(d.office_address || '');
-            setContactPhone(d.contact_phone || '');
-            setInterviewer(d.interviewer || '');
-            setScore(d.score?.toString() || '');
-            setFeedback(d.feedback || '');
-            setOutcome(d.outcome || '');
-          } else {
-            setDate(''); setInterviewType('virtual'); setLocationPlatform('google_meet');
-            setMeetingLink(''); setOfficeAddress(''); setContactPhone('');
-            setInterviewer(''); setScore(''); setFeedback(''); setOutcome('');
+      (async () => {
+        const { data: d } = await supabase
+          .from('interviews')
+          .select('*')
+          .eq('application_id', applicationId)
+          .maybeSingle();
+        setInterview(d);
+        if (d) {
+          setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
+          setInterviewType((d.interview_type as 'virtual' | 'physical') || 'virtual');
+          setLocationPlatform(d.location_platform || 'google_meet');
+          setMeetingLink(d.meeting_link || '');
+          setOfficeAddress(d.office_address || '');
+          setContactPhone(d.contact_phone || '');
+          setInterviewer(d.interviewer || '');
+
+          // Load THIS HR's private score row
+          const { data: userRes } = await supabase.auth.getUser();
+          const uid = userRes?.user?.id;
+          if (uid) {
+            const { data: myScore } = await (supabase as any)
+              .from('interview_hr_scores')
+              .select('score, feedback, outcome')
+              .eq('interview_id', d.id)
+              .eq('hr_user_id', uid)
+              .maybeSingle();
+            setScore(myScore?.score?.toString() || '');
+            setFeedback(myScore?.feedback || '');
+            setOutcome(myScore?.outcome || 'awaiting_decision');
           }
-          setLoading(false);
-        });
+          // Load aggregate (admin sees all; HR sees only own — RPC uses SECURITY DEFINER)
+          const { data: stats } = await (supabase as any).rpc('get_interview_score_stats', { _interview_id: d.id });
+          if (stats && stats[0]) setAggregate({ hr_count: stats[0].hr_count || 0, avg_score: stats[0].avg_score });
+        } else {
+          setDate(''); setInterviewType('virtual'); setLocationPlatform('google_meet');
+          setMeetingLink(''); setOfficeAddress(''); setContactPhone('');
+          setInterviewer(''); setScore(''); setFeedback(''); setOutcome('awaiting_decision');
+          setAggregate({ hr_count: 0, avg_score: null });
+        }
+        setLoading(false);
+      })();
     }
   }, [open, applicationId]);
 
