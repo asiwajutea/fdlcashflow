@@ -10,6 +10,7 @@ import { Loader2, Save, RotateCcw, CheckCircle2 } from 'lucide-react';
 
 interface ScreeningViewDialogProps {
   applicationId: string | null;
+  candidateName?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onScored?: () => void;
@@ -40,12 +41,14 @@ function computePercent(parsed: Record<string, number>, questionCount: number): 
 
 const AUTO_SAVE_DELAY = 1500; // ms after last keystroke
 
-const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, open, onOpenChange, onScored }) => {
+const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId, candidateName, open, onOpenChange, onScored }) => {
   const { toast }             = useToast();
   const [data, setData]       = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [userId, setUserId]   = useState<string | null>(null);
+  const [aggregate, setAggregate] = useState<{ hr_count: number; avg_score: number | null }>({ hr_count: 0, avg_score: null });
   // Per-question scores as raw strings (so "7" vs "7.5" etc.)
   const [qScores, setQScores] = useState<Record<string, string>>({});
   const autoSaveTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,11 +69,33 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
       .eq('application_id', applicationId)
       .maybeSingle();
     setData(d);
-    const saved: Record<string, number> = d?.responses?.question_scores || {};
-    const asStrings: Record<string, string> = {};
-    Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
-    setQScores(asStrings);
-    if (Object.keys(saved).length > 0) setLastSaved(new Date(d?.responses?.scored_at || Date.now()));
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id || null;
+    setUserId(uid);
+
+    // Load THIS HR's private per-question scores
+    if (uid) {
+      const { data: mine } = await (supabase as any)
+        .from('screening_hr_scores')
+        .select('id, question_scores, updated_at')
+        .eq('application_id', applicationId)
+        .eq('hr_user_id', uid)
+        .maybeSingle();
+      // (per-HR score row id — not needed since we upsert on conflict)
+      const saved: Record<string, number> = mine?.question_scores || {};
+      const asStrings: Record<string, string> = {};
+      Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
+      setQScores(asStrings);
+      if (Object.keys(saved).length > 0) setLastSaved(new Date(mine?.updated_at || Date.now()));
+      else setQScores({});
+    }
+
+    // Aggregate across all HRs (RPC is SECURITY DEFINER)
+    const { data: stats } = await (supabase as any).rpc('get_screening_score_stats', { _application_id: applicationId });
+    if (stats && stats[0]) setAggregate({ hr_count: stats[0].hr_count || 0, avg_score: stats[0].avg_score });
+    else setAggregate({ hr_count: 0, avg_score: null });
+
     setLoading(false);
   }, [applicationId]);
 
@@ -80,7 +105,7 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const performSave = useCallback(async (silent = false) => {
     const currentData = dataRef.current;
     const currentQScores = qScoresRef.current;
-    if (!currentData) return;
+    if (!currentData || !userId || !applicationId) return;
 
     const parsed = buildParsedScores(currentQScores);
     const responses = currentData.responses as any;
@@ -98,39 +123,34 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
     }
 
     setSaving(true);
-    const updatedResponses = {
-      ...responses,
-      question_scores: parsed,
-      scored_at: new Date().toISOString(),
-    };
+    const { error } = await (supabase as any)
+      .from('screening_hr_scores')
+      .upsert({
+        application_id: applicationId,
+        hr_user_id:     userId,
+        question_scores: parsed,
+        score:          finalPercent,
+      }, { onConflict: 'application_id,hr_user_id' });
 
-    const { error, count } = await (supabase as any)
-      .from('screening_responses')
-      .update({ responses: updatedResponses, score: finalPercent })
-      .eq('id', currentData.id)
-      .select('id', { count: 'exact', head: true });
-
-    // count === 0 means RLS blocked the update silently
-    if (error || count === 0) {
+    if (error) {
       if (!silent) toast({
-        title: error ? 'Error saving scores' : 'Permission denied',
-        description: error?.message || 'Your account does not have permission to update screening scores. Contact an admin.',
+        title: 'Error saving scores',
+        description: error.message,
         variant: 'destructive',
       });
     } else {
-      setData((prev: any) => ({ ...prev, score: finalPercent, responses: updatedResponses }));
       setLastSaved(new Date());
       if (!silent) {
         const total = Object.values(parsed).reduce((s, v) => s + v, 0);
         const max = questions.length * 10;
-        toast({ title: 'Scores saved', description: `Final score: ${finalPercent}% (${total}/${max} points)` });
-        // Close dialog and trigger page refresh so score column updates
+        toast({ title: 'Your scores saved', description: `Your score: ${finalPercent}% (${total}/${max}). Private to you & admins.` });
         onScored?.();
         onOpenChange(false);
       }
     }
     setSaving(false);
-  }, [toast]);
+  }, [toast, userId, applicationId, onScored, onOpenChange]);
+
 
   // Schedule auto-save after user stops typing
   const scheduleAutoSave = useCallback(() => {
@@ -149,10 +169,7 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   };
 
   const handleReset = () => {
-    const saved: Record<string, number> = data?.responses?.question_scores || {};
-    const asStrings: Record<string, string> = {};
-    Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
-    setQScores(asStrings);
+    setQScores({});
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
   };
 
@@ -166,7 +183,6 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const maxTotal    = questions.length * 10;
   const livePercent = computePercent(parsed, questions.length);
   const scoredCount = Object.keys(parsed).length;
-  const savedPercent = data?.score ?? null;
 
   const saveStatus = saving
     ? 'saving'
@@ -182,7 +198,14 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b shrink-0">
           <div>
             <h2 className="text-base font-semibold text-foreground">Screening Results</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Score each answer 0–10. Auto-saves as you type.</p>
+            {candidateName && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Candidate: <span className="font-medium text-foreground">{candidateName}</span> · Your private score (0–10 per answer)
+              </p>
+            )}
+            {!candidateName && (
+              <p className="text-xs text-muted-foreground mt-0.5">Score each answer 0–10. Your scores are private to you & admins.</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Auto-save status indicator */}
@@ -196,15 +219,14 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
                 <CheckCircle2 className="h-3 w-3" /> Saved
               </span>
             )}
-            {savedPercent != null && (
-              <Badge
-                variant={savedPercent >= 70 ? 'default' : savedPercent >= 50 ? 'secondary' : 'destructive'}
-                className="text-sm px-3 py-1">
-                {savedPercent}%
+            {aggregate.hr_count > 0 && aggregate.avg_score != null && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                {aggregate.hr_count} HR{aggregate.hr_count === 1 ? '' : 's'} · Avg {Math.round(Number(aggregate.avg_score))}%
               </Badge>
             )}
           </div>
         </div>
+
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
