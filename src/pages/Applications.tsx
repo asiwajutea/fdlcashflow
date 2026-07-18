@@ -718,6 +718,7 @@ const Applications = () => {
         <ScreeningViewDialog applicationId={screeningAppId} candidateName={applications.find(a => a.id === screeningAppId)?.candidate_name || null} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
         <InterviewScheduleDialog applicationId={interviewAppId} candidateName={applications.find(a => a.id === interviewAppId)?.candidate_name || null} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
         <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
+        <ApplicationNotesDialog applicationId={notesAppId} candidateName={applications.find(a => a.id === notesAppId)?.candidate_name || null} open={!!notesAppId} onOpenChange={(o) => !o && setNotesAppId(null)} />
 
         {/* Permanent delete confirmation */}
         <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
