@@ -48,7 +48,6 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const [saving, setSaving]   = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [userId, setUserId]   = useState<string | null>(null);
-  const [myScoreId, setMyScoreId] = useState<string | null>(null);
   const [aggregate, setAggregate] = useState<{ hr_count: number; avg_score: number | null }>({ hr_count: 0, avg_score: null });
   // Per-question scores as raw strings (so "7" vs "7.5" etc.)
   const [qScores, setQScores] = useState<Record<string, string>>({});
