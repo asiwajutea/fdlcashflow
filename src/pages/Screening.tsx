@@ -320,6 +320,18 @@ const Screening = () => {
                     </div>
                   ))}
                 </RadioGroup>
+              ) : q.type === 'voice_only' ? (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">🎙️ This question requires a voice response only.</p>
+                  <VoiceRecorder
+                    onRecordingComplete={(url) => handleVoiceRecording(q.id, url)}
+                    existingAudioUrl={getAudioUrl(answers[q.id] || '')}
+                    disabled={submitted}
+                  />
+                  {submitted && getAudioUrl(answers[q.id] || '') && (
+                    <audio controls src={getAudioUrl(answers[q.id] || '')} className="mt-2 w-full h-10" />
+                  )}
+                </div>
               ) : (
                 <div>
                   <Textarea
