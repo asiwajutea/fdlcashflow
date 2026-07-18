@@ -683,6 +683,7 @@ const Applications = () => {
                     <p className="text-sm text-muted-foreground truncate">{selectedApp.job.title} · {selectedApp.job.department}</p>
                     <Badge className={`mt-1 text-xs capitalize border ${statusColor[selectedApp.status]}`}>{selectedApp.status}</Badge>
                   </div>
+                  <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={() => setNotesAppId(selectedApp.id)}>HR Notes</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[['Phone', selectedApp.candidate.phone || 'N/A'], ['Education', selectedApp.candidate.education || 'N/A'], ['Applied', new Date(selectedApp.applied_at).toLocaleDateString()]].map(([label, val]) => (
