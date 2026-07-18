@@ -173,17 +173,27 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     if (!interview) return;
     setSavingFeedback(true);
 
-    const { error } = await supabase.from('interviews').update({
-      score:    score    ? Number(score) : null,
-      feedback: feedback || null,
-      outcome:  outcome  || null,
-    }).eq('id', interview.id);
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id;
+    if (!uid) {
+      setSavingFeedback(false);
+      toast({ title: 'Not signed in', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await (supabase as any).from('interview_hr_scores').upsert({
+      interview_id: interview.id,
+      hr_user_id:   uid,
+      score:        score ? Number(score) : null,
+      feedback:     feedback || null,
+      outcome:      outcome || 'awaiting_decision',
+    }, { onConflict: 'interview_id,hr_user_id' });
 
     setSavingFeedback(false);
     if (error) {
       toast({ title: 'Error saving feedback', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Feedback saved', description: 'Score, feedback and outcome updated. No email sent to candidate.' });
+      toast({ title: 'Your feedback saved', description: 'Only you (and admins) can see your score.' });
       onOpenChange(false);
       onSaved?.();
     }
