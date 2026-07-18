@@ -383,24 +383,31 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
             {hasInterview && (
               <>
                 <div className="border-t pt-4 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-foreground">Interview Outcome</h4>
-                    <p className="text-xs text-muted-foreground">— saving this does not email the candidate</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-semibold text-foreground">Your Interview Feedback</h4>
+                    <p className="text-xs text-muted-foreground">— private to you & admins</p>
                   </div>
+                  {aggregate.hr_count > 0 && (
+                    <div className="text-xs bg-muted/40 border rounded-md px-3 py-2">
+                      <span className="font-medium">{aggregate.hr_count}</span> HR{aggregate.hr_count === 1 ? '' : 's'} scored
+                      {aggregate.avg_score != null && <> · Average: <span className="font-semibold">{Number(aggregate.avg_score).toFixed(1)}/10</span></>}
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
-                    <Label>Score (1–10)</Label>
+                    <Label>Your Score (1–10)</Label>
                     <Input type="number" min="1" max="10" value={score} onChange={(e) => setScore(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Feedback / Notes</Label>
+                    <Label>Your Notes</Label>
                     <Textarea placeholder="Interview notes and observations..." value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Outcome</Label>
+                    <Label>Your Outcome</Label>
                     <Select value={outcome} onValueChange={setOutcome}>
-                      <SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="awaiting_decision">Awaiting Decision</SelectItem>
                         <SelectItem value="pass">Pass</SelectItem>
                         <SelectItem value="fail">Fail</SelectItem>
                       </SelectContent>
