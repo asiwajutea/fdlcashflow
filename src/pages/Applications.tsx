@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
 import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
+import ApplicationNotesDialog from '@/components/hr/ApplicationNotesDialog';
 import ContractUploadDialog from '@/components/hr/ContractUploadDialog';
 
 interface ApplicationRow {
