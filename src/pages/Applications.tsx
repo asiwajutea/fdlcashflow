@@ -113,6 +113,7 @@ const Applications = () => {
   const [screeningAppId, setScreeningAppId] = useState<string | null>(null);
   const [interviewAppId, setInterviewAppId] = useState<string | null>(null);
   const [contractAppId, setContractAppId] = useState<string | null>(null);
+  const [notesAppId, setNotesAppId] = useState<string | null>(null);
   const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
   const [hasScreeningData, setHasScreeningData] = useState<Set<string>>(new Set());
   // Track which apps have screening answers submitted by candidate
