@@ -70,7 +70,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
           setInterview(d);
           if (d) {
             setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
-            setInterviewType(d.interview_type || 'virtual');
+            setInterviewType((d.interview_type as 'virtual' | 'physical') || 'virtual');
             setLocationPlatform(d.location_platform || 'google_meet');
             setMeetingLink(d.meeting_link || '');
             setOfficeAddress(d.office_address || '');
