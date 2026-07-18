@@ -423,7 +423,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
                   >
                     {savingFeedback
                       ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-                      : <><CheckCircle2 className="h-4 w-4" /> Save Outcome (no email to candidate)</>
+                      : <><CheckCircle2 className="h-4 w-4" /> Save My Feedback</>
                     }
                   </Button>
                 </div>
