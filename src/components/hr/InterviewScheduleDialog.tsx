@@ -128,7 +128,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       ({ error } = await supabase.from('interviews').update(payload).eq('id', interview.id));
     } else {
       const { data: inserted, error: insErr } = await supabase
-        .from('interviews').insert(payload).select('id').maybeSingle();
+        .from('interviews').insert(payload as any).select('id').maybeSingle();
       error = insErr;
       savedId = inserted?.id;
     }
