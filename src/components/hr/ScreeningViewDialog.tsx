@@ -170,10 +170,7 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   };
 
   const handleReset = () => {
-    const saved: Record<string, number> = data?.responses?.question_scores || {};
-    const asStrings: Record<string, string> = {};
-    Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
-    setQScores(asStrings);
+    setQScores({});
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
   };
 
@@ -187,7 +184,6 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const maxTotal    = questions.length * 10;
   const livePercent = computePercent(parsed, questions.length);
   const scoredCount = Object.keys(parsed).length;
-  const savedPercent = data?.score ?? null;
 
   const saveStatus = saving
     ? 'saving'
@@ -203,7 +199,14 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
         <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b shrink-0">
           <div>
             <h2 className="text-base font-semibold text-foreground">Screening Results</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Score each answer 0–10. Auto-saves as you type.</p>
+            {candidateName && (
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Candidate: <span className="font-medium text-foreground">{candidateName}</span> · Your private score (0–10 per answer)
+              </p>
+            )}
+            {!candidateName && (
+              <p className="text-xs text-muted-foreground mt-0.5">Score each answer 0–10. Your scores are private to you & admins.</p>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {/* Auto-save status indicator */}
@@ -217,15 +220,14 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
                 <CheckCircle2 className="h-3 w-3" /> Saved
               </span>
             )}
-            {savedPercent != null && (
-              <Badge
-                variant={savedPercent >= 70 ? 'default' : savedPercent >= 50 ? 'secondary' : 'destructive'}
-                className="text-sm px-3 py-1">
-                {savedPercent}%
+            {aggregate.hr_count > 0 && aggregate.avg_score != null && (
+              <Badge variant="secondary" className="text-xs px-2 py-1">
+                {aggregate.hr_count} HR{aggregate.hr_count === 1 ? '' : 's'} · Avg {Math.round(Number(aggregate.avg_score))}%
               </Badge>
             )}
           </div>
         </div>
+
 
         {loading ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground gap-2">
