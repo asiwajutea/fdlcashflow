@@ -47,6 +47,9 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const [loading, setLoading] = useState(false);
   const [saving, setSaving]   = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [userId, setUserId]   = useState<string | null>(null);
+  const [myScoreId, setMyScoreId] = useState<string | null>(null);
+  const [aggregate, setAggregate] = useState<{ hr_count: number; avg_score: number | null }>({ hr_count: 0, avg_score: null });
   // Per-question scores as raw strings (so "7" vs "7.5" etc.)
   const [qScores, setQScores] = useState<Record<string, string>>({});
   const autoSaveTimer         = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -67,11 +70,33 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
       .eq('application_id', applicationId)
       .maybeSingle();
     setData(d);
-    const saved: Record<string, number> = d?.responses?.question_scores || {};
-    const asStrings: Record<string, string> = {};
-    Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
-    setQScores(asStrings);
-    if (Object.keys(saved).length > 0) setLastSaved(new Date(d?.responses?.scored_at || Date.now()));
+
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id || null;
+    setUserId(uid);
+
+    // Load THIS HR's private per-question scores
+    if (uid) {
+      const { data: mine } = await (supabase as any)
+        .from('screening_hr_scores')
+        .select('id, question_scores, updated_at')
+        .eq('application_id', applicationId)
+        .eq('hr_user_id', uid)
+        .maybeSingle();
+      setMyScoreId(mine?.id || null);
+      const saved: Record<string, number> = mine?.question_scores || {};
+      const asStrings: Record<string, string> = {};
+      Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
+      setQScores(asStrings);
+      if (Object.keys(saved).length > 0) setLastSaved(new Date(mine?.updated_at || Date.now()));
+      else setQScores({});
+    }
+
+    // Aggregate across all HRs (RPC is SECURITY DEFINER)
+    const { data: stats } = await (supabase as any).rpc('get_screening_score_stats', { _application_id: applicationId });
+    if (stats && stats[0]) setAggregate({ hr_count: stats[0].hr_count || 0, avg_score: stats[0].avg_score });
+    else setAggregate({ hr_count: 0, avg_score: null });
+
     setLoading(false);
   }, [applicationId]);
 
@@ -81,7 +106,7 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
   const performSave = useCallback(async (silent = false) => {
     const currentData = dataRef.current;
     const currentQScores = qScoresRef.current;
-    if (!currentData) return;
+    if (!currentData || !userId || !applicationId) return;
 
     const parsed = buildParsedScores(currentQScores);
     const responses = currentData.responses as any;
@@ -99,39 +124,34 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
     }
 
     setSaving(true);
-    const updatedResponses = {
-      ...responses,
-      question_scores: parsed,
-      scored_at: new Date().toISOString(),
-    };
+    const { error } = await (supabase as any)
+      .from('screening_hr_scores')
+      .upsert({
+        application_id: applicationId,
+        hr_user_id:     userId,
+        question_scores: parsed,
+        score:          finalPercent,
+      }, { onConflict: 'application_id,hr_user_id' });
 
-    const { error, count } = await (supabase as any)
-      .from('screening_responses')
-      .update({ responses: updatedResponses, score: finalPercent })
-      .eq('id', currentData.id)
-      .select('id', { count: 'exact', head: true });
-
-    // count === 0 means RLS blocked the update silently
-    if (error || count === 0) {
+    if (error) {
       if (!silent) toast({
-        title: error ? 'Error saving scores' : 'Permission denied',
-        description: error?.message || 'Your account does not have permission to update screening scores. Contact an admin.',
+        title: 'Error saving scores',
+        description: error.message,
         variant: 'destructive',
       });
     } else {
-      setData((prev: any) => ({ ...prev, score: finalPercent, responses: updatedResponses }));
       setLastSaved(new Date());
       if (!silent) {
         const total = Object.values(parsed).reduce((s, v) => s + v, 0);
         const max = questions.length * 10;
-        toast({ title: 'Scores saved', description: `Final score: ${finalPercent}% (${total}/${max} points)` });
-        // Close dialog and trigger page refresh so score column updates
+        toast({ title: 'Your scores saved', description: `Your score: ${finalPercent}% (${total}/${max}). Private to you & admins.` });
         onScored?.();
         onOpenChange(false);
       }
     }
     setSaving(false);
-  }, [toast]);
+  }, [toast, userId, applicationId, onScored, onOpenChange]);
+
 
   // Schedule auto-save after user stops typing
   const scheduleAutoSave = useCallback(() => {
