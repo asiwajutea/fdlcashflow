@@ -82,7 +82,7 @@ const ScreeningViewDialog: React.FC<ScreeningViewDialogProps> = ({ applicationId
         .eq('application_id', applicationId)
         .eq('hr_user_id', uid)
         .maybeSingle();
-      setMyScoreId(mine?.id || null);
+      // (per-HR score row id — not needed since we upsert on conflict)
       const saved: Record<string, number> = mine?.question_scores || {};
       const asStrings: Record<string, string> = {};
       Object.entries(saved).forEach(([k, v]) => { asStrings[k] = String(v); });
