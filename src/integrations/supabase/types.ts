@@ -427,6 +427,41 @@ export type Database = {
         }
         Relationships: []
       }
+      application_notes: {
+        Row: {
+          application_id: string
+          author_id: string
+          created_at: string
+          id: string
+          note: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          author_id: string
+          created_at?: string
+          id?: string
+          note: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          author_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "application_notes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       applications: {
         Row: {
           applied_at: string
@@ -1325,6 +1360,47 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      interview_hr_scores: {
+        Row: {
+          created_at: string
+          feedback: string | null
+          hr_user_id: string
+          id: string
+          interview_id: string
+          outcome: string | null
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          feedback?: string | null
+          hr_user_id: string
+          id?: string
+          interview_id: string
+          outcome?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          feedback?: string | null
+          hr_user_id?: string
+          id?: string
+          interview_id?: string
+          outcome?: string | null
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_hr_scores_interview_id_fkey"
+            columns: ["interview_id"]
+            isOneToOne: false
+            referencedRelation: "interviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       interviews: {
         Row: {
@@ -2296,6 +2372,47 @@ export type Database = {
         }
         Relationships: []
       }
+      screening_hr_scores: {
+        Row: {
+          application_id: string
+          created_at: string
+          feedback: string | null
+          hr_user_id: string
+          id: string
+          question_scores: Json
+          score: number | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          feedback?: string | null
+          hr_user_id: string
+          id?: string
+          question_scores?: Json
+          score?: number | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          feedback?: string | null
+          hr_user_id?: string
+          id?: string
+          question_scores?: Json
+          score?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "screening_hr_scores_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       screening_responses: {
         Row: {
           application_id: string
@@ -2732,6 +2849,13 @@ export type Database = {
     Functions: {
       can_message: { Args: { _from: string; _to: string }; Returns: boolean }
       generate_employee_id: { Args: never; Returns: string }
+      get_interview_score_stats: {
+        Args: { _interview_id: string }
+        Returns: {
+          avg_score: number
+          hr_count: number
+        }[]
+      }
       get_my_manager: {
         Args: never
         Returns: {
@@ -2764,6 +2888,13 @@ export type Database = {
           role: string
         }[]
       }
+      get_screening_score_stats: {
+        Args: { _application_id: string }
+        Returns: {
+          avg_score: number
+          hr_count: number
+        }[]
+      }
       get_subordinate_user_ids: {
         Args: { _user_id: string }
         Returns: {
@@ -2788,6 +2919,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_hr: { Args: { _user_id: string }; Returns: boolean }
       user_can_access_form: {
         Args: { _form_id: string; _user_id: string }
         Returns: boolean
