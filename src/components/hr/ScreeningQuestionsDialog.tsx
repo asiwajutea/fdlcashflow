@@ -265,7 +265,7 @@ const ScreeningQuestionsDialog: React.FC<Props> = ({
                     {q.question || <span className="italic text-muted-foreground">Untitled question</span>}
                   </p>
                   <Badge variant={q.type === 'multiple_choice' ? 'secondary' : 'outline'} className="text-[10px] shrink-0">
-                    {q.type === 'multiple_choice' ? 'Choice' : 'Text'}
+                    {q.type === 'multiple_choice' ? 'Choice' : q.type === 'voice_only' ? 'Voice' : 'Text'}
                   </Badge>
                   <div className="flex items-center gap-0.5 shrink-0">
                     <Button
