@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -484,17 +484,21 @@ function FilteredTable({
 
   useEffect(() => { setPage(1); }, [rows]);
 
-  const handleFiltered = (result: Interview[]) => {
+  // Stable callback so InterviewTable doesn't re-render when FilterBar updates filtered
+  const handleFiltered = useCallback((result: Interview[]) => {
     setFiltered(result);
     setPage(1);
-  };
+  }, []);
+
+  // Stable refresh ref — InterviewTable won't re-render when parent re-renders
+  const stableRefresh = useCallback(onRefresh, [onRefresh]);
 
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
     <div>
       <FilterBar rows={rows} myLoc={myLoc} onFiltered={handleFiltered} />
-      <InterviewTable rows={pageRows} myLoc={myLoc} onRefresh={onRefresh} mode={mode} currentUserId={currentUserId} />
+      <InterviewTable rows={pageRows} myLoc={myLoc} onRefresh={stableRefresh} mode={mode} currentUserId={currentUserId} />
       <Pagination total={filtered.length} page={page} onPage={setPage} />
     </div>
   );
@@ -2013,7 +2017,9 @@ function DraftDeleteButton({ row, onDeleted }: { row: Interview; onDeleted: () =
 
 // ------------------ List ------------------
 
-function InterviewTable({
+// React.memo prevents InterviewTable from re-rendering when the parent FilteredTable
+// updates its filtered state — this keeps EditBookingButton dialogs stable during typing.
+const InterviewTable = React.memo(function InterviewTable({
   rows, myLoc, onRefresh, mode, currentUserId,
 }: {
   rows: Interview[]; myLoc: { lat: number; lng: number } | null; onRefresh: () => void;
@@ -2139,7 +2145,7 @@ function InterviewTable({
       </div>
     </>
   );
-}
+}); // end React.memo(InterviewTable)
 
 // ------------------ Page ------------------
 
