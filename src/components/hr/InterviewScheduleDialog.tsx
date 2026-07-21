@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, MapPin, Phone, Video, Building2, CheckCircle2, Save } from 'lucide-react';
+import { Loader2, MapPin, Phone, Video, Building2, CheckCircle2 } from 'lucide-react';
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
@@ -193,6 +193,8 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     if (error) {
       toast({ title: 'Error saving feedback', description: error.message, variant: 'destructive' });
     } else {
+      // Update local interview state so the header badge reflects the saved outcome immediately
+      setInterview((prev: any) => prev ? { ...prev, outcome: outcome || 'awaiting_decision' } : prev);
       toast({ title: 'Your feedback saved', description: 'Only you (and admins) can see your score.' });
       onOpenChange(false);
       onSaved?.();
