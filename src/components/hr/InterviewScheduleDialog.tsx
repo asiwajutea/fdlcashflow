@@ -12,6 +12,7 @@ import { Loader2, MapPin, Phone, Video, Building2, CheckCircle2, Save } from 'lu
 
 interface InterviewScheduleDialogProps {
   applicationId: string | null;
+  candidateName?: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved?: () => void;
@@ -34,6 +35,7 @@ function formatWat(iso: string): string {
 
 const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   applicationId,
+  candidateName,
   open,
   onOpenChange,
   onSaved,
@@ -53,39 +55,56 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
   const [contactPhone,     setContactPhone]     = useState('');
   const [interviewer,      setInterviewer]      = useState('');
 
-  // Feedback fields (separate save — no candidate notification)
+  // Feedback fields (separate save — no candidate notification) — per-HR
   const [score,    setScore]    = useState('');
   const [feedback, setFeedback] = useState('');
-  const [outcome,  setOutcome]  = useState('');
+  const [outcome,  setOutcome]  = useState('awaiting_decision');
+  const [aggregate, setAggregate] = useState<{ hr_count: number; avg_score: number | null }>({ hr_count: 0, avg_score: null });
 
   useEffect(() => {
     if (open && applicationId) {
       setLoading(true);
-      supabase
-        .from('interviews')
-        .select('*')
-        .eq('application_id', applicationId)
-        .maybeSingle()
-        .then(({ data: d }) => {
-          setInterview(d);
-          if (d) {
-            setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
-            setInterviewType(d.interview_type || 'virtual');
-            setLocationPlatform(d.location_platform || 'google_meet');
-            setMeetingLink(d.meeting_link || '');
-            setOfficeAddress(d.office_address || '');
-            setContactPhone(d.contact_phone || '');
-            setInterviewer(d.interviewer || '');
-            setScore(d.score?.toString() || '');
-            setFeedback(d.feedback || '');
-            setOutcome(d.outcome || '');
-          } else {
-            setDate(''); setInterviewType('virtual'); setLocationPlatform('google_meet');
-            setMeetingLink(''); setOfficeAddress(''); setContactPhone('');
-            setInterviewer(''); setScore(''); setFeedback(''); setOutcome('');
+      (async () => {
+        const { data: d } = await supabase
+          .from('interviews')
+          .select('*')
+          .eq('application_id', applicationId)
+          .maybeSingle();
+        setInterview(d);
+        if (d) {
+          setDate(d.interview_date ? d.interview_date.slice(0, 16) : '');
+          setInterviewType((d.interview_type as 'virtual' | 'physical') || 'virtual');
+          setLocationPlatform(d.location_platform || 'google_meet');
+          setMeetingLink(d.meeting_link || '');
+          setOfficeAddress(d.office_address || '');
+          setContactPhone(d.contact_phone || '');
+          setInterviewer(d.interviewer || '');
+
+          // Load THIS HR's private score row
+          const { data: userRes } = await supabase.auth.getUser();
+          const uid = userRes?.user?.id;
+          if (uid) {
+            const { data: myScore } = await (supabase as any)
+              .from('interview_hr_scores')
+              .select('score, feedback, outcome')
+              .eq('interview_id', d.id)
+              .eq('hr_user_id', uid)
+              .maybeSingle();
+            setScore(myScore?.score?.toString() || '');
+            setFeedback(myScore?.feedback || '');
+            setOutcome(myScore?.outcome || 'awaiting_decision');
           }
-          setLoading(false);
-        });
+          // Load aggregate (admin sees all; HR sees only own — RPC uses SECURITY DEFINER)
+          const { data: stats } = await (supabase as any).rpc('get_interview_score_stats', { _interview_id: d.id });
+          if (stats && stats[0]) setAggregate({ hr_count: stats[0].hr_count || 0, avg_score: stats[0].avg_score });
+        } else {
+          setDate(''); setInterviewType('virtual'); setLocationPlatform('google_meet');
+          setMeetingLink(''); setOfficeAddress(''); setContactPhone('');
+          setInterviewer(''); setScore(''); setFeedback(''); setOutcome('awaiting_decision');
+          setAggregate({ hr_count: 0, avg_score: null });
+        }
+        setLoading(false);
+      })();
     }
   }, [open, applicationId]);
 
@@ -128,7 +147,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       ({ error } = await supabase.from('interviews').update(payload).eq('id', interview.id));
     } else {
       const { data: inserted, error: insErr } = await supabase
-        .from('interviews').insert(payload).select('id').maybeSingle();
+        .from('interviews').insert(payload as any).select('id').maybeSingle();
       error = insErr;
       savedId = inserted?.id;
     }
@@ -154,17 +173,27 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     if (!interview) return;
     setSavingFeedback(true);
 
-    const { error } = await supabase.from('interviews').update({
-      score:    score    ? Number(score) : null,
-      feedback: feedback || null,
-      outcome:  outcome  || null,
-    }).eq('id', interview.id);
+    const { data: userRes } = await supabase.auth.getUser();
+    const uid = userRes?.user?.id;
+    if (!uid) {
+      setSavingFeedback(false);
+      toast({ title: 'Not signed in', variant: 'destructive' });
+      return;
+    }
+
+    const { error } = await (supabase as any).from('interview_hr_scores').upsert({
+      interview_id: interview.id,
+      hr_user_id:   uid,
+      score:        score ? Number(score) : null,
+      feedback:     feedback || null,
+      outcome:      outcome || 'awaiting_decision',
+    }, { onConflict: 'interview_id,hr_user_id' });
 
     setSavingFeedback(false);
     if (error) {
       toast({ title: 'Error saving feedback', description: error.message, variant: 'destructive' });
     } else {
-      toast({ title: 'Feedback saved', description: 'Score, feedback and outcome updated. No email sent to candidate.' });
+      toast({ title: 'Your feedback saved', description: 'Only you (and admins) can see your score.' });
       onOpenChange(false);
       onSaved?.();
     }
@@ -272,10 +301,14 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
                 interview.outcome === 'pass' ? 'default' :
                 interview.outcome === 'fail' ? 'destructive' : 'secondary'
               } className="capitalize text-xs">
-                {interview.outcome === 'awaiting' ? 'Awaiting Decision' : interview.outcome}
+                {interview.outcome === 'awaiting_decision' ? 'Awaiting Decision' :
+                 interview.outcome === 'pass' ? 'Pass' : 'Fail'}
               </Badge>
             )}
           </div>
+          {candidateName && (
+            <p className="text-sm text-muted-foreground mt-0.5">Candidate: <span className="font-medium text-foreground">{candidateName}</span></p>
+          )}
         </DialogHeader>
 
         {loading ? (
@@ -354,25 +387,31 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
             {hasInterview && (
               <>
                 <div className="border-t pt-4 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-semibold text-foreground">Interview Outcome</h4>
-                    <p className="text-xs text-muted-foreground">— saving this does not email the candidate</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h4 className="text-sm font-semibold text-foreground">Your Interview Feedback</h4>
+                    <p className="text-xs text-muted-foreground">— private to you & admins</p>
                   </div>
+                  {aggregate.hr_count > 0 && (
+                    <div className="text-xs bg-muted/40 border rounded-md px-3 py-2">
+                      <span className="font-medium">{aggregate.hr_count}</span> HR{aggregate.hr_count === 1 ? '' : 's'} scored
+                      {aggregate.avg_score != null && <> · Average: <span className="font-semibold">{Number(aggregate.avg_score).toFixed(1)}/10</span></>}
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
-                    <Label>Score (1–10)</Label>
+                    <Label>Your Score (1–10)</Label>
                     <Input type="number" min="1" max="10" value={score} onChange={(e) => setScore(e.target.value)} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Feedback / Notes</Label>
+                    <Label>Your Notes</Label>
                     <Textarea placeholder="Interview notes and observations..." value={feedback} onChange={(e) => setFeedback(e.target.value)} rows={3} />
                   </div>
                   <div className="space-y-1.5">
                     <Label>Outcome</Label>
-                    <Select value={outcome || 'awaiting'} onValueChange={setOutcome}>
+                    <Select value={outcome || 'awaiting_decision'} onValueChange={setOutcome}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="awaiting">⏳ Awaiting Decision</SelectItem>
+                        <SelectItem value="awaiting_decision">⏳ Awaiting Decision</SelectItem>
                         <SelectItem value="pass">✓ Pass</SelectItem>
                         <SelectItem value="fail">✗ Fail</SelectItem>
                       </SelectContent>
@@ -388,7 +427,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
                   >
                     {savingFeedback
                       ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-                      : <><CheckCircle2 className="h-4 w-4" /> Save Outcome (no email to candidate)</>
+                      : <><CheckCircle2 className="h-4 w-4" /> Save My Feedback</>
                     }
                   </Button>
                 </div>

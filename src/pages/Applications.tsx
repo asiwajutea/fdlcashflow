@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import ScreeningViewDialog from '@/components/hr/ScreeningViewDialog';
 import InterviewScheduleDialog from '@/components/hr/InterviewScheduleDialog';
+import ApplicationNotesDialog from '@/components/hr/ApplicationNotesDialog';
 import ContractUploadDialog from '@/components/hr/ContractUploadDialog';
 
 interface ApplicationRow {
@@ -112,6 +113,7 @@ const Applications = () => {
   const [screeningAppId, setScreeningAppId] = useState<string | null>(null);
   const [interviewAppId, setInterviewAppId] = useState<string | null>(null);
   const [contractAppId, setContractAppId] = useState<string | null>(null);
+  const [notesAppId, setNotesAppId] = useState<string | null>(null);
   const [generatingScreening, setGeneratingScreening] = useState<string | null>(null);
   const [hasScreeningData, setHasScreeningData] = useState<Set<string>>(new Set());
   // Track which apps have screening answers submitted by candidate
@@ -681,6 +683,7 @@ const Applications = () => {
                     <p className="text-sm text-muted-foreground truncate">{selectedApp.job.title} · {selectedApp.job.department}</p>
                     <Badge className={`mt-1 text-xs capitalize border ${statusColor[selectedApp.status]}`}>{selectedApp.status}</Badge>
                   </div>
+                  <Button size="sm" variant="outline" className="ml-auto shrink-0" onClick={() => setNotesAppId(selectedApp.id)}>HR Notes</Button>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   {[['Phone', selectedApp.candidate.phone || 'N/A'], ['Education', selectedApp.candidate.education || 'N/A'], ['Applied', new Date(selectedApp.applied_at).toLocaleDateString()]].map(([label, val]) => (
@@ -713,9 +716,10 @@ const Applications = () => {
           </DialogContent>
         </Dialog>
 
-        <ScreeningViewDialog applicationId={screeningAppId} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
-        <InterviewScheduleDialog applicationId={interviewAppId} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
+        <ScreeningViewDialog applicationId={screeningAppId} candidateName={applications.find(a => a.id === screeningAppId)?.candidate_name || null} open={!!screeningAppId} onOpenChange={(o) => !o && setScreeningAppId(null)} onScored={fetchApplications} />
+        <InterviewScheduleDialog applicationId={interviewAppId} candidateName={applications.find(a => a.id === interviewAppId)?.candidate_name || null} open={!!interviewAppId} onOpenChange={(o) => !o && setInterviewAppId(null)} onSaved={fetchApplications} />
         <ContractUploadDialog applicationId={contractAppId} open={!!contractAppId} onOpenChange={(o) => !o && setContractAppId(null)} onSaved={fetchApplications} />
+        <ApplicationNotesDialog applicationId={notesAppId} candidateName={applications.find(a => a.id === notesAppId)?.candidate_name || null} open={!!notesAppId} onOpenChange={(o) => !o && setNotesAppId(null)} />
 
         {/* Permanent delete confirmation */}
         <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
