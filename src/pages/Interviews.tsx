@@ -310,6 +310,7 @@ const Interviews = () => {
                       </div>
                     )}
                   </div>
+                </CardContent>
               </Card>
             ))}
           </div>
