@@ -268,8 +268,11 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <DialogTitle>{hasInterview ? 'Manage Interview' : 'Schedule Interview'}</DialogTitle>
             {hasInterview && interview.outcome && (
-              <Badge variant={interview.outcome === 'pass' ? 'default' : 'destructive'} className="capitalize text-xs">
-                {interview.outcome}
+              <Badge variant={
+                interview.outcome === 'pass' ? 'default' :
+                interview.outcome === 'fail' ? 'destructive' : 'secondary'
+              } className="capitalize text-xs">
+                {interview.outcome === 'awaiting' ? 'Awaiting Decision' : interview.outcome}
               </Badge>
             )}
           </div>
@@ -366,11 +369,12 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
                   </div>
                   <div className="space-y-1.5">
                     <Label>Outcome</Label>
-                    <Select value={outcome} onValueChange={setOutcome}>
-                      <SelectTrigger><SelectValue placeholder="Select outcome" /></SelectTrigger>
+                    <Select value={outcome || 'awaiting'} onValueChange={setOutcome}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="pass">Pass</SelectItem>
-                        <SelectItem value="fail">Fail</SelectItem>
+                        <SelectItem value="awaiting">⏳ Awaiting Decision</SelectItem>
+                        <SelectItem value="pass">✓ Pass</SelectItem>
+                        <SelectItem value="fail">✗ Fail</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

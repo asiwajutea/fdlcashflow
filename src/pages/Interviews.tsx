@@ -276,13 +276,40 @@ const Interviews = () => {
                     </div>
                   )}
 
-                  {interview.feedback && (
-                    <div className="border-t pt-3 mt-3">
-                      <p className="text-xs text-muted-foreground">Feedback</p>
-                      <p className="text-sm">{interview.feedback}</p>
+                  {/* Outcome and HR Notes — always shown after interview is scheduled */}
+                  <div className="border-t pt-3 mt-3 space-y-3">
+                    {/* Outcome card — always visible */}
+                    <div className={`rounded-lg p-3 border ${
+                      interview.outcome === 'pass'
+                        ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800'
+                        : interview.outcome === 'fail'
+                          ? 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                          : 'bg-muted/40 border-border'
+                    }`}>
+                      <p className={`text-xs font-semibold uppercase tracking-wide ${
+                        interview.outcome === 'pass' ? 'text-green-700 dark:text-green-400' :
+                        interview.outcome === 'fail' ? 'text-red-700 dark:text-red-400' :
+                        'text-muted-foreground'
+                      }`}>Interview Outcome</p>
+                      <p className={`text-sm font-bold mt-0.5 ${
+                        interview.outcome === 'pass' ? 'text-green-600' :
+                        interview.outcome === 'fail' ? 'text-red-600' :
+                        'text-muted-foreground'
+                      }`}>
+                        {interview.outcome === 'pass' ? '✓ Passed' :
+                         interview.outcome === 'fail' ? '✗ Did not pass' :
+                         '⏳ Awaiting Decision'}
+                      </p>
                     </div>
-                  )}
-                </CardContent>
+
+                    {/* HR Notes */}
+                    {interview.feedback && (
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium mb-1">HR Notes</p>
+                        <p className="text-sm text-foreground leading-relaxed">{interview.feedback}</p>
+                      </div>
+                    )}
+                  </div>
               </Card>
             ))}
           </div>
