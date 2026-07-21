@@ -152,6 +152,7 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       savedId = inserted?.id;
     }
 
+    setSavingFeedback(false);
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
@@ -189,8 +190,16 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
       outcome:      outcome || 'awaiting_decision',
     }, { onConflict: 'interview_id,hr_user_id' });
 
+    // Also update the main interviews.outcome so the badge and candidate view stay in sync
+    if (!error) {
+      await supabase.from('interviews').update({
+        outcome:  outcome || 'awaiting_decision',
+        score:    score ? Number(score) : null,
+        feedback: feedback || null,
+      }).eq('id', interview.id);
+    }
+
     setSavingFeedback(false);
-    if (error) {
       toast({ title: 'Error saving feedback', description: error.message, variant: 'destructive' });
     } else {
       // Update local interview state so the header badge reflects the saved outcome immediately
