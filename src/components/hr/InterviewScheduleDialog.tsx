@@ -203,6 +203,8 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
     }
 
     setSavingFeedback(false);
+
+    if (error) {
       toast({ title: 'Error saving feedback', description: error.message, variant: 'destructive' });
     } else {
       // Update local interview state so the header badge reflects the saved outcome immediately
