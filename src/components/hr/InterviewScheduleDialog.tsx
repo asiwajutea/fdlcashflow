@@ -192,11 +192,14 @@ const InterviewScheduleDialog: React.FC<InterviewScheduleDialogProps> = ({
 
     // Also update the main interviews.outcome so the badge and candidate view stay in sync
     if (!error) {
-      await supabase.from('interviews').update({
+      const { error: ivErr } = await supabase.from('interviews').update({
         outcome:  outcome || 'awaiting_decision',
         score:    score ? Number(score) : null,
         feedback: feedback || null,
       }).eq('id', interview.id);
+      if (ivErr) {
+        console.error('Interview outcome update failed:', ivErr.message);
+      }
     }
 
     setSavingFeedback(false);
