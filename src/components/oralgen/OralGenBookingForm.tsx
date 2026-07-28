@@ -104,13 +104,18 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
 
   // ── Auto-save draft on every change ─────────────────────────────────────
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep a ref to avoid the setHasDraft(true) call re-rendering the form on every keystroke
+  const hasDraftRef = useRef(hasDraft);
+  useEffect(() => { hasDraftRef.current = hasDraft; }, [hasDraft]);
+
   useEffect(() => {
     if (!open) return;
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       try {
         localStorage.setItem(DRAFT_KEY, JSON.stringify({ form, interviewPrefs, acceptanceRating, step }));
-        setHasDraft(true);
+        // Only call setHasDraft when the value actually changes to avoid re-renders
+        if (!hasDraftRef.current) setHasDraft(true);
       } catch { /* ignore quota errors */ }
     }, 800);
     return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
@@ -352,54 +357,7 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
 
             {/* ══ STEP 0: Personal Details ════════════════════════════════ */}
             {step === 0 && (
-              <div className="space-y-4">
-                <StepHeading title="Personal Details" subtitle="Basic information about the interviewee" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Field label="First Name" required>
-                    <Input
-                      value={form.first_name}
-                      onChange={(e) => set({ first_name: e.target.value })}
-                      onBlur={(e) => set({ first_name: titleCase(e.target.value) })}
-                      placeholder="e.g. John"
-                    />
-                  </Field>
-                  <Field label="Surname" required>
-                    <Input
-                      value={form.surname}
-                      onChange={(e) => set({ surname: e.target.value })}
-                      onBlur={(e) => set({ surname: titleCase(e.target.value) })}
-                      placeholder="e.g. Adeyemi"
-                    />
-                  </Field>
-                  <Field label="Other Names" hint="optional" className="sm:col-span-2">
-                    <Input
-                      value={form.other_names}
-                      onChange={(e) => set({ other_names: e.target.value })}
-                      onBlur={(e) => set({ other_names: titleCase(e.target.value) })}
-                      placeholder="Middle name(s)"
-                    />
-                  </Field>
-                  <Field label="Age">
-                    <Input type="number" min="1" max="120"
-                      value={form.age} onChange={(e) => set({ age: e.target.value })}
-                      placeholder="e.g. 45" />
-                  </Field>
-                  <Field label="Sex" required>
-                    <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
-                      <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Male">Male</SelectItem>
-                        <SelectItem value="Female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </Field>
-                  <Field label="Phone Number" className="sm:col-span-2">
-                    <Input type="tel" value={form.phone}
-                      onChange={(e) => set({ phone: e.target.value })}
-                      placeholder="e.g. 08012345678" />
-                  </Field>
-                </div>
-              </div>
+              <PersonalDetailsStep form={form} set={set} />
             )}
 
             {/* ══ STEP 1: Location ════════════════════════════════════════ */}
@@ -568,6 +526,67 @@ export const OralGenBookingForm: React.FC<Props> = ({ onSaved }) => {
 };
 
 // ─── sub-components ───────────────────────────────────────────────────────────
+
+/** Memoised so that parent re-renders (e.g. saving state) don't remount inputs
+ *  and dismiss the mobile keyboard mid-typing. */
+const PersonalDetailsStep = React.memo(function PersonalDetailsStep({
+  form,
+  set,
+}: {
+  form: typeof EMPTY_FORM;
+  set: (patch: Partial<typeof EMPTY_FORM>) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <StepHeading title="Personal Details" subtitle="Basic information about the interviewee" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Field label="First Name" required>
+          <Input
+            value={form.first_name}
+            onChange={(e) => set({ first_name: e.target.value })}
+            onBlur={(e) => set({ first_name: titleCase(e.target.value) })}
+            placeholder="e.g. John"
+          />
+        </Field>
+        <Field label="Surname" required>
+          <Input
+            value={form.surname}
+            onChange={(e) => set({ surname: e.target.value })}
+            onBlur={(e) => set({ surname: titleCase(e.target.value) })}
+            placeholder="e.g. Adeyemi"
+          />
+        </Field>
+        <Field label="Other Names" hint="optional" className="sm:col-span-2">
+          <Input
+            value={form.other_names}
+            onChange={(e) => set({ other_names: e.target.value })}
+            onBlur={(e) => set({ other_names: titleCase(e.target.value) })}
+            placeholder="Middle name(s)"
+          />
+        </Field>
+        <Field label="Age">
+          <Input type="number" min="1" max="120"
+            value={form.age} onChange={(e) => set({ age: e.target.value })}
+            placeholder="e.g. 45" />
+        </Field>
+        <Field label="Sex" required>
+          <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
+            <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Male">Male</SelectItem>
+              <SelectItem value="Female">Female</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Phone Number" className="sm:col-span-2">
+          <Input type="tel" value={form.phone}
+            onChange={(e) => set({ phone: e.target.value })}
+            placeholder="e.g. 08012345678" />
+        </Field>
+      </div>
+    </div>
+  );
+});
 
 const StepHeading: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
   <div>
