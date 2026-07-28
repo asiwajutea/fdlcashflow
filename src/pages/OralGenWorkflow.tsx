@@ -1077,6 +1077,61 @@ function InterviewerPhotoPreview({ row }: { row: Interview }) {
 
 // ── Direct interview record (field agent creates + completes in one step) ─────
 
+// Defined outside DirectInterviewForm so it's never recreated on re-renders.
+// If EF were defined inside the component body, React would treat it as a new
+// component type on every render and fully unmount/remount the inputs — causing
+// the mobile keyboard to dismiss after each keystroke.
+const EF: React.FC<{ label: string; required?: boolean; hint?: string; className?: string; children: React.ReactNode }> = ({ label, required, hint, className, children }) => (
+  <div className={`space-y-1.5 ${className ?? ''}`}>
+    <Label className="flex items-center gap-1">{label}{required && <span className="text-destructive">*</span>}{hint && <span className="text-xs text-muted-foreground font-normal">({hint})</span>}</Label>
+    {children}
+  </div>
+);
+
+const DI_Q_ITEMS: { key: 'q_scholarship' | 'q_vocational' | 'q_high_school' | 'q_cooperative'; label: string }[] = [
+  { key: 'q_scholarship', label: 'Does the household have any child or relative who has finished secondary school but has not yet enrolled in a university — and could benefit from a scholarship?' },
+  { key: 'q_vocational',  label: 'Is there anyone in the household who could benefit from a vocational skills training or empowerment programme?' },
+  { key: 'q_high_school', label: 'Does the household have any child or relative currently attending secondary school?' },
+  { key: 'q_cooperative', label: 'Is the interviewee interested in joining a cooperative society that provides food relief to members?' },
+];
+
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+type DIFormState = {
+  first_name: string; surname: string; other_names: string;
+  age: string; sex: string; phone: string;
+  house_number: string; address: string; city: string; state: string;
+  notes: string; gps_lat: string; gps_lng: string;
+  q_scholarship: boolean | null; q_vocational: boolean | null;
+  q_high_school: boolean | null; q_cooperative: boolean | null;
+};
+
+/** Memoised personal-details step — prevents mobile keyboard from dismissing
+ *  mid-keystroke when unrelated state (saving, step, etc.) changes in parent. */
+const DIPersonalDetailsStep = React.memo(function DIPersonalDetailsStep({
+  form,
+  set,
+}: {
+  form: DIFormState;
+  set: (patch: Partial<DIFormState>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} onBlur={(e) => set({ first_name: titleCase(e.target.value) })} placeholder="e.g. John" /></EF>
+      <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: e.target.value })} onBlur={(e) => set({ surname: titleCase(e.target.value) })} placeholder="e.g. Adeyemi" /></EF>
+      <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: e.target.value })} onBlur={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
+      <EF label="Age"><Input type="number" min="1" max="120" value={form.age} onChange={(e) => set({ age: e.target.value })} /></EF>
+      <EF label="Sex" required>
+        <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
+          <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
+          <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
+        </Select>
+      </EF>
+      <EF label="Phone" className="sm:col-span-2"><Input type="tel" value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="e.g. 08012345678" /></EF>
+    </div>
+  );
+});
+
 function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -1084,7 +1139,6 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [step, setStep] = useState(0);
-  const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
   // ── Booking fields ──
   const [form, setForm] = useState({
@@ -1097,7 +1151,10 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
     q_high_school: null as boolean | null,
     q_cooperative: null as boolean | null,
   });
-  const set = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+  const set = useCallback(
+    (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch })),
+    [],
+  );
   const [interviewPrefs, setInterviewPrefs] = useState<string[]>([]);
   const [bookingRating, setBookingRating] = useState(0);
   const cities = form.state ? (NIGERIA_STATES[form.state] ?? []) : [];
@@ -1232,19 +1289,6 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
     }
   };
 
-  const EF: React.FC<{ label: string; required?: boolean; hint?: string; className?: string; children: React.ReactNode }> = ({ label, required, hint, className, children }) => (
-    <div className={`space-y-1.5 ${className ?? ''}`}>
-      <Label className="flex items-center gap-1">{label}{required && <span className="text-destructive">*</span>}{hint && <span className="text-xs text-muted-foreground font-normal">({hint})</span>}</Label>
-      {children}
-    </div>
-  );
-
-  const Q_ITEMS: { key: keyof typeof form; label: string }[] = [
-    { key: 'q_scholarship', label: 'Does the household have any child or relative who has finished secondary school but has not yet enrolled in a university — and could benefit from a scholarship?' },
-    { key: 'q_vocational',  label: 'Is there anyone in the household who could benefit from a vocational skills training or empowerment programme?' },
-    { key: 'q_high_school', label: 'Does the household have any child or relative currently attending secondary school?' },
-    { key: 'q_cooperative', label: 'Is the interviewee interested in joining a cooperative society that provides food relief to members?' },
-  ];
 
   return (
     <>
@@ -1275,19 +1319,7 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
           <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
 
             {step === 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <EF label="First Name" required><Input value={form.first_name} onChange={(e) => set({ first_name: e.target.value })} onBlur={(e) => set({ first_name: titleCase(e.target.value) })} placeholder="e.g. John" /></EF>
-                <EF label="Surname" required><Input value={form.surname} onChange={(e) => set({ surname: e.target.value })} onBlur={(e) => set({ surname: titleCase(e.target.value) })} placeholder="e.g. Adeyemi" /></EF>
-                <EF label="Other Names" hint="optional" className="sm:col-span-2"><Input value={form.other_names} onChange={(e) => set({ other_names: e.target.value })} onBlur={(e) => set({ other_names: titleCase(e.target.value) })} /></EF>
-                <EF label="Age"><Input type="number" min="1" max="120" value={form.age} onChange={(e) => set({ age: e.target.value })} /></EF>
-                <EF label="Sex" required>
-                  <Select value={form.sex} onValueChange={(v) => set({ sex: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select…" /></SelectTrigger>
-                    <SelectContent><SelectItem value="Male">Male</SelectItem><SelectItem value="Female">Female</SelectItem></SelectContent>
-                  </Select>
-                </EF>
-                <EF label="Phone" className="sm:col-span-2"><Input type="tel" value={form.phone} onChange={(e) => set({ phone: e.target.value })} placeholder="e.g. 08012345678" /></EF>
-              </div>
+              <DIPersonalDetailsStep form={form} set={set} />
             )}
 
             {step === 1 && (
@@ -1329,7 +1361,7 @@ function DirectInterviewForm({ onSaved }: { onSaved: () => void }) {
 
             {step === 3 && (
               <div className="space-y-3">
-                {Q_ITEMS.map(({ key, label }) => (
+                {DI_Q_ITEMS.map(({ key, label }) => (
                   <div key={key} className="rounded-xl border bg-card p-4 space-y-3">
                     <p className="text-sm leading-relaxed">{label}</p>
                     <div className="flex gap-2">
