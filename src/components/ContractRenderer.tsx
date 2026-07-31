@@ -54,12 +54,18 @@ function buildDocument(headerHtml: string, bodyHtml: string, footerHtml: string)
   }
   .contract-header img { max-width: 100%; }
 
-  /* Body */
+  /* Body — word-break: normal ensures whole words wrap, never mid-letter splits */
   .contract-body {
     padding: ${PAGE_PADDING_V}px ${PAGE_PADDING_H}px;
     flex: 1;
+    word-break: normal;
     overflow-wrap: break-word;
-    word-break: break-word;
+    hyphens: none;
+  }
+  .contract-body * {
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
   }
   .contract-body img { max-width: 100%; height: auto; }
   .contract-body h1, .contract-body h2, .contract-body h3 { margin: 1em 0 0.4em; font-weight: 700; }
@@ -80,6 +86,9 @@ function buildDocument(headerHtml: string, bodyHtml: string, footerHtml: string)
     font-size: 11px;
     color: #64748b;
     flex-shrink: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+    hyphens: none;
   }
 
   /* Print page breaks */
