@@ -9,9 +9,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
 import { supabase } from '@/integrations/supabase/client';
+import ContractRenderer from '@/components/ContractRenderer';
 import {
   Loader2, Search, FileText, CheckCircle, Sparkles,
-  ChevronRight, User, X,
+  ChevronRight, User, X, Eye, Code,
 } from 'lucide-react';
 
 interface Profile {
@@ -62,6 +63,7 @@ export default function AssignContractDialog({
   const [selectedUser, setSelectedUser]   = useState<Profile | null>(null);
   const [selectedTpls, setSelectedTpls]   = useState<string[]>([]);
   const [bodyHtml, setBodyHtml]           = useState('');
+  const [showRawHtml, setShowRawHtml]     = useState(false);
   const [saving, setSaving]               = useState(false);
 
   // Load existing contracts count for this user (for information only)
@@ -75,6 +77,7 @@ export default function AssignContractDialog({
     setSearch('');
     setSelectedTpls([]);
     setBodyHtml('');
+    setShowRawHtml(false);
     setExistingCount(0);
 
     if (preselectedUserId && preselectedUserName) {
@@ -423,11 +426,11 @@ export default function AssignContractDialog({
                 </div>
               )}
 
-              {/* ── STEP 3: Review & edit ───────────────────────────────── */}
+              {/* ── STEP 3: Review & send ──────────────────────────────── */}
               {step === 'review' && (
                 <div className="space-y-4">
                   {/* Summary chips */}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 items-center">
                     <Badge variant="outline" className="gap-1.5">
                       <User className="h-3 w-3" />
                       {selectedUser?.full_name}
@@ -446,24 +449,61 @@ export default function AssignContractDialog({
                     </button>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <Label>
-                      Contract Body{' '}
-                      <span className="text-muted-foreground font-normal text-xs">
-                        (the employee will read and sign this)
+                  {/* Label row with preview/edit toggle */}
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">
+                      Contract Preview
+                      <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                        — the employee will read and sign this
                       </span>
                     </Label>
-                    <textarea
-                      className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
-                      value={bodyHtml}
-                      onChange={(e) => setBodyHtml(e.target.value)}
-                      placeholder="Paste or type the full contract text…"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      HTML is supported. Use placeholders like{' '}
-                      <code className="bg-muted px-1 rounded">{'{{name}}'}</code> if needed.
-                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 gap-1.5 text-xs text-muted-foreground"
+                      onClick={() => setShowRawHtml((v) => !v)}
+                    >
+                      {showRawHtml
+                        ? <><Eye className="h-3.5 w-3.5" /> Preview</>
+                        : <><Code className="h-3.5 w-3.5" /> Edit HTML</>}
+                    </Button>
                   </div>
+
+                  {showRawHtml ? (
+                    /* Raw HTML editor for advanced tweaks */
+                    <div className="space-y-1">
+                      <textarea
+                        className="w-full min-h-[260px] rounded-md border border-input bg-background px-3 py-2 text-xs font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                        value={bodyHtml}
+                        onChange={(e) => setBodyHtml(e.target.value)}
+                        placeholder="HTML contract body…"
+                        spellCheck={false}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders like{' '}
+                        <code className="bg-muted px-1 rounded">{'{{name}}'}</code>,{' '}
+                        <code className="bg-muted px-1 rounded">{'{{position}}'}</code> if needed.
+                      </p>
+                    </div>
+                  ) : (
+                    /* Rendered contract preview */
+                    bodyHtml.trim() ? (
+                      <div className="rounded-lg bg-slate-100 p-3">
+                        <ContractRenderer bodyHtml={bodyHtml} />
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground text-sm">
+                        No contract content yet.{' '}
+                        <button
+                          className="text-primary hover:underline"
+                          onClick={() => setShowRawHtml(true)}
+                        >
+                          Click "Edit HTML" to add content.
+                        </button>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </>
