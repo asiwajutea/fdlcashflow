@@ -17,10 +17,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Navigate } from 'react-router-dom';
 import {
   FileText, Plus, Trash2, Edit2, Loader2, Upload, Eye,
-  Download, CheckCircle, XCircle, LayoutTemplate,
+  Download, CheckCircle, XCircle, LayoutTemplate, Send,
 } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
 import ContractRenderer from '@/components/ContractRenderer';
+import AssignContractDialog from '@/components/hr/AssignContractDialog';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,9 @@ export default function ContractTemplates() {
 
   // delete confirm
   const [deleting, setDeleting] = useState<string | null>(null);
+
+  // assign contract to employee
+  const [assignOpen, setAssignOpen] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -205,6 +209,9 @@ export default function ContractTemplates() {
           </div>
           <Button onClick={openNew} className="shrink-0">
             <Plus className="h-4 w-4 mr-1.5" /> New Template
+          </Button>
+          <Button variant="outline" onClick={() => setAssignOpen(true)} className="shrink-0">
+            <Send className="h-4 w-4 mr-1.5" /> Assign to Employee
           </Button>
         </div>
 
@@ -575,6 +582,12 @@ export default function ContractTemplates() {
 
         </DialogContent>
       </Dialog>
+
+      {/* ══ Assign Contract Dialog ════════════════════════════════════════════ */}
+      <AssignContractDialog
+        open={assignOpen}
+        onOpenChange={setAssignOpen}
+      />
 
     </DashboardLayout>
   );

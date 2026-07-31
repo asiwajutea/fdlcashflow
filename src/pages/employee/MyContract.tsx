@@ -29,6 +29,33 @@ export default function MyContract() {
   const load = async () => {
     if (!user) return;
     setLoading(true);
+
+    // 1. Look for a contract assigned directly to this user (employee assignment)
+    const { data: directContracts } = await db
+      .from('contracts')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    const directUnsigned =
+      (directContracts as any[] || []).find((c: any) => !c.signed_at) ||
+      (directContracts as any[] || [])[0];
+
+    if (directUnsigned) {
+      setContract(directUnsigned);
+      if (directUnsigned.template_id) {
+        const { data: t } = await db
+          .from('contract_templates')
+          .select('*')
+          .eq('id', directUnsigned.template_id)
+          .maybeSingle();
+        setTemplate(t);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 2. Fall back to candidate-pipeline contracts (via applications)
     const { data: cand } = await db.from('candidates').select('id').eq('user_id', user.id).maybeSingle();
     let candId = cand?.id;
     const { data: apps } = candId
