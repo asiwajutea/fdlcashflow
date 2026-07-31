@@ -173,7 +173,8 @@ export default function AssignContractDialog({
       };
 
       // Always insert a new contract — employees can have multiple
-      await db.from('contracts').insert(payload);
+      const { error: insertError } = await db.from('contracts').insert(payload);
+      if (insertError) throw insertError;
 
       // Notify the employee via inbox
       try {
