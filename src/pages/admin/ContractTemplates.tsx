@@ -491,15 +491,15 @@ export default function ContractTemplates() {
               <div className="flex items-center gap-2 mb-3">
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">Live Preview</span>
-                <span className="text-xs text-muted-foreground">— scales to fit</span>
               </div>
-              {/* bg-slate-200 = "print desk"; NO overflow:hidden so content isn't clipped */}
-              <div className="rounded-lg bg-slate-200" style={{ padding: '16px' }}>
-                <ContractRenderer
-                  headerHtml={form.header_html}
-                  bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
-                  footerHtml={form.footer_html}
-                />
+              <div className="rounded-lg bg-slate-100 p-4">
+                <div className="max-w-2xl mx-auto">
+                  <ContractRenderer
+                    headerHtml={form.header_html}
+                    bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
+                    footerHtml={form.footer_html}
+                  />
+                </div>
               </div>
             </div>
 
@@ -563,11 +563,13 @@ export default function ContractTemplates() {
             style={{ padding: '24px 16px' }}
           >
             {previewItem && (
-              <ContractRenderer
-                headerHtml={previewItem.header_html}
-                bodyHtml={previewItem.body_html}
-                footerHtml={previewItem.footer_html}
-              />
+              <div className="max-w-3xl mx-auto">
+                <ContractRenderer
+                  headerHtml={previewItem.header_html}
+                  bodyHtml={previewItem.body_html}
+                  footerHtml={previewItem.footer_html}
+                />
+              </div>
             )}
           </div>
 
