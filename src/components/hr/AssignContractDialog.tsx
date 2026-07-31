@@ -64,8 +64,8 @@ export default function AssignContractDialog({
   const [bodyHtml, setBodyHtml]           = useState('');
   const [saving, setSaving]               = useState(false);
 
-  // ── Existing contract for this user ──────────────────────────────────────
-  const [existing, setExisting] = useState<any>(null);
+  // Load existing contracts count for this user (for information only)
+  const [existingCount, setExistingCount] = useState(0);
 
   // ── Load data on open ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function AssignContractDialog({
     setSearch('');
     setSelectedTpls([]);
     setBodyHtml('');
-    setExisting(null);
+    setExistingCount(0);
 
     if (preselectedUserId && preselectedUserName) {
       setSelectedUser({ id: preselectedUserId, full_name: preselectedUserName, avatar_url: null });
@@ -107,17 +107,14 @@ export default function AssignContractDialog({
     fetchData();
   }, [open, preselectedUserId, preselectedUserName]);
 
-  // Load existing contract when a user is selected
+  // Load existing contracts count when a user is selected
   useEffect(() => {
     if (!selectedUser) return;
     db
       .from('contracts')
-      .select('*')
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', selectedUser.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => setExisting(data));
+      .then(({ count }) => setExistingCount(count ?? 0));
   }, [selectedUser]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -172,11 +169,8 @@ export default function AssignContractDialog({
         created_by:  user.id,
       };
 
-      if (existing) {
-        await db.from('contracts').update(payload).eq('id', existing.id);
-      } else {
-        await db.from('contracts').insert(payload);
-      }
+      // Always insert a new contract — employees can have multiple
+      await db.from('contracts').insert(payload);
 
       // Notify the employee via inbox
       try {
@@ -345,11 +339,11 @@ export default function AssignContractDialog({
                     </div>
                   )}
 
-                  {/* Existing contract notice */}
-                  {existing && (
-                    <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 dark:bg-amber-950/20 dark:border-amber-800 dark:text-amber-400">
-                      This employee already has a contract (status: <strong>{existing.status}</strong>).
-                      Proceeding will replace it.
+                  {/* Existing contracts notice */}
+                  {existingCount > 0 && (
+                    <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-700 dark:bg-blue-950/20 dark:border-blue-800 dark:text-blue-400">
+                      This employee already has <strong>{existingCount}</strong> contract{existingCount > 1 ? 's' : ''} assigned.
+                      This will add a new one — they will need to sign all of them.
                     </div>
                   )}
 
