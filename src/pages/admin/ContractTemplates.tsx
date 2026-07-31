@@ -493,8 +493,8 @@ export default function ContractTemplates() {
                 <span className="text-sm font-medium text-foreground">Live Preview</span>
                 <span className="text-xs text-muted-foreground">— scales to fit</span>
               </div>
-              {/* bg-slate-200 = "print desk"; the iframe page sits on top of it */}
-              <div className="rounded-lg overflow-hidden bg-slate-200" style={{ padding: '16px' }}>
+              {/* bg-slate-200 = "print desk"; NO overflow:hidden so content isn't clipped */}
+              <div className="rounded-lg bg-slate-200" style={{ padding: '16px' }}>
                 <ContractRenderer
                   headerHtml={form.header_html}
                   bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
@@ -557,7 +557,7 @@ export default function ContractTemplates() {
             </DialogTitle>
           </DialogHeader>
 
-          {/* Grey "print desk" background — A4 pages sit on top of it */}
+          {/* Grey "print desk" background — page sits on top */}
           <div
             className="flex-1 overflow-y-auto bg-slate-200"
             style={{ padding: '24px 16px' }}
