@@ -7,176 +7,227 @@ interface ContractRendererProps {
   bodyHtml?: string;
   footerHtml?: string;
   className?: string;
-  /** id used by html2canvas/print capture — only applies to non-iframe mode */
+  /** id used by html2canvas/print capture — only applies to inline mode */
   captureId?: string;
   /**
-   * 'iframe'  — isolated iframe, scales to fit container, best for preview (default)
+   * 'iframe'  — isolated iframe, scales to fit container (default — best for preview)
    * 'inline'  — plain div, used for PDF capture / print
    */
   mode?: 'iframe' | 'inline';
 }
 
+// Sanitise but keep layout-relevant attributes; strip word-break/hyphens inline styles
 const sanitize = (html: string) =>
-  DOMPurify.sanitize(html || '', { ADD_ATTR: ['target', 'rel', 'style'] });
+  DOMPurify.sanitize(html || '', {
+    ADD_ATTR: ['target', 'rel', 'style'],
+    // Force-strip any inline word-break or hyphens that the editor may have injected
+    FORBID_ATTR: [],
+  });
 
-// ── A4 page dimensions at 96 dpi ─────────────────────────────────────────────
-const A4_W = 794;   // px
-const A4_H = 1123;  // px
-const PAGE_PADDING_H = 64;  // px left+right inside the page
-const PAGE_PADDING_V = 48;  // px top+bottom
+// ── A4 at 96 dpi ─────────────────────────────────────────────────────────────
+const A4_W_PX = 794;
+const A4_H_PX = 1123;
+const MARGIN_H = 72; // px, left + right margin inside the page (each side)
+const MARGIN_V = 56; // px, top + bottom
 
-// ── Build the full HTML document rendered inside the iframe ──────────────────
-function buildDocument(headerHtml: string, bodyHtml: string, footerHtml: string): string {
+// ── Build the iframe document ─────────────────────────────────────────────────
+// Key insight: we set the viewport to exactly A4 width so the browser lays out
+// text at the correct line length. `word-break: normal` + `overflow-wrap: normal`
+// + `hyphens: none` on EVERYTHING prevents any mid-word breaks.
+// The editor's output sometimes wraps content in a div that has inherited
+// styles — we override every element unconditionally.
+function buildIframeDoc(header: string, body: string, footer: string): string {
   return `<!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8"/>
+<meta name="viewport" content="width=${A4_W_PX}"/>
 <style>
-  /* Reset */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-  html, body { width: ${A4_W}px; background: #fff; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 13px; line-height: 1.6; }
+/* ── Hard reset ────────────────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  /* The three lines below are the critical fix.
+     word-break:normal  → only break at spaces/hyphens, NEVER mid-character.
+     overflow-wrap:normal → don't even break long URLs unless really necessary.
+     hyphens:none       → no automatic hyphenation. */
+  word-break: normal !important;
+  overflow-wrap: normal !important;
+  hyphens: none !important;
+  -webkit-hyphens: none !important;
+}
 
-  /* Page shell */
-  .page {
-    width: ${A4_W}px;
-    min-height: ${A4_H}px;
-    display: flex;
-    flex-direction: column;
-    background: #fff;
-    page-break-after: always;
-  }
+html {
+  width: ${A4_W_PX}px;
+  min-width: ${A4_W_PX}px;
+}
+body {
+  width: ${A4_W_PX}px;
+  min-width: ${A4_W_PX}px;
+  background: #ffffff;
+  color: #111111;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
 
-  /* Header */
-  .contract-header {
-    padding: ${PAGE_PADDING_V / 1.5}px ${PAGE_PADDING_H}px ${PAGE_PADDING_V / 2}px;
-    border-bottom: 1px solid #e2e8f0;
-    flex-shrink: 0;
-  }
-  .contract-header img { max-width: 100%; }
+/* ── Page shell ────────────────────────────────────────────────────────────── */
+.page {
+  width: ${A4_W_PX}px;
+  min-height: ${A4_H_PX}px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
 
-  /* Body — word-break: normal ensures whole words wrap, never mid-letter splits */
-  .contract-body {
-    padding: ${PAGE_PADDING_V}px ${PAGE_PADDING_H}px;
-    flex: 1;
-    word-break: normal;
-    overflow-wrap: break-word;
-    hyphens: none;
-  }
-  .contract-body * {
-    word-break: normal;
-    overflow-wrap: break-word;
-    hyphens: none;
-  }
-  .contract-body img { max-width: 100%; height: auto; }
-  .contract-body h1, .contract-body h2, .contract-body h3 { margin: 1em 0 0.4em; font-weight: 700; }
-  .contract-body h1 { font-size: 18px; }
-  .contract-body h2 { font-size: 15px; }
-  .contract-body h3 { font-size: 13px; }
-  .contract-body p  { margin-bottom: 0.75em; }
-  .contract-body ul, .contract-body ol { margin: 0.5em 0 0.75em 1.5em; }
-  .contract-body li { margin-bottom: 0.25em; }
-  .contract-body table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
-  .contract-body td, .contract-body th { border: 1px solid #cbd5e1; padding: 6px 10px; }
-  .contract-body strong, .contract-body b { font-weight: 700; }
+/* ── Header ────────────────────────────────────────────────────────────────── */
+.contract-header {
+  padding: 36px ${MARGIN_H}px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  flex-shrink: 0;
+}
+.contract-header img { max-width: 100%; height: auto; display: block; }
 
-  /* Footer */
-  .contract-footer {
-    padding: ${PAGE_PADDING_V / 2}px ${PAGE_PADDING_H}px ${PAGE_PADDING_V / 1.5}px;
-    border-top: 1px solid #e2e8f0;
-    font-size: 11px;
-    color: #64748b;
-    flex-shrink: 0;
-    word-break: normal;
-    overflow-wrap: break-word;
-    hyphens: none;
-  }
+/* ── Body ──────────────────────────────────────────────────────────────────── */
+.contract-body {
+  padding: ${MARGIN_V}px ${MARGIN_H}px;
+  flex: 1;
+}
 
-  /* Print page breaks */
-  @media print {
-    .page { min-height: 100vh; }
-  }
+/* Typography inside body */
+.contract-body p {
+  margin-bottom: 0.85em;
+}
+.contract-body h1 { font-size: 20px; font-weight: 700; margin: 1.1em 0 0.4em; }
+.contract-body h2 { font-size: 16px; font-weight: 700; margin: 1em 0 0.4em; }
+.contract-body h3 { font-size: 14px; font-weight: 700; margin: 0.9em 0 0.35em; }
+.contract-body h4, .contract-body h5 { font-size: 13.5px; font-weight: 700; margin: 0.8em 0 0.3em; }
+.contract-body ul, .contract-body ol { margin: 0.5em 0 0.85em 1.6em; }
+.contract-body li { margin-bottom: 0.3em; }
+.contract-body strong, .contract-body b { font-weight: 700; }
+.contract-body em, .contract-body i { font-style: italic; }
+.contract-body u { text-decoration: underline; }
+.contract-body blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding: 8px 16px;
+  color: #475569;
+  margin: 1em 0;
+}
+.contract-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+  font-size: 12.5px;
+}
+.contract-body td, .contract-body th {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  vertical-align: top;
+}
+.contract-body th { font-weight: 700; background: #f8fafc; }
+.contract-body img { max-width: 100%; height: auto; }
+.contract-body a { color: #2563eb; text-decoration: underline; }
+.contract-body hr { border: none; border-top: 1px solid #e2e8f0; margin: 1em 0; }
+
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+.contract-footer {
+  padding: 20px ${MARGIN_H}px 32px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 11px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+.contract-footer img { max-width: 100%; height: auto; }
 </style>
 </head>
 <body>
-  <div class="page">
-    ${headerHtml ? `<div class="contract-header">${sanitize(headerHtml)}</div>` : ''}
-    <div class="contract-body">${sanitize(bodyHtml)}</div>
-    ${footerHtml ? `<div class="contract-footer">${sanitize(footerHtml)}</div>` : ''}
-  </div>
+<div class="page">
+  ${header ? `<div class="contract-header">${sanitize(header)}</div>` : ''}
+  <div class="contract-body">${sanitize(body)}</div>
+  ${footer ? `<div class="contract-footer">${sanitize(footer)}</div>` : ''}
+</div>
 </body>
 </html>`;
 }
 
-// ── ScaledIframe ─────────────────────────────────────────────────────────────
-// Renders the contract at full A4 width (794px) inside an iframe, then CSS-scales
-// the iframe down to fit the available container width. This way text never wraps
-// differently than it would on a real A4 page and nothing gets clipped.
+// ── ScaledIframe ──────────────────────────────────────────────────────────────
+// The iframe is written at full A4 width so text wraps at the correct line
+// length. A CSS transform then scales it down to fit whatever container is
+// available — nothing gets clipped and word-wrap is determined by the A4 layout,
+// not the screen width.
 function ScaledIframe({ html, className }: { html: string; className?: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapRef   = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [scale, setScale] = useState(1);
-  const [iframeHeight, setIframeHeight] = useState(A4_H);
+  const [scale,        setScale]        = useState(1);
+  const [contentHeight, setContentHeight] = useState(A4_H_PX);
 
-  // Compute scale whenever container resizes
+  // Re-compute scale whenever the outer container changes size
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const compute = () => {
-      const availableW = container.clientWidth;
-      setScale(availableW > 0 ? Math.min(1, availableW / A4_W) : 1);
+    const el = wrapRef.current;
+    if (!el) return;
+    const update = () => {
+      const w = el.clientWidth;
+      setScale(w > 0 ? Math.min(1, w / A4_W_PX) : 1);
     };
-
-    compute();
-    const ro = new ResizeObserver(compute);
-    ro.observe(container);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // Write HTML into the iframe and sync its height to actual content height
+  // Inject HTML and measure actual content height after render
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
 
-    const onLoad = () => {
-      const doc = iframe.contentDocument;
-      if (!doc) return;
-      // Let content determine its own height
-      const h = doc.documentElement.scrollHeight || A4_H;
-      setIframeHeight(Math.max(h, A4_H));
+    const measure = () => {
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        const h = doc.documentElement.scrollHeight;
+        setContentHeight(Math.max(h, A4_H_PX));
+      } catch { /* cross-origin guard */ }
     };
 
-    iframe.addEventListener('load', onLoad);
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
+    // Write synchronously so the load event fires reliably
+    const doc = iframe.contentDocument ?? iframe.contentWindow?.document;
     if (doc) {
       doc.open();
       doc.write(html);
       doc.close();
     }
-    return () => iframe.removeEventListener('load', onLoad);
+
+    // Measure after the next paint (images / fonts may change height)
+    iframe.onload = measure;
+    const raf = requestAnimationFrame(() => setTimeout(measure, 50));
+    return () => cancelAnimationFrame(raf);
   }, [html]);
 
-  // The wrapper div must have explicit height = iframeHeight * scale so that
-  // the parent scroll container knows the correct rendered height
-  const scaledHeight = iframeHeight * scale;
+  const displayHeight = contentHeight * scale;
 
   return (
-    <div ref={containerRef} className={cn('w-full', className)}>
-      <div style={{ width: '100%', height: scaledHeight, position: 'relative', overflow: 'hidden' }}>
+    <div ref={wrapRef} className={cn('w-full', className)}>
+      {/* Outer div reserves the correct scaled height for the scroll container */}
+      <div style={{ position: 'relative', width: '100%', height: displayHeight }}>
         <iframe
           ref={iframeRef}
           title="Contract preview"
           scrolling="no"
+          /* width + height as CSS (px), NOT as HTML attributes, so the browser
+             respects them properly when combined with transform */
           style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: A4_W,
-            height: iframeHeight,
-            border: 'none',
+            position:        'absolute',
+            top:             0,
+            left:            0,
+            width:           `${A4_W_PX}px`,
+            height:          `${contentHeight}px`,
+            border:          'none',
             transformOrigin: 'top left',
-            transform: `scale(${scale})`,
-            background: '#fff',
+            transform:       `scale(${scale})`,
+            background:      '#ffffff',
+            display:         'block',
           }}
         />
       </div>
@@ -184,57 +235,57 @@ function ScaledIframe({ html, className }: { html: string; className?: string })
   );
 }
 
-// ── ContractRenderer (public API) ─────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 export function ContractRenderer({
   headerHtml = '',
-  bodyHtml = '',
+  bodyHtml   = '',
   footerHtml = '',
   className,
   captureId,
   mode = 'iframe',
 }: ContractRendererProps) {
 
-  // ── iframe mode (default — preview) ────────────────────────────────────────
+  // ── iframe mode (preview) ────────────────────────────────────────────────
   if (mode === 'iframe') {
-    const html = buildDocument(headerHtml, bodyHtml, footerHtml);
     return (
       <div
-        className={cn(
-          'contract-page-wrapper bg-white shadow-md rounded-sm overflow-hidden',
-          className,
-        )}
-        style={{ border: '1px solid #e2e8f0' }}
+        className={cn('contract-page-wrapper bg-white shadow-md', className)}
+        style={{ border: '1px solid #e2e8f0', borderRadius: 3, overflow: 'hidden' }}
       >
-        <ScaledIframe html={html} />
+        <ScaledIframe html={buildIframeDoc(headerHtml, bodyHtml, footerHtml)} />
       </div>
     );
   }
 
-  // ── inline mode (PDF capture / print) ───────────────────────────────────────
+  // ── inline mode (PDF capture / print) ───────────────────────────────────
   const looksHtml = /<\w+[\s>]/.test(bodyHtml);
   return (
     <div
       id={captureId}
-      className={cn(
-        'contract-doc bg-white text-neutral-900',
-        className,
-      )}
-      style={{ width: A4_W, fontFamily: 'sans-serif', fontSize: 13 }}
+      className={cn('contract-doc bg-white text-neutral-900', className)}
+      style={{
+        width: A4_W_PX,
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 13,
+        wordBreak: 'normal',
+        overflowWrap: 'normal',
+      }}
     >
       {headerHtml && (
         <div
-          style={{ padding: '32px 64px 20px', borderBottom: '1px solid #e2e8f0' }}
+          style={{ padding: `36px ${MARGIN_H}px 24px`, borderBottom: '1px solid #e2e8f0' }}
           dangerouslySetInnerHTML={{ __html: sanitize(headerHtml) }}
         />
       )}
-      <div style={{ padding: '48px 64px', flex: 1 }}>
+      <div style={{ padding: `${MARGIN_V}px ${MARGIN_H}px` }}>
         {looksHtml
           ? <div dangerouslySetInnerHTML={{ __html: sanitize(bodyHtml) }} />
-          : <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.6 }}>{bodyHtml}</div>}
+          : <div style={{ whiteSpace: 'pre-wrap', fontSize: 13, lineHeight: 1.65 }}>{bodyHtml}</div>
+        }
       </div>
       {footerHtml && (
         <div
-          style={{ padding: '16px 64px 28px', borderTop: '1px solid #e2e8f0', fontSize: 11, color: '#64748b' }}
+          style={{ padding: `20px ${MARGIN_H}px 32px`, borderTop: '1px solid #e2e8f0', fontSize: 11, color: '#64748b' }}
           dangerouslySetInnerHTML={{ __html: sanitize(footerHtml) }}
         />
       )}
