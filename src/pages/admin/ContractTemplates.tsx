@@ -22,6 +22,17 @@ import {
 import RichTextEditor from '@/components/RichTextEditor';
 import ContractRenderer from '@/components/ContractRenderer';
 
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+/** Decode HTML to plain text (strips tags AND decodes entities like &nbsp;) */
+function htmlToPlainText(html: string): string {
+  if (!html) return '';
+  // Use a temporary textarea to decode HTML entities, then strip remaining tags
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM = {
@@ -223,9 +234,9 @@ export default function ContractTemplates() {
           <div className="grid gap-3">
             {items.map((it) => {
               const pos = positions.find((p) => p.id === it.position_id);
-              // Strip HTML tags for the plain-text snippet
+              // Decode HTML to clean plain text for the snippet
               const snippet = it.body_html
-                ? it.body_html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+                ? htmlToPlainText(it.body_html).slice(0, 200)
                 : null;
 
               return (
@@ -302,10 +313,10 @@ export default function ContractTemplates() {
                           )}
                         </div>
 
-                        {/* Body snippet — plain text, no HTML */}
+                        {/* Body snippet — clean plain text */}
                         {snippet && (
                           <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                            {snippet}{snippet.length >= 180 ? '…' : ''}
+                            {snippet}{snippet.length >= 200 ? '…' : ''}
                           </p>
                         )}
                       </div>
@@ -480,13 +491,10 @@ export default function ContractTemplates() {
               <div className="flex items-center gap-2 mb-3">
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">Live Preview</span>
-                <span className="text-xs text-muted-foreground">— A4 page simulation</span>
+                <span className="text-xs text-muted-foreground">— scales to fit</span>
               </div>
-              {/* Constrained scroll box so the preview doesn't blow out the dialog */}
-              <div
-                className="rounded-lg border bg-slate-100 overflow-auto"
-                style={{ maxHeight: '480px', padding: '20px' }}
-              >
+              {/* bg-slate-200 = "print desk"; the iframe page sits on top of it */}
+              <div className="rounded-lg overflow-hidden bg-slate-200" style={{ padding: '16px' }}>
                 <ContractRenderer
                   headerHtml={form.header_html}
                   bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
