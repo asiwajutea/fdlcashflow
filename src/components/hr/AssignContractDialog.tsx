@@ -169,7 +169,6 @@ export default function AssignContractDialog({
         template_id: selectedTpls[0] || null,
         body_html:   bodyHtml,
         status:      'pending',
-        created_by:  user.id,
       };
 
       // Always insert a new contract — employees can have multiple
