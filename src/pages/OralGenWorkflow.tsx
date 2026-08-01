@@ -19,12 +19,13 @@ import { PrefPicker } from '@/components/oralgen/PrefPicker';
 import { StarRating } from '@/components/oralgen/StarRating';
 import { PhotoCapture } from '@/components/oralgen/PhotoCapture';
 import { OralGenOverview } from '@/components/oralgen/OralGenOverview';
+import { OralGenPayroll } from '@/components/oralgen/OralGenPayroll';
 import { STATE_LIST, NIGERIA_STATES } from '@/lib/nigeria-states-cities';
 import {
   MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
   Loader2, ClipboardList, Users, Gavel, Camera, Navigation,
   Search, X, Pencil, Plus, ChevronLeft, ChevronRight,
-  ChevronDown, SlidersHorizontal, Trash2, BarChart2,
+  ChevronDown, SlidersHorizontal, Trash2, BarChart2, Banknote,
 } from 'lucide-react';
 
 type Status =
@@ -2398,6 +2399,9 @@ const OralGenWorkflow: React.FC = () => {
           {canInterview && <TabsTrigger value="interviews"><Users className="h-4 w-4 mr-1" /> Interviews</TabsTrigger>}
           {canAudit && <TabsTrigger value="audits"><Gavel className="h-4 w-4 mr-1" /> Audits</TabsTrigger>}
           <TabsTrigger value="all"><ClipboardList className="h-4 w-4 mr-1" /> My History</TabsTrigger>
+          {(isAdmin || canInterview || canAudit) && (
+            <TabsTrigger value="payroll"><Banknote className="h-4 w-4 mr-1" /> Payroll</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -2455,6 +2459,17 @@ const OralGenWorkflow: React.FC = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {(isAdmin || canInterview || canAudit) && (
+          <TabsContent value="payroll" className="mt-4">
+            <OralGenPayroll
+              rows={rows as any}
+              isAdmin={isAdmin}
+              canAudit={canAudit}
+              canInterview={canInterview}
+            />
+          </TabsContent>
+        )}
       </Tabs>
     </DashboardLayout>
   );
