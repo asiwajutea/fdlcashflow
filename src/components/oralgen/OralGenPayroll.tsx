@@ -358,20 +358,33 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
   }, [isAdmin, user?.id]);
 
   // ── Count names per agent within the date range ──────────────────────────
+  // For pay purposes, names are counted when the interview is completed
+  // (interview_completed_at is set). We fall back to created_at only for
+  // records that haven't been through the completion step yet.
+  // A record counts toward pay if it has total_names > 0 and its relevant
+  // timestamp falls within the selected date range.
   const namesByAgent = useMemo(() => {
     const counts: Record<string, number> = {};
     rows.forEach(r => {
-      // Only count completed interviews within the range
-      const completedAt = r.interview_completed_at ?? r.created_at;
+      const names = r.total_names ?? 0;
+      if (names <= 0) return; // no names to count, skip entirely
+
+      // Use interview_completed_at as the canonical "when did this count" date.
+      // Fall back to created_at only when completion date isn't recorded yet.
+      const relevantDate = r.interview_completed_at ?? r.created_at;
       try {
-        const d = parseISO(completedAt);
+        const d = parseISO(relevantDate);
         if (!isWithinInterval(d, { start: startOfDay(range.from), end: endOfDay(range.to) })) return;
       } catch { return; }
-      const names = r.total_names ?? 0;
-      // Credit the interviewer
-      if (r.interviewer_id) counts[r.interviewer_id] = (counts[r.interviewer_id] ?? 0) + names;
-      // Credit the field manager (auditor)
-      if (r.field_manager_id) counts[r.field_manager_id] = (counts[r.field_manager_id] ?? 0) + names;
+
+      // Credit the interviewer who recorded the names
+      if (r.interviewer_id) {
+        counts[r.interviewer_id] = (counts[r.interviewer_id] ?? 0) + names;
+      }
+      // Credit the field manager who accepted/audited the interview
+      if (r.field_manager_id) {
+        counts[r.field_manager_id] = (counts[r.field_manager_id] ?? 0) + names;
+      }
     });
     return counts;
   }, [rows, range]);
@@ -405,9 +418,10 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const monthEnd   = endOfMonth(subMonths(now, i));
       const names = rows
         .filter(r => {
-          const completedAt = r.interview_completed_at ?? r.created_at;
+          if ((r.total_names ?? 0) <= 0) return false; // no names, skip
+          const relevantDate = r.interview_completed_at ?? r.created_at;
           try {
-            const d = parseISO(completedAt);
+            const d = parseISO(relevantDate);
             return (
               isWithinInterval(d, { start: startOfDay(monthStart), end: endOfDay(monthEnd) }) &&
               (r.interviewer_id === user.id || r.field_manager_id === user.id)
