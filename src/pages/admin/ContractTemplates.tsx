@@ -499,8 +499,8 @@ export default function ContractTemplates() {
                 <Eye className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium text-foreground">Live Preview</span>
               </div>
-              <div className="rounded-lg bg-slate-100 p-4">
-                <div className="max-w-2xl mx-auto">
+              <div className="rounded-lg bg-slate-100 p-4 overflow-x-auto">
+                <div className="mx-auto w-fit">
                   <ContractRenderer
                     headerHtml={form.header_html}
                     bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
