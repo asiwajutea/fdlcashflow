@@ -393,22 +393,49 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       }
     });
 
-    // Merge: for each agent, pick the right counter based on their role
+    // Merge: use the correct counter based on each agent's actual role
+    // Build a role lookup from the agents array (populated from oralgen_pay_effective)
+    const agentRoleMap: Record<string, 'interviewer' | 'field_manager' | null> = {};
+    agents.forEach(a => { agentRoleMap[a.id] = a.role; });
+
     const counts: Record<string, number> = {};
-    // All interviewers
-    Object.entries(interviewerNames).forEach(([id, n]) => { counts[id] = n; });
-    // Field managers — team names override/replace any interviewer-credited value
-    Object.entries(managerNames).forEach(([id, n]) => { counts[id] = n; });
+
+    // Add all IDs that appear in either counter
+    const allIds = new Set([
+      ...Object.keys(interviewerNames),
+      ...Object.keys(managerNames),
+    ]);
+
+    allIds.forEach(id => {
+      const role = agentRoleMap[id];
+      if (role === 'field_manager') {
+        // Field manager quota = team output (all records they managed)
+        counts[id] = managerNames[id] ?? 0;
+      } else {
+        // Field agent / interviewer quota = personal output
+        // Also fall back to managerNames if they happen to appear there too
+        counts[id] = interviewerNames[id] ?? managerNames[id] ?? 0;
+      }
+    });
+
     return counts;
-  }, [rows, range]);
+  }, [rows, range, agents]);
 
   // ── Build pay rows ───────────────────────────────────────────────────────
   const payRows = useMemo(() => {
     if (view === 'personal') {
       const cfg = myConfig ?? agents.find(a => a.id === user?.id);
       if (!cfg) return [];
-      const names = namesByAgent[user?.id ?? ''] ?? 0;
-      const pay   = calcPay(names, cfg);
+      // For personal view, recompute names directly from rows using role-aware logic
+      const uid = user?.id ?? '';
+      const names = cfg.role === 'field_manager'
+        ? rows.filter(r => {
+            if ((r.total_names ?? 0) <= 0) return false;
+            const d = (() => { try { return parseISO(r.audit_completed_at ?? r.interview_completed_at ?? r.created_at); } catch { return null; } })();
+            return d && isWithinInterval(d, { start: startOfDay(range.from), end: endOfDay(range.to) }) && r.field_manager_id === uid;
+          }).reduce((s, r) => s + (r.total_names ?? 0), 0)
+        : namesByAgent[uid] ?? 0;
+      const pay = calcPay(names, cfg);
       return [{ ...cfg, names, ...pay }];
     }
     // Team view — all agents
