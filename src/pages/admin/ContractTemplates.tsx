@@ -566,11 +566,11 @@ export default function ContractTemplates() {
 
           {/* Grey "print desk" background — page sits on top */}
           <div
-            className="flex-1 overflow-y-auto bg-slate-200"
+            className="flex-1 overflow-auto bg-slate-200"
             style={{ padding: '24px 16px' }}
           >
             {previewItem && (
-              <div className="max-w-3xl mx-auto">
+              <div className="mx-auto w-fit">
                 <ContractRenderer
                   headerHtml={previewItem.header_html}
                   bodyHtml={previewItem.body_html}
