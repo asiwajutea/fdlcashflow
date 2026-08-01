@@ -146,15 +146,21 @@ export function OralGenOverview({ rows, isAdmin, canAudit }: Props) {
   const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
 
-  // Load agent profiles for team view
+  // Load agent profiles for team view — needed by both admins and auditors
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!canSeeTeam) return;
     const ids = [...new Set(rows.map(r => r.created_by).filter(Boolean))];
-    if (!ids.length) return;
+    // For auditors, also collect interviewer_ids from their scoped rows
+    const interviewerIds = [...new Set(rows
+      .filter(r => !isAdmin && canAudit && user?.id ? r.field_manager_id === user.id : true)
+      .map(r => r.interviewer_id)
+      .filter(Boolean))] as string[];
+    const allIds = [...new Set([...ids, ...interviewerIds])];
+    if (!allIds.length) return;
     setAgentsLoading(true);
-    db.from('profiles').select('id, full_name').in('id', ids)
+    db.from('profiles').select('id, full_name').in('id', allIds)
       .then(({ data }) => { setAgents((data as AgentProfile[]) || []); setAgentsLoading(false); });
-  }, [rows, isAdmin]);
+  }, [rows, canSeeTeam, isAdmin, canAudit, user?.id]);
 
   const agentMap = useMemo(() => {
     const m: Record<string, string> = {};
@@ -277,24 +283,36 @@ export function OralGenOverview({ rows, isAdmin, canAudit }: Props) {
   const agentLeaderboard = useMemo(() => {
     if (view !== 'team') return [];
     const counts: Record<string, { booked: number; interviewed: number; completed: number }> = {};
+
     filtered.forEach(r => {
-      if (r.created_by) {
-        if (!counts[r.created_by]) counts[r.created_by] = { booked:0, interviewed:0, completed:0 };
-        counts[r.created_by].booked++;
-      }
-      if (r.interviewer_id) {
-        if (!counts[r.interviewer_id]) counts[r.interviewer_id] = { booked:0, interviewed:0, completed:0 };
-        counts[r.interviewer_id].interviewed++;
-      }
-      if (r.status === 'completed' && r.created_by) {
-        counts[r.created_by].completed++;
+      if (isAdmin) {
+        // Admin: track all three roles
+        if (r.created_by) {
+          if (!counts[r.created_by]) counts[r.created_by] = { booked:0, interviewed:0, completed:0 };
+          counts[r.created_by].booked++;
+        }
+        if (r.interviewer_id) {
+          if (!counts[r.interviewer_id]) counts[r.interviewer_id] = { booked:0, interviewed:0, completed:0 };
+          counts[r.interviewer_id].interviewed++;
+        }
+        if (r.status === 'completed' && r.created_by) {
+          counts[r.created_by].completed++;
+        }
+      } else {
+        // Auditor: group by interviewer_id — show who did the interviews they audited
+        const key = r.interviewer_id;
+        if (!key) return;
+        if (!counts[key]) counts[key] = { booked:0, interviewed:0, completed:0 };
+        counts[key].interviewed++;
+        if (r.status === 'completed') counts[key].completed++;
       }
     });
+
     return Object.entries(counts)
-      .map(([id, v]) => ({ id, name: agentMap[id] ?? id.slice(0,8)+'…', ...v, total: v.booked }))
+      .map(([id, v]) => ({ id, name: agentMap[id] || id.slice(0,8)+'…', ...v, total: isAdmin ? v.booked : v.interviewed }))
       .sort((a,b) => b.total - a.total)
       .slice(0, 10);
-  }, [filtered, view, agentMap]);
+  }, [filtered, view, agentMap, isAdmin]);
 
   // ── Rating distribution (bar) ─────────────────────────────────────────────
   const ratingBar = useMemo(() => {
