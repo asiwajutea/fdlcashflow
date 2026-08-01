@@ -391,7 +391,39 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
     });
   }, [view, agents, myConfig, namesByAgent, user?.id]);
 
-  // ── Sort ─────────────────────────────────────────────────────────────────
+  // ── Month-by-month history (personal view — last 6 months) ──────────────
+  const monthlyHistory = useMemo(() => {
+    if (view !== 'personal' || !user?.id) return [];
+    const cfg = myConfig ?? agents.find(a => a.id === user.id);
+    if (!cfg) return [];
+
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const monthStart = startOfMonth(subMonths(now, i));
+      const monthEnd   = endOfMonth(subMonths(now, i));
+      const names = rows
+        .filter(r => {
+          const completedAt = r.interview_completed_at ?? r.created_at;
+          try {
+            const d = parseISO(completedAt);
+            return (
+              isWithinInterval(d, { start: startOfDay(monthStart), end: endOfDay(monthEnd) }) &&
+              (r.interviewer_id === user.id || r.field_manager_id === user.id)
+            );
+          } catch { return false; }
+        })
+        .reduce((s, r) => s + (r.total_names ?? 0), 0);
+
+      const pay = calcPay(names, cfg);
+      return {
+        month:  format(monthStart, 'MMM yyyy'),
+        names,
+        ...pay,
+        quota:  cfg.monthly_quota,
+        threshold: cfg.base_qualify_names,
+      };
+    }).reverse(); // oldest → newest
+  }, [view, user?.id, myConfig, agents, rows]);
   const sorted = useMemo(() => {
     return [...payRows].sort((a, b) => {
       let diff = 0;
@@ -551,47 +583,220 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       )}
 
       {/* ── Personal pay card (non-admin / personal view) ── */}
-      {view === 'personal' && sorted.length > 0 && (() => {
+      {view === 'personal' && (() => {
+        const cfg = myConfig ?? agents.find(a => a.id === user?.id);
+
+        // No config found
+        if (!cfg) return (
+          <Card className="border-amber-200 bg-amber-50/40 dark:bg-amber-900/10">
+            <CardContent className="py-8 text-center space-y-2">
+              <AlertCircle className="h-8 w-8 mx-auto text-amber-500" />
+              <p className="font-medium text-foreground">No pay configuration found</p>
+              <p className="text-sm text-muted-foreground">
+                Contact your admin to set up your pay configuration.
+              </p>
+            </CardContent>
+          </Card>
+        );
+
         const r = sorted[0];
+        if (!r) return null;
+
+        const pctProgress = Math.min((r.names / r.monthly_quota) * 100, 100);
+        const namesToQualify = Math.max(r.base_qualify_names - r.names, 0);
+        const namesToFullQuota = Math.max(r.monthly_quota - r.names, 0);
+
         return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className={r.qualified ? 'border-green-300 bg-green-50/40 dark:bg-green-900/10' : 'border-amber-300 bg-amber-50/40 dark:bg-amber-900/10'}>
-              <CardContent className="p-4 space-y-1">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="space-y-4">
+            {/* ── Top cards ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Earnings card */}
+              <Card className={r.qualified
+                ? 'border-green-300 bg-green-50/40 dark:bg-green-900/10'
+                : 'border-amber-200 bg-amber-50/30 dark:bg-amber-900/10'}>
+                <CardContent className="p-4 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                    {r.qualified
+                      ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                      : <AlertCircle  className="h-3.5 w-3.5 text-amber-600" />}
+                    {r.qualified ? 'Pay qualified' : 'Not yet qualified'}
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{fmt(r.total)}</p>
+                  <p className="text-xs text-muted-foreground">Estimated earnings · {format(range.from, 'MMM yyyy')}</p>
+                </CardContent>
+              </Card>
+
+              {/* Base salary */}
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <Banknote className="h-3.5 w-3.5" /> Base Salary
+                </p>
+                <p className="text-2xl font-bold">{fmt(r.base)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
                   {r.qualified
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
-                    : <AlertCircle className="h-3.5 w-3.5 text-amber-600" />}
-                  {r.qualified ? 'Qualified for pay' : 'Not yet qualified'}
+                    ? <span className="text-green-600">✓ Unlocked</span>
+                    : <span className="text-amber-600">Need {fmtNum(namesToQualify)} more names to unlock</span>}
+                </p>
+              </CardContent></Card>
+
+              {/* Commission */}
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <TrendingUp className="h-3.5 w-3.5" /> Commission
+                </p>
+                <p className="text-2xl font-bold">{fmt(r.commission)}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {r.qualified
+                    ? `${Math.round(r.quotaRatio * 100)}% of ${fmt(r.commission_amount)} max`
+                    : 'Unlocks with base salary'}
+                </p>
+              </CardContent></Card>
+
+              {/* Quota progress */}
+              <Card><CardContent className="p-4">
+                <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                  <Target className="h-3.5 w-3.5" /> Quota Progress
+                </p>
+                <p className="text-2xl font-bold">{fmtNum(r.names)}</p>
+                <div className="mt-2 h-2 rounded-full bg-muted overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-700"
+                    style={{
+                      width: `${pctProgress}%`,
+                      background: pctProgress >= 100 ? '#22c55e' : pctProgress >= 50 ? '#3b82f6' : '#f59e0b',
+                    }} />
                 </div>
-                <p className="text-2xl font-bold text-foreground">{fmt(r.total)}</p>
-                <p className="text-xs text-muted-foreground">Estimated earnings</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {pctProgress >= 100
+                    ? '🎉 Full quota reached!'
+                    : `${fmtNum(namesToFullQuota)} names to full quota (${fmtNum(r.monthly_quota)})`}
+                </p>
+              </CardContent></Card>
+            </div>
+
+            {/* ── Pay calculation breakdown ── */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">How Your Pay Is Calculated</CardTitle>
+                <CardDescription className="text-xs">
+                  Based on your {cfg.has_override ? 'custom rate' : 'role default'} configuration
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3 text-sm">
+                  {/* Step 1 */}
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${r.qualified ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'}`}>1</div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Qualify for base salary</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Record ≥ {fmtNum(r.base_qualify_names)} names in the month.
+                        You have <strong>{fmtNum(r.names)}</strong> names — {r.qualified
+                          ? <span className="text-green-600">qualified ✓</span>
+                          : <span className="text-amber-600">{fmtNum(namesToQualify)} short</span>}
+                      </p>
+                      <div className="mt-1.5 flex items-center gap-2 text-xs">
+                        <span className="text-muted-foreground">Base salary:</span>
+                        <span className={`font-semibold ${r.base > 0 ? 'text-blue-700 dark:text-blue-400' : 'text-muted-foreground'}`}>{fmt(r.base_salary)}</span>
+                        <span className="text-muted-foreground">→ earned:</span>
+                        <span className="font-bold">{fmt(r.base)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-l-2 border-dashed border-border ml-2.5 pl-5 h-3" />
+
+                  {/* Step 2 */}
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${r.commission > 0 ? 'bg-green-500 text-white' : 'bg-muted text-muted-foreground'}`}>2</div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">Earn commission</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Commission = (names ÷ quota) × max commission
+                      </p>
+                      <div className="mt-1.5 bg-muted/40 rounded-lg p-2.5 text-xs font-mono space-y-0.5">
+                        <p>names collected:  <strong>{fmtNum(r.names)}</strong></p>
+                        <p>monthly quota:    <strong>{fmtNum(r.monthly_quota)}</strong></p>
+                        <p>attainment:       <strong>{Math.round(r.quotaRatio * 100)}%</strong></p>
+                        <p>max commission:   <strong>{fmt(r.commission_amount)}</strong></p>
+                        <p className="border-t border-border pt-0.5 mt-1">
+                          commission earned: <strong className="text-green-700 dark:text-green-400">{fmt(r.commission)}</strong>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-3 flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">Total estimated pay</span>
+                    <span className="text-xl font-bold text-primary">{fmt(r.total)}</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-            <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Base Salary</p>
-              <p className="text-xl font-bold">{fmt(r.base)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {r.qualified ? 'Unlocked ✓' : `Need ${fmtNum(r.base_qualify_names - r.names)} more names`}
-              </p>
-            </CardContent></Card>
-            <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Commission</p>
-              <p className="text-xl font-bold">{fmt(r.commission)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {Math.round(r.quotaRatio * 100)}% of quota ({fmtNum(r.names)} / {fmtNum(r.monthly_quota)} names)
-              </p>
-            </CardContent></Card>
-            <Card><CardContent className="p-4">
-              <p className="text-xs text-muted-foreground mb-1">Names Collected</p>
-              <p className="text-xl font-bold">{fmtNum(r.names)}</p>
-              <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                <div className="h-full rounded-full bg-primary transition-all duration-500"
-                  style={{ width: `${Math.min((r.names / r.monthly_quota) * 100, 100)}%` }} />
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Quota: {fmtNum(r.monthly_quota)}
-              </p>
-            </CardContent></Card>
+
+            {/* ── 6-month history ── */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">My Pay History (Last 6 Months)</CardTitle>
+                <CardDescription className="text-xs">
+                  Current month is an estimate based on names collected so far.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Month</TableHead>
+                        <TableHead className="text-xs">Names</TableHead>
+                        <TableHead className="text-xs">Quota</TableHead>
+                        <TableHead className="text-xs">Attainment</TableHead>
+                        <TableHead className="text-xs">Base</TableHead>
+                        <TableHead className="text-xs">Commission</TableHead>
+                        <TableHead className="text-xs">Total</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {monthlyHistory.map((m, i) => (
+                        <TableRow key={m.month} className={i === monthlyHistory.length - 1 ? 'bg-primary/5' : ''}>
+                          <TableCell className="font-medium text-sm">
+                            {m.month}
+                            {i === monthlyHistory.length - 1 && (
+                              <span className="ml-1.5 text-xs text-primary">(current)</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{fmtNum(m.names)}</TableCell>
+                          <TableCell className="text-muted-foreground text-xs">{fmtNum(m.quota)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5 min-w-[60px]">
+                              <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                <div className="h-full rounded-full bg-primary"
+                                  style={{ width: `${Math.min(m.quotaRatio * 100, 100)}%` }} />
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {Math.round(m.quotaRatio * 100)}%
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className={m.base > 0 ? 'text-blue-700 dark:text-blue-400 font-medium' : 'text-muted-foreground'}>
+                            {fmt(m.base)}
+                          </TableCell>
+                          <TableCell className={m.commission > 0 ? 'text-green-700 dark:text-green-400 font-medium' : 'text-muted-foreground'}>
+                            {fmt(m.commission)}
+                          </TableCell>
+                          <TableCell className="font-semibold">{fmt(m.total)}</TableCell>
+                          <TableCell>
+                            {m.qualified
+                              ? <span className="text-xs text-green-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Qualified</span>
+                              : <span className="text-xs text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3" /> Not qualified</span>}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         );
       })()}
