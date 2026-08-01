@@ -887,7 +887,7 @@ export type Database = {
       }
       contracts: {
         Row: {
-          application_id: string
+          application_id: string | null
           body_html: string | null
           contract_url: string | null
           created_at: string
@@ -898,9 +898,10 @@ export type Database = {
           signed_full_name: string | null
           status: string
           template_id: string | null
+          user_id: string | null
         }
         Insert: {
-          application_id: string
+          application_id?: string | null
           body_html?: string | null
           contract_url?: string | null
           created_at?: string
@@ -911,9 +912,10 @@ export type Database = {
           signed_full_name?: string | null
           status?: string
           template_id?: string | null
+          user_id?: string | null
         }
         Update: {
-          application_id?: string
+          application_id?: string | null
           body_html?: string | null
           contract_url?: string | null
           created_at?: string
@@ -924,6 +926,7 @@ export type Database = {
           signed_full_name?: string | null
           status?: string
           template_id?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
