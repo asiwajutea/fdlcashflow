@@ -18,12 +18,13 @@ import { OralGenBookingForm } from '@/components/oralgen/OralGenBookingForm';
 import { PrefPicker } from '@/components/oralgen/PrefPicker';
 import { StarRating } from '@/components/oralgen/StarRating';
 import { PhotoCapture } from '@/components/oralgen/PhotoCapture';
+import { OralGenOverview } from '@/components/oralgen/OralGenOverview';
 import { STATE_LIST, NIGERIA_STATES } from '@/lib/nigeria-states-cities';
 import {
   MapPin, Clock, Upload, FileText, Archive, CheckCircle2,
   Loader2, ClipboardList, Users, Gavel, Camera, Navigation,
   Search, X, Pencil, Plus, ChevronLeft, ChevronRight,
-  ChevronDown, SlidersHorizontal, Trash2,
+  ChevronDown, SlidersHorizontal, Trash2, BarChart2,
 } from 'lucide-react';
 
 type Status =
@@ -2271,7 +2272,7 @@ const OralGenWorkflow: React.FC = () => {
     completed: rows.filter((r) => r.status === 'completed').length,
   }), [rows]);
 
-  const defaultTab = canBook ? 'bookings' : canInterview ? 'interviews' : canAudit ? 'audits' : 'all';
+  const defaultTab = 'overview';
 
   return (
     <DashboardLayout title="OralGen Workflow">
@@ -2343,11 +2344,18 @@ const OralGenWorkflow: React.FC = () => {
 
       <Tabs defaultValue={defaultTab}>
         <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="overview"><BarChart2 className="h-4 w-4 mr-1" /> Overview</TabsTrigger>
           {canBook && <TabsTrigger value="bookings"><Camera className="h-4 w-4 mr-1" /> My Bookings</TabsTrigger>}
           {canInterview && <TabsTrigger value="interviews"><Users className="h-4 w-4 mr-1" /> Interviews</TabsTrigger>}
           {canAudit && <TabsTrigger value="audits"><Gavel className="h-4 w-4 mr-1" /> Audits</TabsTrigger>}
           <TabsTrigger value="all">All Records</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="mt-4">
+          {loading
+            ? <div className="flex items-center justify-center py-16"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            : <OralGenOverview rows={rows as any} isAdmin={isAdmin} />}
+        </TabsContent>
 
         {canBook && (
           <TabsContent value="bookings" className="mt-4">
