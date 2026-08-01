@@ -37,6 +37,7 @@ interface Interview {
   status: string;
   total_names: number | null;
   interview_completed_at: string | null;
+  audit_completed_at: string | null;
   created_at: string;
 }
 
@@ -371,7 +372,11 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const names = r.total_names ?? 0;
       if (names <= 0) return;
 
-      const relevantDate = r.interview_completed_at ?? r.created_at;
+      // Use the most authoritative completion timestamp available:
+      // 1. audit_completed_at  — final sign-off by field manager
+      // 2. interview_completed_at — when field agent submitted names
+      // 3. created_at — fallback only
+      const relevantDate = r.audit_completed_at ?? r.interview_completed_at ?? r.created_at;
       try {
         const d = parseISO(relevantDate);
         if (!isWithinInterval(d, { start: startOfDay(range.from), end: endOfDay(range.to) })) return;
@@ -427,7 +432,7 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const names = rows
         .filter(r => {
           if ((r.total_names ?? 0) <= 0) return false;
-          const relevantDate = r.interview_completed_at ?? r.created_at;
+          const relevantDate = r.audit_completed_at ?? r.interview_completed_at ?? r.created_at;
           try {
             const d = parseISO(relevantDate);
             if (!isWithinInterval(d, { start: startOfDay(monthStart), end: endOfDay(monthEnd) })) return false;
