@@ -39,6 +39,7 @@ type RangePreset = 'this_month' | 'last_month' | 'last_3' | 'last_6' | 'all_time
 interface Props {
   rows: Interview[];
   isAdmin: boolean;
+  canAudit?: boolean;
 }
 
 // ─── colour palette ───────────────────────────────────────────────────────────
@@ -106,11 +107,42 @@ const ChartTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+// ─── session-scoped filter persistence ────────────────────────────────────────
+const SESSION_KEY = 'oralgen_overview_filters';
+
+function readSession(): { view?: ViewMode; preset?: RangePreset } {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch { return {}; }
+}
+
+function writeSession(v: { view: ViewMode; preset: RangePreset }) {
+  try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(v)); } catch { /* quota */ }
+}
+
 // ─── main component ───────────────────────────────────────────────────────────
-export function OralGenOverview({ rows, isAdmin }: Props) {
+export function OralGenOverview({ rows, isAdmin, canAudit }: Props) {
   const { user } = useAuth();
-  const [view,   setView]   = useState<ViewMode>('personal');
-  const [preset, setPreset] = useState<RangePreset>('this_month');
+
+  // Admins and auditors both get the team toggle; auditors see it first too
+  const canSeeTeam = isAdmin || canAudit;
+
+  // Restore from session on mount, fall back to defaults
+  // oralgen_admin / auditors default to team view; regular users default to personal
+  const _session = readSession();
+  const [view,   setView]   = useState<ViewMode>(_session.view ?? (canSeeTeam ? 'team' : 'personal'));
+  const [preset, setPreset] = useState<RangePreset>(_session.preset ?? 'this_month');
+
+  // Persist every filter change for the lifetime of the browser session
+  const updateView = (v: ViewMode) => {
+    setView(v);
+    writeSession({ view: v, preset });
+  };
+  const updatePreset = (p: RangePreset) => {
+    setPreset(p);
+    writeSession({ view, preset: p });
+  };
   const [agents, setAgents] = useState<AgentProfile[]>([]);
   const [agentsLoading, setAgentsLoading] = useState(false);
 
@@ -140,14 +172,19 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
       return isWithinInterval(d, { start: startOfDay(range.from), end: endOfDay(range.to) });
     });
     if (view === 'personal' && user?.id) {
+      // Personal: only records the user touched in any role
       r = r.filter(row =>
         row.created_by === user.id ||
         row.interviewer_id === user.id ||
         row.field_manager_id === user.id
       );
+    } else if (view === 'team' && !isAdmin && canAudit && user?.id) {
+      // Auditor team view: scoped to interviews this auditor was assigned to
+      r = r.filter(row => row.field_manager_id === user.id);
     }
+    // isAdmin team view: no extra filter — sees everything
     return r;
-  }, [rows, range, view, user?.id]);
+  }, [rows, range, view, user?.id, isAdmin, canAudit]);
 
   // ── KPI metrics ──────────────────────────────────────────────────────────
   const metrics = useMemo(() => {
@@ -281,21 +318,21 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Personal / Team toggle */}
-          {isAdmin && (
+          {/* Personal / Team toggle — shown to admins and auditors */}
+          {canSeeTeam && (
             <div className="flex rounded-lg border overflow-hidden text-xs">
               <button
                 className={`px-3 py-1.5 transition-colors ${view === 'personal' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                onClick={() => setView('personal')}
+                onClick={() => updateView('personal')}
               >My Performance</button>
               <button
                 className={`px-3 py-1.5 transition-colors ${view === 'team' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-muted'}`}
-                onClick={() => setView('team')}
-              >Team Overview</button>
+                onClick={() => updateView('team')}
+              >{isAdmin ? 'Team Overview' : 'My Audits Overview'}</button>
             </div>
           )}
           {/* Date range */}
-          <Select value={preset} onValueChange={(v) => setPreset(v as RangePreset)}>
+          <Select value={preset} onValueChange={(v) => updatePreset(v as RangePreset)}>
             <SelectTrigger className="h-8 text-xs w-40">
               <Calendar className="h-3.5 w-3.5 mr-1.5 shrink-0" />
               <SelectValue />
@@ -593,11 +630,12 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
           })()}
         </CardContent>
       </Card>
-      {view === 'team' && isAdmin && (
+      {view === 'team' && canSeeTeam && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-              <Users className="h-3.5 w-3.5 text-muted-foreground" /> Agent Leaderboard
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              {isAdmin ? 'Agent Leaderboard' : 'Interviewers in My Audits'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -606,10 +644,12 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading agent data…
               </div>
             ) : agentLeaderboard.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">No agent activity in this period.</p>
+              <p className="text-sm text-muted-foreground text-center py-6">
+                {isAdmin ? 'No agent activity in this period.' : 'No interviewers found in your audited records.'}
+              </p>
             ) : (
               <>
-                {/* Bar chart */}
+                {/* Bar chart — auditors only show interviewed + completed columns */}
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={agentLeaderboard} margin={{ bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
@@ -618,7 +658,7 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
                     <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
                     <Tooltip content={<ChartTooltip />} />
                     <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
-                    <Bar dataKey="booked"      name="Booked"      fill="#3b82f6" radius={[3,3,0,0]} />
+                    {isAdmin && <Bar dataKey="booked" name="Booked" fill="#3b82f6" radius={[3,3,0,0]} />}
                     <Bar dataKey="interviewed" name="Interviewed" fill="#22c55e" radius={[3,3,0,0]} />
                     <Bar dataKey="completed"   name="Completed"   fill="#8b5cf6" radius={[3,3,0,0]} />
                   </BarChart>
@@ -634,10 +674,12 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
                       }`}>#{idx + 1}</span>
                       <span className="flex-1 text-sm font-medium text-foreground truncate">{agent.name}</span>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground shrink-0">
-                        <span className="flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-full bg-blue-500" />
-                          {agent.booked} booked
-                        </span>
+                        {isAdmin && (
+                          <span className="flex items-center gap-1">
+                            <span className="h-2 w-2 rounded-full bg-blue-500" />
+                            {agent.booked} booked
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <span className="h-2 w-2 rounded-full bg-green-500" />
                           {agent.interviewed} interviewed
