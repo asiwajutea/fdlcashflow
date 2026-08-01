@@ -34,17 +34,31 @@ const pdfHref = (p: string) =>
     ? `https://uppixbfndhlyfeyjoxrg.supabase.co/storage/v1/object/public/documents/${p}`
     : '';
 
+/**
+ * Replace {{placeholder}} tokens in contract HTML with real values.
+ * Keys are matched case-insensitively and with optional surrounding spaces.
+ */
+function interpolate(html: string, vars: Record<string, string>): string {
+  if (!html) return html;
+  return html.replace(/\{\{\s*(\w+)\s*\}\}/gi, (_, key) => {
+    const val = vars[key.toLowerCase()];
+    return val !== undefined ? val : `{{${key}}}`;
+  });
+}
+
 // ─── SingleContract ───────────────────────────────────────────────────────────
 
 function SingleContract({
   item,
   index,
   total,
+  profileVars,
   onSigned,
 }: {
   item: ContractWithTemplate;
   index: number;
   total: number;
+  profileVars: Record<string, string>;
   onSigned: () => void;
 }) {
   const { fullName } = useAuth();
@@ -52,16 +66,31 @@ function SingleContract({
 
   const { contract, template } = item;
 
-  const [expanded,    setExpanded]    = useState(!contract.signed_at); // auto-open unsigned
+  const [expanded,    setExpanded]    = useState(!contract.signed_at);
   const [signMode,    setSignMode]    = useState<'draw' | 'type'>('draw');
   const [signature,   setSignature]   = useState<string | null>(null);
   const [typedName,   setTypedName]   = useState('');
   const [submitting,  setSubmitting]  = useState(false);
   const [downloading, setDownloading] = useState(false);
 
-  const bodyHtml   = contract.body_html   || template?.body_html   || '';
-  const headerHtml = template?.header_html || '';
-  const footerHtml = template?.footer_html || '';
+  // Merge profileVars (from DB) with any fallbacks
+  const vars: Record<string, string> = {
+    name:      fullName || '',
+    full_name: fullName || '',
+    employee:  fullName || '',
+    date:      new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    today:     new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+    company:   'Footprints Dynasty Ltd',
+    ...profileVars, // DB values override defaults (include position, start_date, employee_id, etc.)
+  };
+
+  const rawBody   = contract.body_html   || template?.body_html   || '';
+  const rawHeader = template?.header_html || '';
+  const rawFooter = template?.footer_html || '';
+
+  const bodyHtml   = interpolate(rawBody,   vars);
+  const headerHtml = interpolate(rawHeader, vars);
+  const footerHtml = interpolate(rawFooter, vars);
   const attachedPdf = contract.contract_url;
   const templatePdf = template?.pdf_url;
   const captureId   = `contract-doc-${contract.id}`;
@@ -242,12 +271,50 @@ export default function MyContract() {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
 
-  const [items,   setItems]   = useState<ContractWithTemplate[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items,       setItems]       = useState<ContractWithTemplate[]>([]);
+  const [profileVars, setProfileVars] = useState<Record<string, string>>({});
+  const [loading,     setLoading]     = useState(true);
 
   const load = async () => {
     if (!user) return;
     setLoading(true);
+
+    // Load profile vars for placeholder interpolation
+    const { data: profile } = await db
+      .from('profiles')
+      .select('full_name, employee_id, employment_start_date, position_id, department_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Optionally resolve position name
+    let positionName = '';
+    if ((profile as any)?.position_id) {
+      const { data: pos } = await db
+        .from('positions')
+        .select('name')
+        .eq('id', (profile as any).position_id)
+        .maybeSingle();
+      positionName = (pos as any)?.name || '';
+    }
+
+    const fullName = (profile as any)?.full_name || '';
+    const startDate = (profile as any)?.employment_start_date
+      ? new Date((profile as any).employment_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+      : '';
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    setProfileVars({
+      name:         fullName,
+      full_name:    fullName,
+      employee:     fullName,
+      employee_id:  (profile as any)?.employee_id || '',
+      position:     positionName,
+      role:         positionName,
+      start_date:   startDate,
+      date:         today,
+      today,
+      company:      'Footprints Dynasty Ltd',
+    });
 
     // Collect all contracts for this user across both paths
     const allContracts: any[] = [];
@@ -389,6 +456,7 @@ export default function MyContract() {
             item={item}
             index={idx}
             total={total}
+            profileVars={profileVars}
             onSigned={load}
           />
         ))}
