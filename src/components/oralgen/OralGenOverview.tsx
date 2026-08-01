@@ -10,7 +10,7 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
 } from 'recharts';
-import { Loader2, Users, ClipboardList, CheckCircle2, Clock, TrendingUp, Star, MapPin, Calendar } from 'lucide-react';
+import { Loader2, Users, ClipboardList, CheckCircle2, Clock, TrendingUp, Star, MapPin, Calendar, Hash, UserCheck } from 'lucide-react';
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Interview {
@@ -21,6 +21,8 @@ interface Interview {
   status: string;
   state: string | null;
   city: string | null;
+  sex: string | null;
+  age: number | null;
   acceptance_rating: number | null;
   booking_acceptance_rating: number | null;
   created_at: string;
@@ -160,7 +162,40 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
     return { total, completed, inProgress, pending, completionRate, totalNames, avgRating };
   }, [filtered]);
 
-  // ── Status distribution (pie) ─────────────────────────────────────────────
+  // ── Sex distribution (pie) ────────────────────────────────────────────────
+  const sexPie = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filtered.forEach(r => {
+      const key = r.sex ? r.sex.charAt(0).toUpperCase() + r.sex.slice(1).toLowerCase() : 'Unknown';
+      counts[key] = (counts[key] ?? 0) + 1;
+    });
+    const colors: Record<string, string> = { Male: '#3b82f6', Female: '#ec4899', Unknown: '#94a3b8' };
+    return Object.entries(counts).map(([name, value]) => ({
+      name, value, color: colors[name] ?? '#94a3b8',
+    }));
+  }, [filtered]);
+
+  // ── Age bracket distribution (bar) ───────────────────────────────────────
+  const ageBrackets = useMemo(() => {
+    const brackets = [
+      { label: '<18',   min: 0,   max: 17  },
+      { label: '18–24', min: 18,  max: 24  },
+      { label: '25–34', min: 25,  max: 34  },
+      { label: '35–44', min: 35,  max: 44  },
+      { label: '45–54', min: 45,  max: 54  },
+      { label: '55–64', min: 55,  max: 64  },
+      { label: '65+',   min: 65,  max: 999 },
+    ];
+    return brackets.map(b => ({
+      bracket: b.label,
+      count: filtered.filter(r => r.age != null && r.age >= b.min && r.age <= b.max).length,
+    }));
+  }, [filtered]);
+
+  const ageRecordedCount = useMemo(() =>
+    filtered.filter(r => r.age != null).length, [filtered]);
+
+  // ─────────────────────────────────────────────────────────────────────────
   const statusPie = useMemo(() => {
     const counts: Record<string, number> = {};
     filtered.forEach(r => { counts[r.status] = (counts[r.status] ?? 0) + 1; });
@@ -277,14 +312,18 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
       </div>
 
       {/* ── KPI cards ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <MetricCard label="Total Records"    value={metrics.total}           icon={ClipboardList} />
-        <MetricCard label="Completed"        value={metrics.completed}       icon={CheckCircle2} accent="bg-green-500" />
-        <MetricCard label="In Progress"      value={metrics.inProgress}      icon={Clock}        accent="bg-blue-500" />
-        <MetricCard label="Pending"          value={metrics.pending}         icon={Users}        accent="bg-amber-500" />
-        <MetricCard label="Completion Rate"  value={`${metrics.completionRate}%`} icon={TrendingUp} accent="bg-primary" />
-        <MetricCard label="Avg. Rating"      value={metrics.avgRating}       icon={Star}         accent="bg-purple-500"
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8 gap-3">
+        <MetricCard label="Total Records"    value={metrics.total}                icon={ClipboardList} />
+        <MetricCard label="Names Collected"  value={metrics.totalNames.toLocaleString()} icon={Hash}       accent="bg-cyan-500"
+          sub="from completed interviews" />
+        <MetricCard label="Completed"        value={metrics.completed}            icon={CheckCircle2} accent="bg-green-500" />
+        <MetricCard label="In Progress"      value={metrics.inProgress}           icon={Clock}        accent="bg-blue-500" />
+        <MetricCard label="Pending"          value={metrics.pending}              icon={Users}        accent="bg-amber-500" />
+        <MetricCard label="Completion Rate"  value={`${metrics.completionRate}%`} icon={TrendingUp}   accent="bg-primary" />
+        <MetricCard label="Avg. Rating"      value={metrics.avgRating}            icon={Star}         accent="bg-purple-500"
           sub={`from ${filtered.filter(r => r.acceptance_rating || r.booking_acceptance_rating).length} rated`} />
+        <MetricCard label="With Age Data"    value={ageRecordedCount}             icon={UserCheck}    accent="bg-rose-500"
+          sub={`of ${metrics.total} records`} />
       </div>
 
       {/* ── Row 1: Activity trend + Status distribution ── */}
@@ -408,7 +447,152 @@ export function OralGenOverview({ rows, isAdmin }: Props) {
         </Card>
       </div>
 
-      {/* ── Team leaderboard (admin team view only) ── */}
+      {/* ── Row 3: Sex distribution + Age brackets ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        {/* Sex distribution */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <UserCheck className="h-3.5 w-3.5 text-muted-foreground" /> Sex Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {sexPie.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No sex data recorded.</p>
+            ) : (
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width="55%" height={180}>
+                  <PieChart>
+                    <Pie data={sexPie} cx="50%" cy="50%" innerRadius={48} outerRadius={72}
+                      paddingAngle={3} dataKey="value" startAngle={90} endAngle={-270}>
+                      {sexPie.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip content={<ChartTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-3">
+                  {sexPie.map(s => {
+                    const pct = metrics.total ? Math.round((s.value / metrics.total) * 100) : 0;
+                    return (
+                      <div key={s.name}>
+                        <div className="flex items-center justify-between text-xs mb-1">
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                            <span className="font-medium text-foreground">{s.name}</span>
+                          </span>
+                          <span className="text-muted-foreground">{s.value} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, background: s.color }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Age bracket distribution */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5 text-muted-foreground" /> Age Distribution
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {ageRecordedCount} of {metrics.total} with age data
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {ageRecordedCount === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No age data recorded.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={ageBrackets} barSize={32}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="bracket" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Interviewees" radius={[4,4,0,0]}>
+                    {ageBrackets.map((_, i) => (
+                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ── Row 4: Total names collected trend ── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+              <Hash className="h-3.5 w-3.5 text-muted-foreground" /> Total Names Collected Over Time
+            </CardTitle>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-cyan-500 shrink-0" />
+                Cumulative: <strong className="text-foreground ml-0.5">{metrics.totalNames.toLocaleString()}</strong> names
+              </span>
+              <span>from completed interviews</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {metrics.totalNames === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">
+              No names collected yet — total_names is recorded when interviews are completed.
+            </p>
+          ) : (() => {
+            // Build per-bucket names collected
+            const days = Math.ceil((range.to.getTime() - range.from.getTime()) / 86400000);
+            const useWeekly = days > 31;
+            const buckets = useWeekly
+              ? eachWeekOfInterval({ start: range.from, end: range.to }).map(ws => {
+                  const we = endOfWeek(ws);
+                  const names = filtered
+                    .filter(r => { const d = parseISO(r.created_at); return d >= ws && d <= we; })
+                    .reduce((s, r) => s + (r.total_names ?? 0), 0);
+                  return { label: format(ws, 'MMM d'), names };
+                })
+              : eachDayOfInterval({ start: range.from, end: range.to }).map(day => {
+                  const names = filtered
+                    .filter(r => isSameDay(parseISO(r.created_at), day))
+                    .reduce((s, r) => s + (r.total_names ?? 0), 0);
+                  return { label: format(day, 'MMM d'), names };
+                });
+
+            // Add cumulative column
+            let cum = 0;
+            const withCum = buckets.map(b => { cum += b.names; return { ...b, cumulative: cum }; });
+
+            return (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={withCum} barSize={useWeekly ? 18 : 10}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} tickLine={false} axisLine={false}
+                    interval={withCum.length > 20 ? 3 : 0} />
+                  <YAxis yAxisId="bar" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <YAxis yAxisId="line" orientation="right" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                  <Bar yAxisId="bar" dataKey="names" name="Names (period)" fill="#06b6d4" radius={[3,3,0,0]} />
+                  <Line yAxisId="line" type="monotone" dataKey="cumulative" name="Cumulative" stroke="#f59e0b"
+                    strokeWidth={2} dot={false} />
+                </BarChart>
+              </ResponsiveContainer>
+            );
+          })()}
+        </CardContent>
+      </Card>
       {view === 'team' && isAdmin && (
         <Card>
           <CardHeader className="pb-2">
