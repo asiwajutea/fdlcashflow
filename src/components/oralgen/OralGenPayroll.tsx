@@ -358,34 +358,42 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
   }, [isAdmin, user?.id]);
 
   // ── Count names per agent within the date range ──────────────────────────
-  // For pay purposes, names are counted when the interview is completed
-  // (interview_completed_at is set). We fall back to created_at only for
-  // records that haven't been through the completion step yet.
-  // A record counts toward pay if it has total_names > 0 and its relevant
-  // timestamp falls within the selected date range.
+  // Field agents: credited for names on records they personally interviewed.
+  // Field managers: credited for the TEAM's total — all names on records
+  //   under their management (field_manager_id = their id), regardless of
+  //   which interviewer did the work. This is their team performance quota.
   const namesByAgent = useMemo(() => {
-    const counts: Record<string, number> = {};
+    // Two separate accumulators so the semantics are explicit
+    const interviewerNames: Record<string, number> = {};  // personal output
+    const managerNames:     Record<string, number> = {};  // team output
+
     rows.forEach(r => {
       const names = r.total_names ?? 0;
-      if (names <= 0) return; // no names to count, skip entirely
+      if (names <= 0) return;
 
-      // Use interview_completed_at as the canonical "when did this count" date.
-      // Fall back to created_at only when completion date isn't recorded yet.
       const relevantDate = r.interview_completed_at ?? r.created_at;
       try {
         const d = parseISO(relevantDate);
         if (!isWithinInterval(d, { start: startOfDay(range.from), end: endOfDay(range.to) })) return;
       } catch { return; }
 
-      // Credit the interviewer who recorded the names
+      // Credit interviewer with their personal names
       if (r.interviewer_id) {
-        counts[r.interviewer_id] = (counts[r.interviewer_id] ?? 0) + names;
+        interviewerNames[r.interviewer_id] = (interviewerNames[r.interviewer_id] ?? 0) + names;
       }
-      // Credit the field manager who accepted/audited the interview
+
+      // Credit field manager with their TEAM's names (all records they managed)
       if (r.field_manager_id) {
-        counts[r.field_manager_id] = (counts[r.field_manager_id] ?? 0) + names;
+        managerNames[r.field_manager_id] = (managerNames[r.field_manager_id] ?? 0) + names;
       }
     });
+
+    // Merge: for each agent, pick the right counter based on their role
+    const counts: Record<string, number> = {};
+    // All interviewers
+    Object.entries(interviewerNames).forEach(([id, n]) => { counts[id] = n; });
+    // Field managers — team names override/replace any interviewer-credited value
+    Object.entries(managerNames).forEach(([id, n]) => { counts[id] = n; });
     return counts;
   }, [rows, range]);
 
@@ -418,15 +426,16 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const monthEnd   = endOfMonth(subMonths(now, i));
       const names = rows
         .filter(r => {
-          if ((r.total_names ?? 0) <= 0) return false; // no names, skip
+          if ((r.total_names ?? 0) <= 0) return false;
           const relevantDate = r.interview_completed_at ?? r.created_at;
           try {
             const d = parseISO(relevantDate);
-            return (
-              isWithinInterval(d, { start: startOfDay(monthStart), end: endOfDay(monthEnd) }) &&
-              (r.interviewer_id === user.id || r.field_manager_id === user.id)
-            );
+            if (!isWithinInterval(d, { start: startOfDay(monthStart), end: endOfDay(monthEnd) })) return false;
           } catch { return false; }
+          // Field manager: count all records they managed (team output)
+          // Field agent: count only records they personally interviewed
+          if (cfg.role === 'field_manager') return r.field_manager_id === user.id;
+          return r.interviewer_id === user.id;
         })
         .reduce((s, r) => s + (r.total_names ?? 0), 0);
 
@@ -846,7 +855,8 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
             {view === 'team' ? 'Team Pay Breakdown' : 'My Pay Breakdown'}
           </CardTitle>
           <CardDescription className="text-xs">
-            Sorted by {sortKey} {sortAsc ? '↑' : '↓'} · Click column headers to sort
+            Sorted by {sortKey} {sortAsc ? '↑' : '↓'} · Click column headers to sort ·
+            Field managers show team names (all records they managed)
           </CardDescription>
         </CardHeader>
         <CardContent>
