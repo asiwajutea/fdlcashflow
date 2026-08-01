@@ -473,25 +473,25 @@ function FilteredTable({
   onRefresh,
   mode,
   currentUserId,
+  canAdminDelete,
 }: {
   rows: Interview[];
   myLoc: { lat: number; lng: number } | null;
   onRefresh: () => void;
   mode: 'interviewer' | 'audit' | 'admin' | 'booking';
   currentUserId?: string | null;
+  canAdminDelete?: boolean;
 }) {
   const [filtered, setFiltered] = useState<Interview[]>(rows);
   const [page, setPage] = useState(1);
 
   useEffect(() => { setPage(1); }, [rows]);
 
-  // Stable callback so InterviewTable doesn't re-render when FilterBar updates filtered
   const handleFiltered = useCallback((result: Interview[]) => {
     setFiltered(result);
     setPage(1);
   }, []);
 
-  // Stable refresh ref — InterviewTable won't re-render when parent re-renders
   const stableRefresh = useCallback(onRefresh, [onRefresh]);
 
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -499,7 +499,7 @@ function FilteredTable({
   return (
     <div>
       <FilterBar rows={rows} myLoc={myLoc} onFiltered={handleFiltered} />
-      <InterviewTable rows={pageRows} myLoc={myLoc} onRefresh={stableRefresh} mode={mode} currentUserId={currentUserId} />
+      <InterviewTable rows={pageRows} myLoc={myLoc} onRefresh={stableRefresh} mode={mode} currentUserId={currentUserId} canAdminDelete={canAdminDelete} />
       <Pagination total={filtered.length} page={page} onPage={setPage} />
     </div>
   );
@@ -2018,6 +2018,37 @@ function BookingDetailsButton({ row, myLoc }: { row: Interview; myLoc: { lat: nu
   );
 }
 
+// ── Delete any record (oralgen_admin / admin) ─────────────────────────────────
+
+function AdminDeleteButton({ row, onDeleted }: { row: Interview; onDeleted: () => void }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const doDelete = async () => {
+    if (!confirm(`Permanently delete record for "${row.full_name}"?\n\nThis cannot be undone.`)) return;
+    setBusy(true);
+    const { error } = await db.from('oralgen_interviews').delete().eq('id', row.id);
+    setBusy(false);
+    if (error) return toast({ title: 'Could not delete', description: error.message, variant: 'destructive' });
+    toast({ title: 'Record deleted' });
+    onDeleted();
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      className="h-7 px-2 text-xs gap-1 text-destructive hover:text-destructive hover:bg-destructive/10"
+      onClick={doDelete}
+      disabled={busy}
+      title="Delete record"
+    >
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+      Delete
+    </Button>
+  );
+}
+
 // ── Delete draft booking ──────────────────────────────────────────────────────
 
 function DraftDeleteButton({ row, onDeleted }: { row: Interview; onDeleted: () => void }) {
@@ -2053,11 +2084,12 @@ function DraftDeleteButton({ row, onDeleted }: { row: Interview; onDeleted: () =
 // React.memo prevents InterviewTable from re-rendering when the parent FilteredTable
 // updates its filtered state — this keeps EditBookingButton dialogs stable during typing.
 const InterviewTable = React.memo(function InterviewTable({
-  rows, myLoc, onRefresh, mode, currentUserId,
+  rows, myLoc, onRefresh, mode, currentUserId, canAdminDelete,
 }: {
   rows: Interview[]; myLoc: { lat: number; lng: number } | null; onRefresh: () => void;
   mode: 'interviewer' | 'audit' | 'admin' | 'booking';
   currentUserId?: string | null;
+  canAdminDelete?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
 
@@ -2114,7 +2146,12 @@ const InterviewTable = React.memo(function InterviewTable({
                       <DraftDeleteButton row={r} onDeleted={onRefresh} />
                     )}
                     {mode === 'booking'     && r.status !== 'draft' && <span className="text-xs text-muted-foreground">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
-                    {mode === 'admin'       && <span className="text-xs text-muted-foreground">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+                    {mode === 'admin' && (
+                      <>
+                        <span className="text-xs text-muted-foreground">Updated {new Date(r.updated_at).toLocaleDateString()}</span>
+                        {canAdminDelete && <AdminDeleteButton row={r} onDeleted={onRefresh} />}
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -2122,8 +2159,6 @@ const InterviewTable = React.memo(function InterviewTable({
           );
         })}
       </div>
-
-      {/* DESKTOP: existing table */}
       <div className="hidden md:block overflow-x-auto">
         <Table>
           <TableHeader>
@@ -2168,7 +2203,12 @@ const InterviewTable = React.memo(function InterviewTable({
                       <DraftDeleteButton row={r} onDeleted={onRefresh} />
                     )}
                     {mode === 'booking'     && r.status !== 'draft' && <span className="text-xs text-muted-foreground ml-1">Booked {new Date(r.created_at).toLocaleDateString()}</span>}
-                    {mode === 'admin'       && <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>}
+                    {mode === 'admin' && (
+                      <>
+                        <span className="text-xs text-muted-foreground ml-1">Updated {new Date(r.updated_at).toLocaleDateString()}</span>
+                        {canAdminDelete && <AdminDeleteButton row={r} onDeleted={onRefresh} />}
+                      </>
+                    )}
                   </div>
                 </TableCell>
               </LazyRow>
@@ -2394,7 +2434,7 @@ const OralGenWorkflow: React.FC = () => {
         <TabsContent value="all" className="mt-4">
           <Card><CardHeader><CardTitle>All Records</CardTitle><CardDescription>Every interview you have access to.</CardDescription></CardHeader>
             <CardContent>{loading ? <Loader2 className="animate-spin mx-auto" /> :
-              <FilteredTable rows={rows} myLoc={myLoc} onRefresh={fetchRows} mode="admin" currentUserId={user?.id} />}</CardContent>
+              <FilteredTable rows={rows} myLoc={myLoc} onRefresh={fetchRows} mode="admin" currentUserId={user?.id} canAdminDelete={isAdmin} />}</CardContent>
           </Card>
         </TabsContent>
       </Tabs>
