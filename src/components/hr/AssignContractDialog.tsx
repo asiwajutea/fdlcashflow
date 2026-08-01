@@ -489,7 +489,7 @@ export default function AssignContractDialog({
                   ) : (
                     /* Rendered contract preview */
                     bodyHtml.trim() ? (
-                      <div className="rounded-lg bg-slate-100 p-3">
+                      <div className="rounded-lg bg-slate-100 p-3 overflow-x-auto">
                         <ContractRenderer bodyHtml={bodyHtml} />
                       </div>
                     ) : (

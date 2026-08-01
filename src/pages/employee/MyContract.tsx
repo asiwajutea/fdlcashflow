@@ -11,8 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
 import SignatureCanvas from '@/components/SignatureCanvas';
 import ContractRenderer from '@/components/ContractRenderer';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
+import { exportContractPdf } from '@/lib/contractPdf';
 import {
   FileText, CheckCircle, Loader2, PenTool, Type,
   Download, ChevronDown, ChevronUp, Clock, AlertCircle,
@@ -120,14 +119,8 @@ function SingleContract({
     if (!el) return;
     setDownloading(true);
     try {
-      const canvas = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
-      const img    = canvas.toDataURL('image/jpeg', 0.9);
-      const pdf    = new jsPDF('p', 'mm', 'a4');
-      const w = pdf.internal.pageSize.getWidth();
-      const h = (canvas.height * w) / canvas.width;
-      pdf.addImage(img, 'JPEG', 0, 0, w, h);
       const slug = (template?.title || `contract-${index + 1}`).replace(/\s+/g, '-').toLowerCase();
-      pdf.save(`${slug}-${new Date().toISOString().slice(0, 10)}.pdf`);
+      await exportContractPdf(captureId, `${slug}-${new Date().toISOString().slice(0, 10)}.pdf`);
     } finally {
       setDownloading(false);
     }
