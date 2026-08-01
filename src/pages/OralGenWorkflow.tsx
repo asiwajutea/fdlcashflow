@@ -2298,19 +2298,28 @@ const OralGenWorkflow: React.FC = () => {
     });
   }, [rows, myLoc]);
 
-  const myBookings = rows.filter((r) => r.created_by === user?.id);
+  const myBookings   = rows.filter((r) => r.created_by === user?.id);
   const interviewPool = sortedByProximity.filter((r) => r.status === 'pending_interview');
   const myInterviews = rows.filter((r) => r.interviewer_id === user?.id && r.status === 'in_progress');
-  const auditPool = rows.filter((r) => r.status === 'awaiting_audit');
-  const myAudits = rows.filter((r) => r.field_manager_id === user?.id && r.status === 'audit_in_progress');
+  const auditPool    = rows.filter((r) => r.status === 'awaiting_audit');
+  const myAudits     = rows.filter((r) => r.field_manager_id === user?.id && r.status === 'audit_in_progress');
+
+  // All records scoped to the current user — records they booked, interviewed, or audited
+  const myAllRecords = isAdmin
+    ? rows  // admins keep the unfiltered view
+    : rows.filter((r) =>
+        r.created_by       === user?.id ||
+        r.interviewer_id   === user?.id ||
+        r.field_manager_id === user?.id
+      );
 
   const stats = useMemo(() => ({
-    total: rows.length,
-    pending: rows.filter((r) => r.status === 'pending_interview').length,
-    inProgress: rows.filter((r) => r.status === 'in_progress').length,
-    awaitingAudit: rows.filter((r) => r.status === 'awaiting_audit').length,
-    completed: rows.filter((r) => r.status === 'completed').length,
-  }), [rows]);
+    total:         myAllRecords.length,
+    pending:       myAllRecords.filter((r) => r.status === 'pending_interview').length,
+    inProgress:    myAllRecords.filter((r) => r.status === 'in_progress').length,
+    awaitingAudit: myAllRecords.filter((r) => r.status === 'awaiting_audit').length,
+    completed:     myAllRecords.filter((r) => r.status === 'completed').length,
+  }), [myAllRecords]);
 
   const defaultTab = 'overview';
 
@@ -2388,7 +2397,7 @@ const OralGenWorkflow: React.FC = () => {
           {canBook && <TabsTrigger value="bookings"><Camera className="h-4 w-4 mr-1" /> My Bookings</TabsTrigger>}
           {canInterview && <TabsTrigger value="interviews"><Users className="h-4 w-4 mr-1" /> Interviews</TabsTrigger>}
           {canAudit && <TabsTrigger value="audits"><Gavel className="h-4 w-4 mr-1" /> Audits</TabsTrigger>}
-          <TabsTrigger value="all">All Records</TabsTrigger>
+          <TabsTrigger value="all"><ClipboardList className="h-4 w-4 mr-1" /> My History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="mt-4">
@@ -2432,9 +2441,18 @@ const OralGenWorkflow: React.FC = () => {
         )}
 
         <TabsContent value="all" className="mt-4">
-          <Card><CardHeader><CardTitle>All Records</CardTitle><CardDescription>Every interview you have access to.</CardDescription></CardHeader>
+          <Card>
+            <CardHeader>
+              <CardTitle>My History</CardTitle>
+              <CardDescription>
+                {isAdmin
+                  ? 'All records across the platform.'
+                  : 'Every interview you have booked, conducted, or audited.'}
+              </CardDescription>
+            </CardHeader>
             <CardContent>{loading ? <Loader2 className="animate-spin mx-auto" /> :
-              <FilteredTable rows={rows} myLoc={myLoc} onRefresh={fetchRows} mode="admin" currentUserId={user?.id} canAdminDelete={isAdmin} />}</CardContent>
+              <FilteredTable rows={myAllRecords} myLoc={myLoc} onRefresh={fetchRows} mode="admin" currentUserId={user?.id} canAdminDelete={isAdmin} />}
+            </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
