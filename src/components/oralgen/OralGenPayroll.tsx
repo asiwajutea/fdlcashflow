@@ -316,6 +316,8 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
   const [sortKey,        setSortKey]       = useState<SortKey>('total');
   const [sortAsc,        setSortAsc]       = useState(false);
   const [settingsOpen,   setSettingsOpen]  = useState(false);
+  const [calcOpen,       setCalcOpen]      = useState(false);
+  const [histOpen,       setHistOpen]      = useState(false);
 
   // ── Data state ──────────────────────────────────────────────────────────
   const [roleConfigs,    setRoleConfigs]   = useState<PayConfig[]>([]);
@@ -675,12 +677,22 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
 
             {/* ── Pay calculation breakdown ── */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">How Your Pay Is Calculated</CardTitle>
-                <CardDescription className="text-xs">
-                  Based on your {cfg.has_override ? 'custom rate' : 'role default'} configuration
-                </CardDescription>
-              </CardHeader>
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => setCalcOpen(v => !v)}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                    How Your Pay Is Calculated
+                    {calcOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Based on your {cfg.has_override ? 'custom rate' : 'role default'} configuration
+                  </CardDescription>
+                </CardHeader>
+              </button>
+              {calcOpen && (
               <CardContent>
                 <div className="space-y-3 text-sm">
                   {/* Step 1 */}
@@ -731,16 +743,27 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
                   </div>
                 </div>
               </CardContent>
+              )}
             </Card>
 
             {/* ── 6-month history ── */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">My Pay History (Last 6 Months)</CardTitle>
-                <CardDescription className="text-xs">
-                  Current month is an estimate based on names collected so far.
-                </CardDescription>
-              </CardHeader>
+              <button
+                type="button"
+                className="w-full text-left"
+                onClick={() => setHistOpen(v => !v)}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                    My Pay History (Last 6 Months)
+                    {histOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />}
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Current month is an estimate based on names collected so far.
+                  </CardDescription>
+                </CardHeader>
+              </button>
+              {histOpen && (
               <CardContent>
                 <div className="overflow-x-auto">
                   <Table>
@@ -796,6 +819,7 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
                   </Table>
                 </div>
               </CardContent>
+              )}
             </Card>
           </div>
         );
