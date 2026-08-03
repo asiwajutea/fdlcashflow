@@ -20,7 +20,7 @@ const REPLY_TO = "footprintsdynasty@gmail.com";
 function senderFor(key: string): string {
   const hr      = ["candidate_screening","candidate_interview","candidate_interview_updated","candidate_interview_reminder","candidate_offered","candidate_hired","candidate_rejected","user_approved","account_created","candidate_stage"];
   const finance = ["payslip","finance_decision"];
-  const platform = ["test_email","new_message"];
+  const platform = ["test_email","new_message","broadcast"];
   if (hr.includes(key))      return FROM.hr;
   if (finance.includes(key)) return FROM.finance;
   if (platform.includes(key)) return FROM.platform;
@@ -316,6 +316,27 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
             We appreciate everything you do. See you on the other side!
           </div>
           <p>With warm regards,<br/><strong>The Footprints Dynasty Team</strong></p>
+        `),
+      };
+    }
+
+    // ── Broadcast — custom rich-text email from admin ────────────────
+    // `subject`   — custom subject line
+    // `html_body` — rich HTML content (Quill output); wrapped in branded shell
+    // `sender_label` — optional "from" label override (e.g. "HR Team")
+    case "broadcast": {
+      const subj = v.subject || "Message from Footprints Dynasty";
+      const senderLabel = v.sender_label || "Footprints Dynasty Team";
+      return {
+        subject: subj,
+        html: wrap(subj, `
+          <p>Dear <strong>${v.name || 'Team Member'}</strong>,</p>
+          ${v.html_body || ''}
+          <hr class="divider"/>
+          <p style="font-size:13px;color:#64748b">
+            This message was sent to you by <strong>${senderLabel}</strong>.
+            Please do not reply directly to this email — use the internal inbox for communication.
+          </p>
         `),
       };
     }
