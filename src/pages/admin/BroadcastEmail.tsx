@@ -20,6 +20,7 @@ import DOMPurify from 'dompurify';
 import {
   Send, Users, Search, X, CheckCircle2, Loader2, Mail,
   Eye, ChevronDown, ChevronUp, AlertCircle, Clock, Hash,
+  FileText, Info, ChevronRight,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
@@ -60,6 +61,267 @@ const SENDER_LABELS = [
   { value: 'Finance Team',              label: 'Finance Team' },
   { value: 'Management',                label: 'Management' },
   { value: 'IT & Platform Support',     label: 'IT & Platform Support' },
+];
+
+// ─── Placeholders ─────────────────────────────────────────────────────────────
+// These are replaced per-recipient at send time using the recipient's profile data.
+const PLACEHOLDERS = [
+  { token: '{{name}}',          label: 'Full Name',         example: 'John Doe' },
+  { token: '{{first_name}}',    label: 'First Name',        example: 'John' },
+  { token: '{{email}}',         label: 'Email Address',     example: 'john@example.com' },
+  { token: '{{employee_id}}',   label: 'Employee ID',       example: 'FDL-2024-001' },
+  { token: '{{position}}',      label: 'Position / Role',   example: 'Field Officer' },
+  { token: '{{department}}',    label: 'Department',        example: 'Field Operations' },
+  { token: '{{date}}',          label: 'Today\'s Date',     example: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) },
+  { token: '{{company}}',       label: 'Company Name',      example: 'Footprints Dynasty Ltd' },
+];
+
+function interpolate(html: string, r: Recipient & { employee_id?: string | null; position?: string | null; department?: string | null }): string {
+  const firstName = (r.full_name || '').split(' ')[0] || '';
+  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return html
+    .replace(/\{\{name\}\}/gi,          r.full_name        || 'Team Member')
+    .replace(/\{\{first_name\}\}/gi,    firstName           || 'there')
+    .replace(/\{\{email\}\}/gi,         r.email            || '')
+    .replace(/\{\{employee_id\}\}/gi,   r.employee_id      || '—')
+    .replace(/\{\{position\}\}/gi,      r.position         || '—')
+    .replace(/\{\{department\}\}/gi,    r.department       || '—')
+    .replace(/\{\{date\}\}/gi,          today)
+    .replace(/\{\{company\}\}/gi,       'Footprints Dynasty Ltd');
+}
+
+// ─── Broadcast templates ──────────────────────────────────────────────────────
+interface BroadcastTemplate {
+  id: string;
+  label: string;
+  category: string;
+  subject: string;
+  body: string;
+}
+
+const BROADCAST_TEMPLATES: BroadcastTemplate[] = [
+  // ── General ──
+  {
+    id: 'welcome',
+    label: 'Welcome Aboard',
+    category: 'Onboarding',
+    subject: 'Welcome to the Footprints Dynasty Team, {{first_name}}!',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>On behalf of everyone at <strong>Footprints Dynasty Limited</strong>, we are delighted to welcome you to our team!</p>
+<p>You have joined a company that is committed to excellence, integrity, and the development of every team member. We believe that your skills and experience will be a great asset to us, and we look forward to achieving great things together.</p>
+<p>Your role as <strong>{{position}}</strong> is vital to our mission, and we are excited to have you with us.</p>
+<p><strong>Next steps:</strong></p>
+<ul>
+  <li>Log in to your dashboard and complete your profile.</li>
+  <li>Review your onboarding documents.</li>
+  <li>Reach out to your manager if you have any questions.</li>
+</ul>
+<p>Once again, welcome to the family!</p>
+<p>Warm regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'general_announcement',
+    label: 'General Announcement',
+    category: 'General',
+    subject: 'Important Announcement from Footprints Dynasty',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We have an important update to share with all team members.</p>
+<p><strong>[Insert announcement details here]</strong></p>
+<p>Please read this carefully and reach out to your manager or HR if you have any questions.</p>
+<p>Thank you for your continued commitment and dedication.</p>
+<p>Best regards,<br/><strong>Management</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'policy_update',
+    label: 'Policy Update',
+    category: 'General',
+    subject: 'Update to Company Policy — Action Required',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We are writing to inform you of an important update to our company policy, effective <strong>{{date}}</strong>.</p>
+<h3>What is changing</h3>
+<p><strong>[Describe the policy change]</strong></p>
+<h3>Why this change is being made</h3>
+<p><strong>[Explain the reason]</strong></p>
+<h3>What you need to do</h3>
+<p><strong>[List any actions required from employees]</strong></p>
+<p>If you have any questions about these changes, please contact HR or your direct manager.</p>
+<p>Thank you for your understanding and cooperation.</p>
+<p>Best regards,<br/><strong>Management</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  // ── HR ──
+  {
+    id: 'confirmation_employment',
+    label: 'Employment Confirmation',
+    category: 'HR',
+    subject: 'Letter of Employment Confirmation — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>This letter serves as confirmation of your employment with <strong>Footprints Dynasty Limited</strong>.</p>
+<ul>
+  <li><strong>Employee ID:</strong> {{employee_id}}</li>
+  <li><strong>Position:</strong> {{position}}</li>
+  <li><strong>Department:</strong> {{department}}</li>
+  <li><strong>Date of Confirmation:</strong> {{date}}</li>
+</ul>
+<p>Your employment is subject to the terms and conditions set out in your employment contract and the company's policies and procedures.</p>
+<p>Please retain this letter for your records.</p>
+<p>Yours sincerely,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'probation_completion',
+    label: 'Probation Completion',
+    category: 'HR',
+    subject: 'Congratulations — Successful Completion of Probation',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We are pleased to inform you that you have successfully completed your probationary period with <strong>Footprints Dynasty Limited</strong>.</p>
+<p>Your performance during this period has been reviewed and we are delighted to confirm your continued employment on a permanent basis, effective <strong>{{date}}</strong>.</p>
+<p>We value your contribution to the team and look forward to your continued growth and success with us.</p>
+<p>Please feel free to reach out to HR if you have any questions.</p>
+<p>Congratulations once again!</p>
+<p>Warm regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'warning_letter',
+    label: 'Written Warning',
+    category: 'HR',
+    subject: 'Written Warning — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>This letter constitutes a formal written warning regarding <strong>[describe the issue or conduct]</strong>, which occurred on <strong>[date of incident]</strong>.</p>
+<p>Following an investigation and meeting held on <strong>[meeting date]</strong>, we have determined that your actions/conduct were in violation of company policy, specifically:</p>
+<p><strong>[Quote the relevant policy or expectation]</strong></p>
+<h3>Required improvement</h3>
+<p><strong>[State clearly what behaviour or improvement is expected]</strong></p>
+<h3>Consequences</h3>
+<p>Failure to demonstrate the required improvement may result in further disciplinary action, up to and including termination of employment.</p>
+<p>This warning will remain on your employment record for a period of <strong>[duration]</strong>. You have the right to appeal this decision within 5 working days by contacting HR.</p>
+<p>Please sign and return the acknowledgement slip below.</p>
+<p>Yours sincerely,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'termination',
+    label: 'Termination of Contract',
+    category: 'HR',
+    subject: 'Termination of Employment — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We are writing to formally notify you that your employment with <strong>Footprints Dynasty Limited</strong> has been terminated, effective <strong>[termination date]</strong>.</p>
+<p>This decision was made following <strong>[reason for termination — e.g. disciplinary proceedings / redundancy / end of contract]</strong>.</p>
+<h3>Your final entitlements</h3>
+<ul>
+  <li>Final salary payment will be processed on <strong>[payment date]</strong>.</li>
+  <li>Any outstanding leave balance will be paid out in your final pay.</li>
+  <li>Please return all company property including access cards, equipment, and any confidential documents by <strong>[return date]</strong>.</li>
+</ul>
+<h3>Confidentiality</h3>
+<p>Please be reminded that your obligations under the confidentiality provisions of your employment contract continue to apply after termination.</p>
+<p>If you have any questions, please contact the HR department at <strong>hr@footprintsdynasty.com.ng</strong>.</p>
+<p>We wish you well in your future endeavours.</p>
+<p>Yours sincerely,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'resignation_acceptance',
+    label: 'Resignation Acceptance',
+    category: 'HR',
+    subject: 'Acceptance of Resignation — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We acknowledge receipt of your resignation letter dated <strong>[resignation date]</strong>, and we formally accept your resignation from your position as <strong>{{position}}</strong>, effective <strong>[last working date]</strong>.</p>
+<p>We appreciate the contributions you have made during your time with <strong>Footprints Dynasty Limited</strong>. Your work on <strong>[mention key contributions if appropriate]</strong> has been valued and will not be forgotten.</p>
+<p>As you transition, please ensure that all company assets are returned and a handover document is completed before your last day.</p>
+<p>We wish you all the best in your future endeavours and hope our paths will cross again.</p>
+<p>Warm regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  // ── Finance ──
+  {
+    id: 'salary_review',
+    label: 'Salary Review Notice',
+    category: 'Finance',
+    subject: 'Notice of Salary Review — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We are pleased to inform you that as part of our annual review process, your salary has been reviewed effective <strong>{{date}}</strong>.</p>
+<ul>
+  <li><strong>New Gross Salary:</strong> ₦[New Amount] per month</li>
+  <li><strong>Effective Date:</strong> {{date}}</li>
+</ul>
+<p>This adjustment reflects our recognition of your performance and contribution to the company.</p>
+<p>Your updated employment terms will be reflected in your next payslip. If you have any questions, please contact the Finance team.</p>
+<p>Best regards,<br/><strong>Finance Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'payslip_notice',
+    label: 'Payslip Notification',
+    category: 'Finance',
+    subject: 'Your Payslip for [Month] is Ready — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>Your payslip for <strong>[Month Year]</strong> is now available on the platform.</p>
+<p>Please log in to your dashboard to view and download your payslip.</p>
+<p>If you notice any discrepancies, please contact the Finance team within 5 working days.</p>
+<p>Best regards,<br/><strong>Finance Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  // ── Events ──
+  {
+    id: 'event_invitation',
+    label: 'Event Invitation',
+    category: 'Events',
+    subject: 'You\'re Invited — [Event Name]',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>You are cordially invited to <strong>[Event Name]</strong>, organised by Footprints Dynasty Limited.</p>
+<ul>
+  <li><strong>Date:</strong> [Event Date]</li>
+  <li><strong>Time:</strong> [Start Time] — [End Time]</li>
+  <li><strong>Venue:</strong> [Location / Online Link]</li>
+  <li><strong>Dress Code:</strong> [Smart Casual / Formal / etc.]</li>
+</ul>
+<p><strong>[Brief description of the event]</strong></p>
+<p>Kindly confirm your attendance by <strong>[RSVP Date]</strong> by replying to this email or contacting [contact person].</p>
+<p>We look forward to seeing you there!</p>
+<p>Warm regards,<br/><strong>{{company}}</strong></p>`,
+  },
+  {
+    id: 'holiday_notice',
+    label: 'Holiday / Closure Notice',
+    category: 'Events',
+    subject: 'Office Closure Notice — [Holiday Name]',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>Please be informed that the Footprints Dynasty office will be <strong>closed</strong> on <strong>[Date]</strong> in observance of <strong>[Holiday Name]</strong>.</p>
+<p>Normal operations will resume on <strong>[Resumption Date]</strong>.</p>
+<p>Wishing you and your family a wonderful <strong>[Holiday Name]</strong>!</p>
+<p>Best regards,<br/><strong>Management</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  // ── Performance ──
+  {
+    id: 'performance_review',
+    label: 'Performance Review Invitation',
+    category: 'Performance',
+    subject: 'Performance Review — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>As part of our ongoing commitment to employee development, we are conducting performance reviews for the current cycle.</p>
+<p>Your review has been scheduled as follows:</p>
+<ul>
+  <li><strong>Date:</strong> [Review Date]</li>
+  <li><strong>Time:</strong> [Review Time]</li>
+  <li><strong>Reviewer:</strong> [Manager Name]</li>
+  <li><strong>Location:</strong> [Office / Video Call Link]</li>
+</ul>
+<p>Please come prepared to discuss:</p>
+<ul>
+  <li>Your achievements over the review period</li>
+  <li>Any challenges you have faced</li>
+  <li>Your development goals for the next period</li>
+</ul>
+<p>If you need to reschedule, please contact HR as soon as possible.</p>
+<p>Best regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>`,
+  },
+  {
+    id: 'commendation',
+    label: 'Commendation / Recognition',
+    category: 'Performance',
+    subject: 'Recognition of Outstanding Performance — {{name}}',
+    body: `<p>Dear <strong>{{name}}</strong>,</p>
+<p>We would like to take this opportunity to formally recognise and commend you for your outstanding performance and dedication.</p>
+<p><strong>[Describe the specific achievement or behaviour being recognised]</strong></p>
+<p>Your commitment to excellence is a reflection of the values we hold dear at Footprints Dynasty, and it serves as an inspiration to your colleagues.</p>
+<p>Thank you for everything you do. We are proud to have you on our team.</p>
+<p>Keep up the excellent work!</p>
+<p>Warm regards,<br/><strong>Management</strong><br/>Footprints Dynasty Limited</p>`,
+  },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -106,11 +368,13 @@ function RecipientBadge({ r, onRemove }: { r: Recipient; onRemove?: () => void }
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BroadcastEmail() {
-  const { user, role, loading: authLoading } = useAuth();
+  const { user, role, loading: authLoading, hasCapability } = useAuth();
   const { toast } = useToast();
 
   // ── Auth guard ───────────────────────────────────────────────────────────
-  if (!authLoading && role && role !== 'admin') return <Navigate to="/dashboard" replace />;
+  if (!authLoading && role && role !== 'admin' && !hasCapability('send_broadcast')) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // ── Compose state ────────────────────────────────────────────────────────
   const [subject,      setSubject]      = useState('');
@@ -133,6 +397,9 @@ export default function BroadcastEmail() {
   // Sending
   const [sending,      setSending]      = useState(false);
   const [progress,     setProgress]     = useState({ done: 0, total: 0, failed: 0 });
+
+  // Template picker
+  const [templateOpen, setTemplateOpen] = useState(false);
 
   // History
   const [logs,         setLogs]         = useState<BroadcastLog[]>([]);
@@ -264,6 +531,12 @@ export default function BroadcastEmail() {
       const batch = recipients.slice(i, i + BATCH);
       await Promise.allSettled(batch.map(async (r) => {
         try {
+          // Interpolate placeholders with this recipient's data
+          const personalizedBody = interpolate(
+            DOMPurify.sanitize(body, { ADD_ATTR: ['target','rel','style'] }),
+            r as any,
+          );
+          const personalizedSubject = interpolate(subject, r as any);
           const { error } = await supabase.functions.invoke('send-email', {
             body: {
               template_key: 'broadcast',
@@ -271,10 +544,10 @@ export default function BroadcastEmail() {
               to: r.email || undefined,
               name: r.full_name || undefined,
               vars: {
-                subject,
-                html_body: DOMPurify.sanitize(body, { ADD_ATTR: ['target','rel','style'] }),
+                subject:      personalizedSubject,
+                html_body:    personalizedBody,
                 sender_label: senderLabel,
-                name: r.full_name || undefined,
+                name:         r.full_name || undefined,
               },
             },
           });
@@ -544,6 +817,79 @@ export default function BroadcastEmail() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+
+                {/* ── Template picker ── */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+                      <FileText className="h-3.5 w-3.5" /> Email Templates
+                    </Label>
+                    <button type="button" className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                      onClick={() => setTemplateOpen(v => !v)}>
+                      {templateOpen ? 'Hide' : 'Browse templates'}
+                      {templateOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    </button>
+                  </div>
+                  {templateOpen && (
+                    <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                      {/* Group by category */}
+                      {Array.from(new Set(BROADCAST_TEMPLATES.map(t => t.category))).map(cat => (
+                        <div key={cat}>
+                          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">{cat}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {BROADCAST_TEMPLATES.filter(t => t.category === cat).map(tpl => (
+                              <button
+                                key={tpl.id}
+                                type="button"
+                                className="px-2.5 py-1 rounded-md border bg-background hover:bg-accent text-xs font-medium transition-colors"
+                                onClick={() => {
+                                  setSubject(tpl.subject);
+                                  setBody(tpl.body);
+                                  setTemplateOpen(false);
+                                }}
+                              >
+                                {tpl.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-muted-foreground pt-1">
+                        Selecting a template fills the subject and body — you can edit everything after.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Placeholder bar ── */}
+                <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-900/10 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Info className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                    <p className="text-xs font-medium text-blue-700 dark:text-blue-400">
+                      Personalisation placeholders — replaced per recipient when sending
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PLACEHOLDERS.map(ph => (
+                      <button
+                        key={ph.token}
+                        type="button"
+                        title={`Example: ${ph.example}`}
+                        className="px-2 py-0.5 rounded bg-white dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 text-xs font-mono text-blue-700 dark:text-blue-300 hover:bg-blue-100 transition-colors"
+                        onClick={() => {
+                          // Append to body at cursor — simplest approach: append to end
+                          setBody(prev => prev.replace(/<p><br><\/p>$/, '') + ph.token);
+                        }}
+                      >
+                        {ph.token}
+                        <span className="ml-1 text-[9px] text-blue-400 font-normal not-italic">{ph.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Click a token to insert it into the body, or type it directly. Works in the subject line too.
+                  </p>
+                </div>
                 <div className="space-y-1.5">
                   <Label>Subject <span className="text-destructive">*</span></Label>
                   <Input
@@ -645,12 +991,23 @@ export default function BroadcastEmail() {
               </div>
             )}
 
-            {/* Body preview */}
+            {/* Body preview — interpolated with first recipient's data if available */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Email body preview</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Email body preview
+                {previewRecipients.length > 0 && (
+                  <span className="ml-1 font-normal">(placeholders shown with <strong>{previewRecipients[0].full_name || 'first recipient'}</strong>'s data)</span>
+                )}
+              </p>
               <div
                 className="prose prose-sm max-w-none border rounded-lg p-4 bg-white text-neutral-900 text-sm leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }}
+                dangerouslySetInnerHTML={{
+                  __html: DOMPurify.sanitize(
+                    previewRecipients.length > 0
+                      ? interpolate(body, previewRecipients[0] as any)
+                      : body
+                  )
+                }}
               />
             </div>
           </div>

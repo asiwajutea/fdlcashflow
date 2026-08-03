@@ -101,7 +101,7 @@ const NAV_SECTIONS = [
       { path: '/admin/chat-policies', label: 'Messaging Policies', icon: MessageSquare, capability: 'manage_users' },
       { path: '/admin/ai-assistant', label: 'AI Assistant', icon: Sparkles, capability: 'manage_users' },
       { path: '/admin/email-logs', label: 'Email Logs', icon: Mail, capability: 'manage_users' },
-      { path: '/admin/broadcast-email', label: 'Broadcast Email', icon: Megaphone, capability: 'manage_users' },
+      { path: '/admin/broadcast-email', label: 'Broadcast Email', icon: Megaphone, capability: 'send_broadcast' },
 
     ],
   },
