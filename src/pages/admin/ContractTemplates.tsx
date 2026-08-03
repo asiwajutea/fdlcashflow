@@ -45,6 +45,10 @@ const EMPTY_FORM = {
   footer_html: '',
   pdf_url: '',
   is_active: true,
+  margin_top:    56,
+  margin_bottom: 56,
+  margin_left:   64,
+  margin_right:  64,
 };
 
 const DEFAULT_HEADER = `<div style="display:flex;align-items:center;justify-content:space-between;">
@@ -118,14 +122,18 @@ export default function ContractTemplates() {
   const openEdit = (item: any) => {
     setEditing(item);
     setForm({
-      title:       item.title       || '',
-      role_name:   item.role_name   || '',
-      position_id: item.position_id || '',
-      body_html:   item.body_html   || '',
-      header_html: item.header_html || '',
-      footer_html: item.footer_html || '',
-      pdf_url:     item.pdf_url     || '',
-      is_active:   item.is_active,
+      title:         item.title         || '',
+      role_name:     item.role_name     || '',
+      position_id:   item.position_id   || '',
+      body_html:     item.body_html     || '',
+      header_html:   item.header_html   || '',
+      footer_html:   item.footer_html   || '',
+      pdf_url:       item.pdf_url       || '',
+      is_active:     item.is_active,
+      margin_top:    item.margin_top    ?? 56,
+      margin_bottom: item.margin_bottom ?? 56,
+      margin_left:   item.margin_left   ?? 64,
+      margin_right:  item.margin_right  ?? 64,
     });
     setEditorOpen(true);
   };
@@ -156,15 +164,19 @@ export default function ContractTemplates() {
     }
     setSaving(true);
     const payload: any = {
-      title:       form.title,
-      role_name:   form.role_name,
-      position_id: form.position_id || null,
-      body_html:   form.body_html,
-      header_html: form.header_html,
-      footer_html: form.footer_html,
-      pdf_url:     form.pdf_url,
-      is_active:   form.is_active,
-      created_by:  user?.id,
+      title:         form.title,
+      role_name:     form.role_name,
+      position_id:   form.position_id || null,
+      body_html:     form.body_html,
+      header_html:   form.header_html,
+      footer_html:   form.footer_html,
+      pdf_url:       form.pdf_url,
+      is_active:     form.is_active,
+      created_by:    user?.id,
+      margin_top:    Number(form.margin_top)    || 56,
+      margin_bottom: Number(form.margin_bottom) || 56,
+      margin_left:   Number(form.margin_left)   || 64,
+      margin_right:  Number(form.margin_right)  || 64,
     };
     const { error } = editing
       ? await db.from('contract_templates').update(payload).eq('id', editing.id)
@@ -388,10 +400,11 @@ export default function ContractTemplates() {
 
             {/* ── Content tabs ── */}
             <Tabs defaultValue="body" className="w-full">
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className="grid grid-cols-5 w-full">
                 <TabsTrigger value="header">Header</TabsTrigger>
                 <TabsTrigger value="body">Body</TabsTrigger>
                 <TabsTrigger value="footer">Footer</TabsTrigger>
+                <TabsTrigger value="page">Page</TabsTrigger>
                 <TabsTrigger value="pdf">PDF file</TabsTrigger>
               </TabsList>
 
@@ -434,6 +447,91 @@ export default function ContractTemplates() {
                   onChange={(v) => setForm({ ...form, footer_html: v })}
                   placeholder="Footer text (e.g. © Footprints Dynasty Ltd. Page 1 of 1)"
                 />
+              </TabsContent>
+
+              <TabsContent value="page" className="space-y-4 pt-3">
+                <p className="text-xs text-muted-foreground">
+                  Configure the page margins for both the on-screen preview and PDF export.
+                  Values are in pixels at 96 dpi (A4 = 794 × 1123 px).
+                  Defaults: Top 56 · Bottom 56 · Left 64 · Right 64.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {[
+                    { key: 'margin_top',    label: 'Top margin (px)',    min: 0, max: 200 },
+                    { key: 'margin_bottom', label: 'Bottom margin (px)', min: 0, max: 200 },
+                    { key: 'margin_left',   label: 'Left margin (px)',   min: 0, max: 200 },
+                    { key: 'margin_right',  label: 'Right margin (px)',  min: 0, max: 200 },
+                  ].map(({ key, label, min, max }) => (
+                    <div key={key} className="space-y-1.5">
+                      <Label className="text-xs">{label}</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={min}
+                          max={max}
+                          value={form[key]}
+                          onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                          className="w-24"
+                        />
+                        <input
+                          type="range"
+                          min={min}
+                          max={max}
+                          value={form[key]}
+                          onChange={(e) => setForm({ ...form, [key]: Number(e.target.value) })}
+                          className="flex-1 accent-primary"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Visual margin diagram */}
+                <div className="mt-2 rounded-lg border bg-muted/30 p-4 flex items-center justify-center">
+                  <div className="relative bg-white border border-slate-300 shadow-sm"
+                    style={{ width: 120, height: 170 }}>
+                    {/* Margin indicators */}
+                    <div className="absolute inset-0 border-2 border-dashed border-primary/40 pointer-events-none"
+                      style={{
+                        top:    Math.round(form.margin_top    / 794 * 120),
+                        bottom: Math.round(form.margin_bottom / 1123 * 170),
+                        left:   Math.round(form.margin_left   / 794 * 120),
+                        right:  Math.round(form.margin_right  / 794 * 120),
+                      }}
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-[8px] text-muted-foreground text-center leading-tight">
+                        T:{form.margin_top} B:{form.margin_bottom}<br/>
+                        L:{form.margin_left} R:{form.margin_right}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, margin_top: 56, margin_bottom: 56, margin_left: 64, margin_right: 64 })}
+                  >
+                    Reset to defaults
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, margin_top: 28, margin_bottom: 28, margin_left: 28, margin_right: 28 })}
+                  >
+                    Narrow (28px)
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, margin_top: 96, margin_bottom: 96, margin_left: 96, margin_right: 96 })}
+                  >
+                    Wide (96px)
+                  </Button>
+                </div>
               </TabsContent>
 
               <TabsContent value="pdf" className="space-y-4 pt-3">
@@ -505,6 +603,7 @@ export default function ContractTemplates() {
                     headerHtml={form.header_html}
                     bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
                     footerHtml={form.footer_html}
+                    margins={{ top: Number(form.margin_top), bottom: Number(form.margin_bottom), left: Number(form.margin_left), right: Number(form.margin_right) }}
                   />
                 </div>
               </div>
@@ -575,6 +674,7 @@ export default function ContractTemplates() {
                   headerHtml={previewItem.header_html}
                   bodyHtml={previewItem.body_html}
                   footerHtml={previewItem.footer_html}
+                  margins={{ top: previewItem.margin_top ?? 56, bottom: previewItem.margin_bottom ?? 56, left: previewItem.margin_left ?? 64, right: previewItem.margin_right ?? 64 }}
                 />
               </div>
             )}

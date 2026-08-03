@@ -10,6 +10,8 @@ interface ContractRendererProps {
   captureId?:  string;
   /** Set false to render as one continuous sheet (no A4 pagination). */
   paginate?:   boolean;
+  /** Page margins in px. Defaults: top 56, bottom 56, left 64, right 64 */
+  margins?: { top?: number; bottom?: number; left?: number; right?: number };
 }
 
 const sanitize = (html: string) =>
@@ -125,7 +127,15 @@ export function ContractRenderer({
   className,
   captureId,
   paginate = true,
+  margins: marginsProp,
 }: ContractRendererProps) {
+  // Resolve effective margins — prop values override defaults
+  const padTop    = marginsProp?.top    ?? PAD_TOP;
+  const padBottom = marginsProp?.bottom ?? PAD_BOTTOM;
+  const padLeft   = marginsProp?.left   ?? PAD_X;
+  const padRight  = marginsProp?.right  ?? PAD_X;
+  const contentW  = A4_W - padLeft - padRight;
+
   const cleanHeader = useMemo(() => sanitize(headerHtml), [headerHtml]);
   const cleanBody   = useMemo(() => sanitize(bodyHtml),   [bodyHtml]);
   const cleanFooter = useMemo(() => sanitize(footerHtml), [footerHtml]);
@@ -137,11 +147,11 @@ export function ContractRenderer({
     if (!paginate) { setPages([cleanBody]); return; }
     const t = window.setTimeout(() => {
       const headerH = cleanHeader ? (headerRef.current?.offsetHeight ?? 0) : 0;
-      const usable  = A4_H - PAD_TOP - PAD_BOTTOM - FOOTER_H;
+      const usable  = A4_H - padTop - padBottom - FOOTER_H;
       setPages(paginateHtml(cleanBody, Math.max(200, usable - headerH), usable));
     }, 60);
     return () => window.clearTimeout(t);
-  }, [cleanBody, cleanHeader, paginate]);
+  }, [cleanBody, cleanHeader, paginate, padTop, padBottom]);
 
   const total = pages.length;
 
@@ -151,7 +161,7 @@ export function ContractRenderer({
 
       {/* Hidden header used to measure its height for page-1 budget */}
       {cleanHeader && (
-        <div className="ct-measure ct-sheet" style={{ width: CONTENT_W }} aria-hidden>
+        <div className="ct-measure ct-sheet" style={{ width: contentW }} aria-hidden>
           <div ref={headerRef} className="ct-header" dangerouslySetInnerHTML={{ __html: cleanHeader }} />
         </div>
       )}
@@ -164,7 +174,10 @@ export function ContractRenderer({
             style={{
               width: A4_W,
               minHeight: paginate ? A4_H : undefined,
-              padding: `${PAD_TOP}px ${PAD_X}px ${PAD_BOTTOM + FOOTER_H}px`,
+              paddingTop:    padTop,
+              paddingLeft:   padLeft,
+              paddingRight:  padRight,
+              paddingBottom: padBottom + FOOTER_H,
               boxSizing: 'border-box',
               maxWidth: '100%',
             }}
@@ -183,8 +196,8 @@ export function ContractRenderer({
               className="ct-footer"
               style={{
                 position: 'absolute',
-                left: PAD_X,
-                right: PAD_X,
+                left:   padLeft,
+                right:  padRight,
                 bottom: 22,
                 borderTop: '1px solid #e2e8f0',
                 paddingTop: 8,
