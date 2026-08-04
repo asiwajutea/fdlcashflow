@@ -246,7 +246,9 @@ export function ContractRenderer({
           </div>
         ))}
       </div>
+      </div>
     </>
+
   );
 }
 
