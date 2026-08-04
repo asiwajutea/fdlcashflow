@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
@@ -404,6 +405,9 @@ export default function BroadcastEmail() {
   // Template picker
   const [templateOpen, setTemplateOpen] = useState(false);
 
+  // Include inactive accounts toggle (default: false = active only)
+  const [includeInactive, setIncludeInactive] = useState(false);
+
   // History
   const [logs,         setLogs]         = useState<BroadcastLog[]>([]);
   const [loadingLogs,  setLoadingLogs]  = useState(false);
@@ -447,17 +451,14 @@ export default function BroadcastEmail() {
   }, [audienceType]);
 
   // ── Enrich a list of user IDs into full Recipient objects ────────────────
-  const enrichProfiles = async (ids: string[]): Promise<Recipient[]> => {
+  const enrichProfiles = async (ids: string[], activeOnly = true): Promise<Recipient[]> => {
     if (!ids.length) return [];
-    const { data } = await db
+    let q = db
       .from('profiles')
-      .select(`
-        id, full_name, avatar_url, employee_id,
-        positions(name),
-        departments(name)
-      `)
-      .in('id', ids)
-      .eq('is_active', true);
+      .select(`id, full_name, avatar_url, employee_id, positions(name), departments(name)`)
+      .in('id', ids);
+    if (activeOnly) q = q.eq('is_active', true);
+    const { data } = await q;
     return (data || []).map((p: any) => ({
       id:          p.id,
       full_name:   p.full_name || null,
@@ -472,30 +473,33 @@ export default function BroadcastEmail() {
 
   // ── Resolve recipients from audience ─────────────────────────────────────
   const resolveRecipients = async (): Promise<Recipient[]> => {
+    const activeOnly = !includeInactive;
+
     if (audienceType === 'custom') {
-      // Split platform users (have a real UUID) from external emails
       const platformPicks = customPicked.filter(r => !r.id.startsWith('ext:'));
       const externalPicks = customPicked.filter(r => r.id.startsWith('ext:'));
-      const enriched = await enrichProfiles(platformPicks.map(r => r.id));
+      const enriched = await enrichProfiles(platformPicks.map(r => r.id), activeOnly);
       return [...enriched, ...externalPicks];
     }
 
     if (audienceType === 'all') {
-      const { data } = await db.from('profiles').select('id').eq('is_active', true);
+      let q = db.from('profiles').select('id').eq('approval_status', 'approved');
+      if (activeOnly) q = q.eq('is_active', true);
+      const { data } = await q;
       const ids = (data || []).map((p: any) => p.id);
-      return enrichProfiles(ids);
+      return enrichProfiles(ids, activeOnly);
     }
 
     if (audienceType === 'role') {
       const { data: roles } = await db.from('user_roles').select('user_id').eq('role', roleValue);
       const ids = (roles || []).map((r: any) => r.user_id);
-      return enrichProfiles(ids);
+      return enrichProfiles(ids, activeOnly);
     }
 
     if (audienceType === 'capability') {
       const { data: caps } = await db.from('user_capabilities').select('user_id').eq('capability', capValue);
       const ids = (caps || []).map((c: any) => c.user_id);
-      return enrichProfiles(ids);
+      return enrichProfiles(ids, activeOnly);
     }
 
     return [];
@@ -875,6 +879,22 @@ export default function BroadcastEmail() {
                         </span>
                       )}
                     </p>
+                  </div>
+                )}
+
+                {/* ── Include inactive toggle ── */}
+                {audienceType !== 'custom' && (
+                  <div className="flex items-center justify-between gap-3 pt-1 px-1">
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Include inactive accounts</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        By default, only active users receive the email.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={includeInactive}
+                      onCheckedChange={setIncludeInactive}
+                    />
                   </div>
                 )}
               </CardContent>
