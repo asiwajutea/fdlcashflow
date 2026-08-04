@@ -86,25 +86,29 @@ const CT_STYLES = `
     font-family: "Times New Roman", Georgia, serif;
     font-size: 14.5px;
     line-height: 1.7;
-    /* Never split words mid-word — whole words wrap to the next line. */
+    /* Never split real words; only break tokens that cannot fit on a line. */
     word-break: normal;
-    overflow-wrap: normal;
-    word-wrap: normal;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
     hyphens: none;
     -webkit-hyphens: none;
     -ms-hyphens: none;
   }
   .ct-sheet *, .ct-measure * {
     word-break: normal !important;
-    overflow-wrap: normal !important;
-    word-wrap: normal !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
     hyphens: none !important;
     -webkit-hyphens: none !important;
     -ms-hyphens: none !important;
     white-space: normal !important;
     max-width: 100% !important;
     letter-spacing: normal !important;
+    float: none !important;
+    position: static !important;
   }
+  .ct-body, .ct-header, .ct-footer { width: 100%; box-sizing: border-box; }
+  .ct-body > * { max-width: 100% !important; }
   .ct-body p              { margin: 0 0 0.75em; text-align: left; }
   .ct-body h1             { font-size: 21px; font-weight: 700; margin: 1.1em 0 0.45em; color: #0B1F3B; }
   .ct-body h2             { font-size: 17.5px; font-weight: 700; margin: 1em 0 0.4em; color: #0B1F3B; }
