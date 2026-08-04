@@ -32,6 +32,9 @@ interface Recipient {
   email: string | null;
   avatar_url: string | null;
   role: string | null;
+  employee_id?: string | null;
+  position?: string | null;
+  department?: string | null;
 }
 
 interface BroadcastLog {
@@ -76,7 +79,7 @@ const PLACEHOLDERS = [
   { token: '{{company}}',       label: 'Company Name',      example: 'Footprints Dynasty Ltd' },
 ];
 
-function interpolate(html: string, r: Recipient & { employee_id?: string | null; position?: string | null; department?: string | null }): string {
+function interpolate(html: string, r: Recipient): string {
   const firstName = (r.full_name || '').split(' ')[0] || '';
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   return html
@@ -443,30 +446,53 @@ export default function BroadcastEmail() {
       });
   }, [audienceType]);
 
+  // ── Enrich a list of user IDs into full Recipient objects ────────────────
+  const enrichProfiles = async (ids: string[]): Promise<Recipient[]> => {
+    if (!ids.length) return [];
+    const { data } = await db
+      .from('profiles')
+      .select(`
+        id, full_name, avatar_url, employee_id,
+        positions(name),
+        departments(name)
+      `)
+      .in('id', ids)
+      .eq('is_active', true);
+    return (data || []).map((p: any) => ({
+      id:          p.id,
+      full_name:   p.full_name || null,
+      email:       null,             // resolved server-side by edge function via user_id
+      avatar_url:  p.avatar_url || null,
+      role:        null,
+      employee_id: p.employee_id || null,
+      position:    p.positions?.name || null,
+      department:  p.departments?.name || null,
+    }));
+  };
+
   // ── Resolve recipients from audience ─────────────────────────────────────
   const resolveRecipients = async (): Promise<Recipient[]> => {
-    if (audienceType === 'custom') return customPicked;
+    if (audienceType === 'custom') {
+      // Re-enrich custom picks to get full_name from profiles (picker may have stale data)
+      return enrichProfiles(customPicked.map(r => r.id));
+    }
 
     if (audienceType === 'all') {
-      // Use profiles + emails resolved inside the edge function per user_id
-      const { data } = await db.from('profiles').select('id, full_name, avatar_url').eq('is_active', true);
-      return (data || []).map((p: any) => ({ ...p, email: null, role: null }));
+      const { data } = await db.from('profiles').select('id').eq('is_active', true);
+      const ids = (data || []).map((p: any) => p.id);
+      return enrichProfiles(ids);
     }
 
     if (audienceType === 'role') {
       const { data: roles } = await db.from('user_roles').select('user_id').eq('role', roleValue);
       const ids = (roles || []).map((r: any) => r.user_id);
-      if (!ids.length) return [];
-      const { data: profiles } = await db.from('profiles').select('id, full_name, avatar_url').in('id', ids).eq('is_active', true);
-      return (profiles || []).map((p: any) => ({ ...p, email: null, role: roleValue }));
+      return enrichProfiles(ids);
     }
 
     if (audienceType === 'capability') {
       const { data: caps } = await db.from('user_capabilities').select('user_id').eq('capability', capValue);
       const ids = (caps || []).map((c: any) => c.user_id);
-      if (!ids.length) return [];
-      const { data: profiles } = await db.from('profiles').select('id, full_name, avatar_url').in('id', ids).eq('is_active', true);
-      return (profiles || []).map((p: any) => ({ ...p, email: null, role: null }));
+      return enrichProfiles(ids);
     }
 
     return [];
@@ -534,9 +560,9 @@ export default function BroadcastEmail() {
           // Interpolate placeholders with this recipient's data
           const personalizedBody = interpolate(
             DOMPurify.sanitize(body, { ADD_ATTR: ['target','rel','style'] }),
-            r as any,
+            r,
           );
-          const personalizedSubject = interpolate(subject, r as any);
+          const personalizedSubject = interpolate(subject, r);
           const { error } = await supabase.functions.invoke('send-email', {
             body: {
               template_key: 'broadcast',
@@ -1004,7 +1030,7 @@ export default function BroadcastEmail() {
                 dangerouslySetInnerHTML={{
                   __html: DOMPurify.sanitize(
                     previewRecipients.length > 0
-                      ? interpolate(body, previewRecipients[0] as any)
+                      ? interpolate(body, previewRecipients[0])
                       : body
                   )
                 }}
