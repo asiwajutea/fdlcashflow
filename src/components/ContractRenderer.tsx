@@ -14,8 +14,60 @@ interface ContractRendererProps {
   margins?: { top?: number; bottom?: number; left?: number; right?: number };
 }
 
+/**
+ * Normalise HTML pasted in from Word / Google Docs / other editors.
+ * Pasted markup often carries fixed pixel widths, floats, absolute positioning
+ * or nowrap rules that push text outside the A4 content column (making the
+ * sentence look "cut off" at the right edge). We strip those declarations while
+ * keeping visual formatting (bold, colour, alignment, font-size).
+ */
+const BAD_STYLE_PROPS = [
+  'width', 'min-width', 'max-width', 'height', 'min-height',
+  'position', 'left', 'right', 'top', 'bottom', 'float', 'clear',
+  'white-space', 'word-break', 'overflow-wrap', 'word-wrap',
+  'text-indent', 'transform', 'zoom', 'overflow', 'overflow-x',
+  'margin-left', 'margin-right', 'padding-left', 'padding-right',
+  'letter-spacing', 'hyphens',
+];
+
+function normalizePastedHtml(html: string): string {
+  if (typeof document === 'undefined' || !html) return html || '';
+  const root = document.createElement('div');
+  root.innerHTML = html;
+
+  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    // Drop legacy width/height attributes (Word tables, images, etc.)
+    if (el.tagName !== 'IMG') {
+      el.removeAttribute('width');
+      el.removeAttribute('height');
+    } else {
+      el.removeAttribute('width');
+      el.removeAttribute('height');
+    }
+    el.removeAttribute('align');
+
+    const style = el.getAttribute('style');
+    if (style) {
+      const kept = style
+        .split(';')
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .filter((d) => {
+          const prop = d.split(':')[0]?.trim().toLowerCase();
+          return prop && !BAD_STYLE_PROPS.includes(prop);
+        });
+      if (kept.length) el.setAttribute('style', kept.join('; '));
+      else el.removeAttribute('style');
+    }
+  });
+
+  return root.innerHTML;
+}
+
 const sanitize = (html: string) =>
-  DOMPurify.sanitize(html || '', { ADD_ATTR: ['target', 'rel', 'style'] });
+  normalizePastedHtml(
+    DOMPurify.sanitize(html || '', { ADD_ATTR: ['target', 'rel', 'style'] }),
+  );
 
 /* ── A4 geometry @96dpi ─────────────────────────────────────── */
 export const A4_W = 794;   // px
