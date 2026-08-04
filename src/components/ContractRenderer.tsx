@@ -14,8 +14,60 @@ interface ContractRendererProps {
   margins?: { top?: number; bottom?: number; left?: number; right?: number };
 }
 
+/**
+ * Normalise HTML pasted in from Word / Google Docs / other editors.
+ * Pasted markup often carries fixed pixel widths, floats, absolute positioning
+ * or nowrap rules that push text outside the A4 content column (making the
+ * sentence look "cut off" at the right edge). We strip those declarations while
+ * keeping visual formatting (bold, colour, alignment, font-size).
+ */
+const BAD_STYLE_PROPS = [
+  'width', 'min-width', 'max-width', 'height', 'min-height',
+  'position', 'left', 'right', 'top', 'bottom', 'float', 'clear',
+  'white-space', 'word-break', 'overflow-wrap', 'word-wrap',
+  'text-indent', 'transform', 'zoom', 'overflow', 'overflow-x',
+  'margin-left', 'margin-right', 'padding-left', 'padding-right',
+  'letter-spacing', 'hyphens',
+];
+
+function normalizePastedHtml(html: string): string {
+  if (typeof document === 'undefined' || !html) return html || '';
+  const root = document.createElement('div');
+  root.innerHTML = html;
+
+  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    // Drop legacy width/height attributes (Word tables, images, etc.)
+    if (el.tagName !== 'IMG') {
+      el.removeAttribute('width');
+      el.removeAttribute('height');
+    } else {
+      el.removeAttribute('width');
+      el.removeAttribute('height');
+    }
+    el.removeAttribute('align');
+
+    const style = el.getAttribute('style');
+    if (style) {
+      const kept = style
+        .split(';')
+        .map((d) => d.trim())
+        .filter(Boolean)
+        .filter((d) => {
+          const prop = d.split(':')[0]?.trim().toLowerCase();
+          return prop && !BAD_STYLE_PROPS.includes(prop);
+        });
+      if (kept.length) el.setAttribute('style', kept.join('; '));
+      else el.removeAttribute('style');
+    }
+  });
+
+  return root.innerHTML;
+}
+
 const sanitize = (html: string) =>
-  DOMPurify.sanitize(html || '', { ADD_ATTR: ['target', 'rel', 'style'] });
+  normalizePastedHtml(
+    DOMPurify.sanitize(html || '', { ADD_ATTR: ['target', 'rel', 'style'] }),
+  );
 
 /* ── A4 geometry @96dpi ─────────────────────────────────────── */
 export const A4_W = 794;   // px
@@ -34,25 +86,29 @@ const CT_STYLES = `
     font-family: "Times New Roman", Georgia, serif;
     font-size: 14.5px;
     line-height: 1.7;
-    /* Never split words mid-word — whole words wrap to the next line. */
+    /* Never split real words; only break tokens that cannot fit on a line. */
     word-break: normal;
-    overflow-wrap: normal;
-    word-wrap: normal;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
     hyphens: none;
     -webkit-hyphens: none;
     -ms-hyphens: none;
   }
   .ct-sheet *, .ct-measure * {
     word-break: normal !important;
-    overflow-wrap: normal !important;
-    word-wrap: normal !important;
+    overflow-wrap: break-word !important;
+    word-wrap: break-word !important;
     hyphens: none !important;
     -webkit-hyphens: none !important;
     -ms-hyphens: none !important;
     white-space: normal !important;
     max-width: 100% !important;
     letter-spacing: normal !important;
+    float: none !important;
+    position: static !important;
   }
+  .ct-body, .ct-header, .ct-footer { width: 100%; box-sizing: border-box; }
+  .ct-body > * { max-width: 100% !important; }
   .ct-body p              { margin: 0 0 0.75em; text-align: left; }
   .ct-body h1             { font-size: 21px; font-weight: 700; margin: 1.1em 0 0.45em; color: #0B1F3B; }
   .ct-body h2             { font-size: 17.5px; font-weight: 700; margin: 1em 0 0.4em; color: #0B1F3B; }
