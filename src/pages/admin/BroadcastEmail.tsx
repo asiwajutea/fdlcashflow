@@ -473,8 +473,11 @@ export default function BroadcastEmail() {
   // ── Resolve recipients from audience ─────────────────────────────────────
   const resolveRecipients = async (): Promise<Recipient[]> => {
     if (audienceType === 'custom') {
-      // Re-enrich custom picks to get full_name from profiles (picker may have stale data)
-      return enrichProfiles(customPicked.map(r => r.id));
+      // Split platform users (have a real UUID) from external emails
+      const platformPicks = customPicked.filter(r => !r.id.startsWith('ext:'));
+      const externalPicks = customPicked.filter(r => r.id.startsWith('ext:'));
+      const enriched = await enrichProfiles(platformPicks.map(r => r.id));
+      return [...enriched, ...externalPicks];
     }
 
     if (audienceType === 'all') {
@@ -566,9 +569,10 @@ export default function BroadcastEmail() {
           const { error } = await supabase.functions.invoke('send-email', {
             body: {
               template_key: 'broadcast',
-              user_id: r.id,
-              to: r.email || undefined,
-              name: r.full_name || undefined,
+              // External recipients have id starting with 'ext:' — pass email directly
+              user_id: r.id.startsWith('ext:') ? undefined : r.id,
+              to:      r.email || undefined,
+              name:    r.full_name || undefined,
               vars: {
                 subject:      personalizedSubject,
                 html_body:    personalizedBody,
@@ -612,13 +616,24 @@ export default function BroadcastEmail() {
 
   // ── Filtered user list for custom picker ─────────────────────────────────
   const filteredUsers = useMemo(() => {
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().trim();
     return allUsers.filter(u =>
       !q ||
-      u.full_name?.toLowerCase().includes(q) ||
-      u.email?.toLowerCase().includes(q)
+      (u.full_name && u.full_name.toLowerCase().includes(q)) ||
+      (u.email    && u.email.toLowerCase().includes(q))
     ).filter(u => !customPicked.some(p => p.id === u.id));
   }, [allUsers, search, customPicked]);
+
+  // Whether the search value looks like a valid email not already in the list
+  const isExternalEmail = useMemo(() => {
+    const q = search.trim();
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return (
+      emailRe.test(q) &&
+      !customPicked.some(p => p.email?.toLowerCase() === q.toLowerCase()) &&
+      !allUsers.some(u => u.email?.toLowerCase() === q.toLowerCase())
+    );
+  }, [search, customPicked, allUsers]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -766,7 +781,7 @@ export default function BroadcastEmail() {
 
                 {audienceType === 'custom' && (
                   <div className="space-y-2">
-                    {/* Selected */}
+                    {/* Selected chips */}
                     {customPicked.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {customPicked.map(r => (
@@ -774,18 +789,61 @@ export default function BroadcastEmail() {
                         ))}
                       </div>
                     )}
-                    {/* Search */}
+                    {/* Search — by name OR email, plus external email entry */}
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                      <Input className="pl-8 h-8 text-xs" placeholder="Search users…"
-                        value={search} onChange={e => setSearch(e.target.value)} />
+                      <Input
+                        className="pl-8 h-8 text-xs"
+                        placeholder="Search by name or email, or type any address…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        onKeyDown={e => {
+                          // Press Enter on a valid external email to add it directly
+                          if (e.key === 'Enter' && isExternalEmail) {
+                            const ext: Recipient = {
+                              id:         `ext:${search.trim()}`,
+                              full_name:  search.trim().split('@')[0],
+                              email:      search.trim(),
+                              avatar_url: null,
+                              role:       null,
+                            };
+                            setCustomPicked(p => [...p, ext]);
+                            setSearch('');
+                          }
+                        }}
+                      />
                     </div>
                     {loadingUsers ? (
                       <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                         <Loader2 className="h-3 w-3 animate-spin" /> Loading…
                       </div>
                     ) : (
-                      <div className="border rounded-md divide-y max-h-40 overflow-y-auto">
+                      <div className="border rounded-md divide-y max-h-48 overflow-y-auto">
+                        {/* ── Add external email row ── */}
+                        {isExternalEmail && (
+                          <button type="button"
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-primary/10 text-left transition-colors bg-primary/5"
+                            onClick={() => {
+                              const ext: Recipient = {
+                                id:         `ext:${search.trim()}`,
+                                full_name:  search.trim().split('@')[0],
+                                email:      search.trim(),
+                                avatar_url: null,
+                                role:       null,
+                              };
+                              setCustomPicked(p => [...p, ext]);
+                              setSearch('');
+                            }}>
+                            <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                              <Mail className="h-3 w-3 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-primary">Add external: {search.trim()}</p>
+                              <p className="text-[10px] text-muted-foreground">Not a platform user — email sent directly to this address</p>
+                            </div>
+                          </button>
+                        )}
+                        {/* ── Platform user results ── */}
                         {filteredUsers.slice(0, 30).map(u => (
                           <button key={u.id} type="button"
                             className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent/50 text-left transition-colors"
@@ -800,13 +858,22 @@ export default function BroadcastEmail() {
                             </div>
                           </button>
                         ))}
-                        {filteredUsers.length === 0 && (
-                          <p className="text-xs text-muted-foreground text-center py-3">No results</p>
+                        {filteredUsers.length === 0 && !isExternalEmail && (
+                          <p className="text-xs text-muted-foreground text-center py-3">
+                            {search.trim()
+                              ? 'No platform users found — type a valid email to add an external recipient'
+                              : 'Start typing a name or email address'}
+                          </p>
                         )}
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {customPicked.length} recipient{customPicked.length !== 1 ? 's' : ''} selected
+                      {customPicked.some(r => r.id.startsWith('ext:')) && (
+                        <span className="ml-1 text-amber-600">
+                          · {customPicked.filter(r => r.id.startsWith('ext:')).length} external
+                        </span>
+                      )}
                     </p>
                   </div>
                 )}
