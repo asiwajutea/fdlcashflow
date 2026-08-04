@@ -424,31 +424,27 @@ export default function BroadcastEmail() {
   }, []);
 
   // ── Load all users for custom picker ─────────────────────────────────────
+  // ── Load all users for custom picker from profiles (real full_name) ─────
   useEffect(() => {
-    if (audienceType !== 'custom' || allUsers.length > 0) return;
+    if (audienceType !== 'custom') return;
     setLoadingUsers(true);
-    // Fetch profiles + email via edge function (service-role required for auth.users)
-    supabase.functions.invoke('get-users', { body: {} })
-      .then(({ data, error }) => {
-        if (error || !data?.users) {
-          // Fallback: load profiles only (no email)
-          db.from('profiles').select('id, full_name, avatar_url').eq('is_active', true).order('full_name')
-            .then(({ data: p }) => {
-              setAllUsers((p || []).map((u: any) => ({ ...u, email: null, role: null })));
-              setLoadingUsers(false);
-            });
-          return;
-        }
-        setAllUsers(data.users.map((u: any) => ({
+    let q = db.from('profiles')
+      .select('id, full_name, avatar_url, employee_id')
+      .eq('approval_status', 'approved')
+      .order('full_name');
+    if (!includeInactive) q = q.eq('is_active', true);
+    q.then(({ data }) => {
+        setAllUsers((data || []).map((u: any) => ({
           id:         u.id,
-          full_name:  u.user_metadata?.full_name || u.email?.split('@')[0] || null,
-          email:      u.email,
-          avatar_url: u.user_metadata?.avatar_url || null,
+          full_name:  u.full_name || null,
+          email:      null,
+          avatar_url: u.avatar_url || null,
           role:       null,
+          employee_id: u.employee_id || null,
         })));
         setLoadingUsers(false);
       });
-  }, [audienceType]);
+  }, [audienceType, includeInactive]);
 
   // ── Enrich a list of user IDs into full Recipient objects ────────────────
   const enrichProfiles = async (ids: string[], activeOnly = true): Promise<Recipient[]> => {
