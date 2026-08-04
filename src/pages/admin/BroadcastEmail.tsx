@@ -61,10 +61,10 @@ const ROLES = [
 
 const SENDER_LABELS = [
   { value: 'Footprints Dynasty Team',    label: 'Footprints Dynasty Team' },
-  { value: 'HR Team',                    label: 'HR Team' },
-  { value: 'Finance Team',              label: 'Finance Team' },
-  { value: 'Management',                label: 'Management' },
-  { value: 'IT & Platform Support',     label: 'IT & Platform Support' },
+  { value: 'FDL HR Team',               label: 'FDL HR Team' },
+  { value: 'FDL Finance Team',          label: 'FDL Finance Team' },
+  { value: 'FDL Management',            label: 'FDL Management' },
+  { value: 'FDL IT & Platform Support', label: 'FDL IT & Platform Support' },
 ];
 
 // ─── Placeholders ─────────────────────────────────────────────────────────────
