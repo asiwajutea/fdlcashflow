@@ -75,15 +75,15 @@ const CT_STYLES = `
 `;
 
 /** Split sanitized body HTML into page-sized chunks by measuring block elements. */
-function paginateHtml(html: string, firstPageBudget: number, pageBudget: number): string[] {
+function paginateHtml(html: string, firstPageBudget: number, pageBudget: number, contentW = CONTENT_W): string[] {
   if (typeof document === 'undefined') return [html];
 
   const measure = document.createElement('div');
   measure.className = 'ct-measure ct-sheet';
-  measure.style.width = `${CONTENT_W}px`;
+  measure.style.width = `${contentW}px`;
   const inner = document.createElement('div');
   inner.className = 'ct-body';
-  inner.style.width = `${CONTENT_W}px`;
+  inner.style.width = `${contentW}px`;
   inner.innerHTML = html;
   measure.appendChild(inner);
   document.body.appendChild(measure);
@@ -142,16 +142,39 @@ export function ContractRenderer({
 
   const [pages, setPages] = useState<string[]>([cleanBody]);
   const headerRef = useRef<HTMLDivElement>(null);
+  const wrapRef   = useRef<HTMLDivElement>(null);
+  const docRef    = useRef<HTMLDivElement>(null);
+  const [scale, setScale]   = useState(1);
+  const [wrapH, setWrapH]   = useState<number | undefined>(undefined);
 
   useEffect(() => {
     if (!paginate) { setPages([cleanBody]); return; }
     const t = window.setTimeout(() => {
       const headerH = cleanHeader ? (headerRef.current?.offsetHeight ?? 0) : 0;
       const usable  = A4_H - padTop - padBottom - FOOTER_H;
-      setPages(paginateHtml(cleanBody, Math.max(200, usable - headerH), usable));
+      setPages(paginateHtml(cleanBody, Math.max(200, usable - headerH), usable, contentW));
     }, 60);
     return () => window.clearTimeout(t);
-  }, [cleanBody, cleanHeader, paginate, padTop, padBottom]);
+  }, [cleanBody, cleanHeader, paginate, padTop, padBottom, contentW]);
+
+  // Shrink-to-fit: the sheet is always a true A4 (794px) but is visually scaled
+  // down when the available container is narrower, so nothing spills sideways.
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const recalc = () => {
+      const avail = el.clientWidth;
+      const s = avail > 0 ? Math.min(1, avail / A4_W) : 1;
+      setScale(s);
+      const h = docRef.current?.offsetHeight ?? 0;
+      setWrapH(h ? h * s : undefined);
+    };
+    recalc();
+    const ro = new ResizeObserver(recalc);
+    ro.observe(el);
+    if (docRef.current) ro.observe(docRef.current);
+    return () => ro.disconnect();
+  }, [pages, cleanHeader, cleanFooter]);
 
   const total = pages.length;
 
@@ -166,7 +189,14 @@ export function ContractRenderer({
         </div>
       )}
 
-      <div id={captureId} className={cn('ct-doc w-full flex flex-col items-center gap-6', className)}>
+      <div ref={wrapRef} className="w-full" style={{ height: wrapH, overflow: 'hidden' }}>
+      <div
+        ref={docRef}
+        id={captureId}
+        className={cn('ct-doc flex flex-col items-center gap-6', className)}
+        style={{ width: A4_W, transform: `scale(${scale})`, transformOrigin: 'top left' }}
+      >
+
         {pages.map((pageHtml, i) => (
           <div
             key={i}
@@ -216,7 +246,9 @@ export function ContractRenderer({
           </div>
         ))}
       </div>
+      </div>
     </>
+
   );
 }
 

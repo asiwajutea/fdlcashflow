@@ -598,7 +598,7 @@ export default function ContractTemplates() {
                 <span className="text-sm font-medium text-foreground">Live Preview</span>
               </div>
               <div className="rounded-lg bg-slate-100 p-4 overflow-x-auto">
-                <div className="mx-auto w-fit">
+                <div className="w-full">
                   <ContractRenderer
                     headerHtml={form.header_html}
                     bodyHtml={form.body_html || '<p style="color:#94a3b8;font-style:italic;">Contract body preview…</p>'}
@@ -669,7 +669,7 @@ export default function ContractTemplates() {
             style={{ padding: '24px 16px' }}
           >
             {previewItem && (
-              <div className="mx-auto w-fit">
+              <div className="w-full">
                 <ContractRenderer
                   headerHtml={previewItem.header_html}
                   bodyHtml={previewItem.body_html}

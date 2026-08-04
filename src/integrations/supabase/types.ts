@@ -664,6 +664,45 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcast_logs: {
+        Row: {
+          audience: Json
+          completed_at: string | null
+          created_at: string
+          failed_count: number
+          id: string
+          recipient_count: number
+          sent_by: string | null
+          sent_count: number
+          status: string
+          subject: string
+        }
+        Insert: {
+          audience?: Json
+          completed_at?: string | null
+          created_at?: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          sent_count?: number
+          status?: string
+          subject: string
+        }
+        Update: {
+          audience?: Json
+          completed_at?: string | null
+          created_at?: string
+          failed_count?: number
+          id?: string
+          recipient_count?: number
+          sent_by?: string | null
+          sent_count?: number
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
       candidates: {
         Row: {
           created_at: string
@@ -839,6 +878,10 @@ export type Database = {
           header_html: string
           id: string
           is_active: boolean
+          margin_bottom: number
+          margin_left: number
+          margin_right: number
+          margin_top: number
           pdf_url: string
           position_id: string | null
           role_name: string
@@ -854,6 +897,10 @@ export type Database = {
           header_html?: string
           id?: string
           is_active?: boolean
+          margin_bottom?: number
+          margin_left?: number
+          margin_right?: number
+          margin_top?: number
           pdf_url?: string
           position_id?: string | null
           role_name?: string
@@ -869,6 +916,10 @@ export type Database = {
           header_html?: string
           id?: string
           is_active?: boolean
+          margin_bottom?: number
+          margin_left?: number
+          margin_right?: number
+          margin_top?: number
           pdf_url?: string
           position_id?: string | null
           role_name?: string
@@ -1825,8 +1876,22 @@ export type Database = {
             foreignKeyName: "messages_recipient_id_fkey"
             columns: ["recipient_id"]
             isOneToOne: false
+            referencedRelation: "oralgen_pay_effective"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "oralgen_pay_effective"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "messages_sender_id_fkey"
@@ -1975,6 +2040,87 @@ export type Database = {
           total_names?: number | null
           updated_at?: string
           zip_url?: string | null
+        }
+        Relationships: []
+      }
+      oralgen_pay_config: {
+        Row: {
+          base_qualify_names: number
+          base_salary: number
+          commission_amount: number
+          created_at: string
+          id: string
+          monthly_quota: number
+          notes: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          base_qualify_names?: number
+          base_salary?: number
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          monthly_quota?: number
+          notes?: string | null
+          role: string
+          updated_at?: string
+        }
+        Update: {
+          base_qualify_names?: number
+          base_salary?: number
+          commission_amount?: number
+          created_at?: string
+          id?: string
+          monthly_quota?: number
+          notes?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      oralgen_pay_override: {
+        Row: {
+          base_qualify_names: number | null
+          base_salary: number | null
+          commission_amount: number | null
+          created_at: string
+          created_by: string | null
+          effective_from: string | null
+          effective_until: string | null
+          id: string
+          monthly_quota: number | null
+          notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_qualify_names?: number | null
+          base_salary?: number | null
+          commission_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          monthly_quota?: number | null
+          notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_qualify_names?: number | null
+          base_salary?: number | null
+          commission_amount?: number | null
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string | null
+          effective_until?: string | null
+          id?: string
+          monthly_quota?: number | null
+          notes?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -2847,7 +2993,22 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      oralgen_pay_effective: {
+        Row: {
+          base_qualify_names: number | null
+          base_salary: number | null
+          commission_amount: number | null
+          effective_from: string | null
+          effective_until: string | null
+          full_name: string | null
+          has_override: boolean | null
+          monthly_quota: number | null
+          override_notes: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_message: { Args: { _from: string; _to: string }; Returns: boolean }
@@ -2923,6 +3084,10 @@ export type Database = {
         Returns: boolean
       }
       is_hr: { Args: { _user_id: string }; Returns: boolean }
+      oralgen_has_capability: {
+        Args: { _capability: string; _user_id: string }
+        Returns: boolean
+      }
       user_can_access_form: {
         Args: { _form_id: string; _user_id: string }
         Returns: boolean

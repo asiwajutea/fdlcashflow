@@ -9,12 +9,24 @@ export async function exportContractPdf(containerId: string, filename: string) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  // The on-screen renderer shrinks the A4 sheet to fit its container.
+  // Neutralise that transform so the PDF always captures at full A4 size.
+  const prevTransform = container.style.transform;
+  const parent = container.parentElement;
+  const prevParentH = parent?.style.height;
+  const prevParentOverflow = parent?.style.overflow;
+  container.style.transform = 'none';
+  if (parent) { parent.style.height = 'auto'; parent.style.overflow = 'visible'; }
+
   const pdf = new jsPDF('p', 'mm', 'a4');
   const pw = pdf.internal.pageSize.getWidth();
   const ph = pdf.internal.pageSize.getHeight();
 
   const pages = Array.from(container.querySelectorAll<HTMLElement>('.ct-page'));
   const targets = pages.length ? pages : [container];
+
+  try {
+
 
   for (let i = 0; i < targets.length; i++) {
     const canvas = await html2canvas(targets[i], {
@@ -29,6 +41,13 @@ export async function exportContractPdf(containerId: string, filename: string) {
     if (i > 0) pdf.addPage();
     pdf.addImage(img, 'JPEG', 0, 0, pw, h);
   }
-
-  pdf.save(filename);
+    pdf.save(filename);
+  } finally {
+    container.style.transform = prevTransform;
+    if (parent) {
+      parent.style.height = prevParentH ?? '';
+      parent.style.overflow = prevParentOverflow ?? '';
+    }
+  }
 }
+
