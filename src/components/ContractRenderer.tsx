@@ -75,15 +75,15 @@ const CT_STYLES = `
 `;
 
 /** Split sanitized body HTML into page-sized chunks by measuring block elements. */
-function paginateHtml(html: string, firstPageBudget: number, pageBudget: number): string[] {
+function paginateHtml(html: string, firstPageBudget: number, pageBudget: number, contentW = CONTENT_W): string[] {
   if (typeof document === 'undefined') return [html];
 
   const measure = document.createElement('div');
   measure.className = 'ct-measure ct-sheet';
-  measure.style.width = `${CONTENT_W}px`;
+  measure.style.width = `${contentW}px`;
   const inner = document.createElement('div');
   inner.className = 'ct-body';
-  inner.style.width = `${CONTENT_W}px`;
+  inner.style.width = `${contentW}px`;
   inner.innerHTML = html;
   measure.appendChild(inner);
   document.body.appendChild(measure);
