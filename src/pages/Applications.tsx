@@ -278,6 +278,9 @@ const Applications = () => {
       toast({ title: 'Bulk Update', description: `${ids.length} application${ids.length !== 1 ? 's' : ''} moved to "${bulkStatus}"` });
       setSelected(new Set());
       setBulkStatus('');
+      // Fire notifications for each affected application — fire-and-forget, non-blocking
+      const affected = applications.filter(a => ids.includes(a.id));
+      affected.forEach(app => sendStageMessage(app, bulkStatus));
     }
     setBulkUpdating(false);
   };

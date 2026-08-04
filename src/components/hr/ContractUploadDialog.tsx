@@ -109,9 +109,14 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
             const { data: prof } = await db.from('profiles').select('full_name, phone').eq('id', cand.user_id).maybeSingle();
             const name = (prof?.full_name || 'there').split(' ')[0];
             const pos  = (app as any).job_positions?.title || 'the role';
+            // SMS notification
             await supabase.functions.invoke('send-sms', {
               body: { to: prof?.phone || '', user_id: cand.user_id, template_key: 'candidate_offer', vars: { name, position: pos, link: `${window.location.origin}/offers` } },
             });
+            // Email notification — sends candidate_offered template
+            supabase.functions.invoke('send-email', {
+              body: { template_key: 'candidate_offered', user_id: cand.user_id, name, vars: { job: pos, origin: window.location.origin } },
+            }).catch(e => console.error('contract email', e));
           }
         }
       } catch (e) { console.error('offer sms', e); }
