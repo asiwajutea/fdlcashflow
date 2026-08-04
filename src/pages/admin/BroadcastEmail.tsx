@@ -410,7 +410,7 @@ export default function BroadcastEmail() {
   useEffect(() => {
     db.from('user_capabilities').select('capability')
       .then(({ data }) => {
-        const unique = [...new Set((data || []).map((r: any) => r.capability))].sort();
+        const unique = [...new Set((data || []).map((r: any) => String(r.capability)))].sort() as string[];
         setCapList(unique);
         if (unique.length && !capValue) setCapValue(unique[0]);
       });
