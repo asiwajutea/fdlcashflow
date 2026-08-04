@@ -41,6 +41,13 @@ export async function exportContractPdf(containerId: string, filename: string) {
     if (i > 0) pdf.addPage();
     pdf.addImage(img, 'JPEG', 0, 0, pw, h);
   }
-
-  pdf.save(filename);
+    pdf.save(filename);
+  } finally {
+    container.style.transform = prevTransform;
+    if (parent) {
+      parent.style.height = prevParentH ?? '';
+      parent.style.overflow = prevParentOverflow ?? '';
+    }
+  }
 }
+
