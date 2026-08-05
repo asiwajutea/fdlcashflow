@@ -345,10 +345,12 @@ const Applications = () => {
 
   const sendStageMessage = async (app: ApplicationRow, newStatus: string) => {
     const tpl = STAGE_MESSAGES[newStatus];
-    if (!tpl || !user) return;
+    if (!user) return;
     try {
-      // Inbox message
-      await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
+      // Inbox message (only for stages that have an inbox template)
+      if (tpl) {
+        await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
+      }
       // Email notification — fire and forget.
       // NOTE: `profiles` has no email column; send-email resolves the address
       // server-side from user_id, so never gate on a client-side email lookup.
