@@ -157,6 +157,25 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
       };
     }
 
+    case "candidate_no_application":
+      return {
+        subject: v.final_notice
+          ? `Final notice — your Footprints Dynasty account will be removed`
+          : `You haven't applied yet — open roles are waiting`,
+        html: wrap(v.final_notice ? "Final Notice" : "Complete Your Application", `
+          <p>Dear <strong>${v.name}</strong>,</p>
+          <p>You created an account with Footprints Dynasty Limited but haven't applied for any role yet.</p>
+          <p>Browse our current openings and submit your application — it only takes a few minutes:</p>
+          <a href="${origin}/careers" class="cta">View Open Roles →</a>
+          <div class="info-box">
+            ${v.final_notice
+              ? `<strong>Final notice:</strong> Your account and data are scheduled for permanent deletion within the next few days because no application has been submitted. Apply now to keep your account.`
+              : `<strong>Please note:</strong> Accounts with no application are permanently deleted after 30 days. You have about <strong>${v.days_left ?? 30}</strong> day(s) left.`}
+          </div>
+          <p>Best regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>
+        `),
+      };
+
 
     case "candidate_offered":
       return {
