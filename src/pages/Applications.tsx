@@ -96,6 +96,10 @@ const STAGE_MESSAGES: Record<string, { subject: string; body: (j: string, appId:
     subject: 'Welcome to the Team! 🎉',
     body: (j, _appId) => `Dear Colleague,\n\nWelcome aboard! You've been officially hired for the "${j}" position.\n\nWe're excited to have you join our team at Footprints Dynasty Limited. Further onboarding details will be shared with you shortly.\n\nYou can view your dashboard here:\n👉 ${window.location.origin}/dashboard\n\nCongratulations!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
+  rejected: {
+    subject: 'Update on your application',
+    body: (j, _appId) => `Dear Candidate,\n\nThank you for your interest in the "${j}" position at Footprints Dynasty Limited and for the time you invested in our process.\n\nAfter careful consideration, we will not be moving forward with your application at this time. This decision was not an easy one.\n\nWe encourage you to keep an eye on our open roles and apply again:\n👉 ${window.location.origin}/careers\n\nWe wish you every success.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
 };
 
 type SortField = 'applied_at' | 'candidate_name' | 'job_title' | 'status' | 'screening_score';
