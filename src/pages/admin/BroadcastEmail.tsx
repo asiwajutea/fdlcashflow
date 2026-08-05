@@ -503,7 +503,7 @@ export default function BroadcastEmail() {
 
   // ── Preview recipients ────────────────────────────────────────────────────
   const [previewRecipients, setPreviewRecipients] = useState<Recipient[]>([]);
-  const [resolvingPreview, setResolvingPreview] = useState(false);
+  const [resolvingPreview,  setResolvingPreview]  = useState(false);
 
   const openPreview = async () => {
     if (!subject.trim()) { toast({ title: 'Subject is required', variant: 'destructive' }); return; }
@@ -527,8 +527,9 @@ export default function BroadcastEmail() {
 
   // ── Send ─────────────────────────────────────────────────────────────────
   const send = async () => {
+    // previewRecipients is the live-editable list — user may have removed some in the dialog
     const recipients = previewRecipients;
-    if (!recipients.length) { toast({ title: 'No recipients found', variant: 'destructive' }); return; }
+    if (!recipients.length) { toast({ title: 'No recipients — add at least one before sending', variant: 'destructive' }); return; }
 
     setSending(true);
     setPreviewOpen(false);
@@ -1074,21 +1075,32 @@ export default function BroadcastEmail() {
               <p className="text-sm font-medium text-foreground">{subject}</p>
             </div>
 
-            {/* Recipient list */}
+            {/* Recipient list — editable, user can remove before sending */}
             {previewRecipients.length > 0 && (
               <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">
-                  Recipients ({Math.min(previewRecipients.length, 10)} shown{previewRecipients.length > 10 ? ` of ${previewRecipients.length}` : ''})
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {previewRecipients.slice(0, 10).map(r => (
-                    <RecipientBadge key={r.id} r={r} />
-                  ))}
-                  {previewRecipients.length > 10 && (
-                    <span className="text-xs text-muted-foreground self-center">
-                      +{previewRecipients.length - 10} more
-                    </span>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Recipients — {previewRecipients.length} total
+                    <span className="ml-1 font-normal">(click × to remove anyone before sending)</span>
+                  </p>
+                  {previewRecipients.length > 1 && (
+                    <button
+                      type="button"
+                      className="text-xs text-destructive hover:underline"
+                      onClick={() => setPreviewRecipients([])}
+                    >
+                      Clear all
+                    </button>
                   )}
+                </div>
+                <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto p-2 rounded-lg border bg-muted/20">
+                  {previewRecipients.map(r => (
+                    <RecipientBadge
+                      key={r.id}
+                      r={r}
+                      onRemove={() => setPreviewRecipients(prev => prev.filter(x => x.id !== r.id))}
+                    />
+                  ))}
                 </div>
               </div>
             )}
