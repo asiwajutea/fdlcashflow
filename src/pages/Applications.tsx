@@ -96,6 +96,10 @@ const STAGE_MESSAGES: Record<string, { subject: string; body: (j: string, appId:
     subject: 'Welcome to the Team! 🎉',
     body: (j, _appId) => `Dear Colleague,\n\nWelcome aboard! You've been officially hired for the "${j}" position.\n\nWe're excited to have you join our team at Footprints Dynasty Limited. Further onboarding details will be shared with you shortly.\n\nYou can view your dashboard here:\n👉 ${window.location.origin}/dashboard\n\nCongratulations!\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
   },
+  rejected: {
+    subject: 'Update on your application',
+    body: (j, _appId) => `Dear Candidate,\n\nThank you for your interest in the "${j}" position at Footprints Dynasty Limited and for the time you invested in our process.\n\nAfter careful consideration, we will not be moving forward with your application at this time. This decision was not an easy one.\n\nWe encourage you to keep an eye on our open roles and apply again:\n👉 ${window.location.origin}/careers\n\nWe wish you every success.\n\nBest regards,\nHR Team\nFootprints Dynasty Limited`,
+  },
 };
 
 type SortField = 'applied_at' | 'candidate_name' | 'job_title' | 'status' | 'screening_score';
@@ -341,21 +345,33 @@ const Applications = () => {
 
   const sendStageMessage = async (app: ApplicationRow, newStatus: string) => {
     const tpl = STAGE_MESSAGES[newStatus];
-    if (!tpl || !user) return;
+    if (!user) return;
     try {
-      // Inbox message
-      await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
-      // Email notification — fire and forget
-      const { data: prof } = await (supabase as any).from('profiles').select('full_name, email').eq('id', app.candidate.user_id).maybeSingle();
-      const email = prof?.email;
-      if (email) {
-        const emailKeyMap: Record<string, string> = { screening: 'candidate_screening', interview: 'candidate_interview', offered: 'candidate_offered', hired: 'candidate_hired', rejected: 'candidate_rejected' };
-        const emailKey = emailKeyMap[newStatus];
-        if (emailKey) {
-          supabase.functions.invoke('send-email', {
-            body: { template_key: emailKey, to: email, name: (prof?.full_name || 'Candidate').split(' ')[0], user_id: app.candidate.user_id, vars: { job: app.job.title, applicationId: app.id, origin: window.location.origin } },
-          }).catch(e => console.error('stage email failed', e));
-        }
+      // Inbox message (only for stages that have an inbox template)
+      if (tpl) {
+        await (supabase as any).from('messages').insert({ sender_id: user.id, recipient_id: app.candidate.user_id, subject: tpl.subject, body: tpl.body(app.job.title, app.id) });
+      }
+      // Email notification — fire and forget.
+      // NOTE: `profiles` has no email column; send-email resolves the address
+      // server-side from user_id, so never gate on a client-side email lookup.
+      const { data: prof } = await (supabase as any).from('profiles').select('full_name').eq('id', app.candidate.user_id).maybeSingle();
+      const emailKeyMap: Record<string, string> = {
+        screening: 'candidate_screening',
+        interview: 'candidate_interview',
+        offered:   'candidate_offered',
+        hired:     'candidate_hired',
+        rejected:  'candidate_rejected',
+      };
+      const emailKey = emailKeyMap[newStatus];
+      if (emailKey) {
+        supabase.functions.invoke('send-email', {
+          body: {
+            template_key: emailKey,
+            user_id: app.candidate.user_id,
+            name: (prof?.full_name || 'Candidate').split(' ')[0],
+            vars: { job: app.job.title, applicationId: app.id, origin: window.location.origin },
+          },
+        }).catch(e => console.error('stage email failed', e));
       }
     } catch (e) { console.error('Failed to send stage message:', e); }
   };
