@@ -34,7 +34,7 @@ const CANDIDATE_BLOCKED_PATHS = new Set([
   '/statistics', '/user-management', '/applications', '/jobs',
   '/admin/contract-templates', '/cms', '/cms/sms-templates',
   '/admin/chat-policies', '/admin/ai-assistant',
-  '/admin/broadcast-email',
+  '/admin/broadcast-email', '/admin/employee-onboarding',
   '/cms/knowledge-base', '/cms/activity-forms',
 ]);
 
@@ -102,6 +102,7 @@ const NAV_SECTIONS = [
       { path: '/admin/ai-assistant', label: 'AI Assistant', icon: Sparkles, capability: 'manage_users' },
       { path: '/admin/email-logs', label: 'Email Logs', icon: Mail, capability: 'manage_users' },
       { path: '/admin/broadcast-email', label: 'Broadcast Email', icon: Megaphone, capability: 'send_broadcast' },
+      { path: '/admin/employee-onboarding', label: 'Employee Onboarding', icon: ClipboardList, capability: 'manage_onboarding' },
 
     ],
   },

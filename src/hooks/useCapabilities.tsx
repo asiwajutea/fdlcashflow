@@ -37,6 +37,7 @@ export const ALL_CAPABILITIES = [
   { id: 'oralgen_audit', label: 'OralGen: Audit Interviews', description: 'Field Manager: pick up audits and complete them' },
   { id: 'oralgen_admin', label: 'OralGen: Oversight', description: 'Field Coordinator / Field Operations Manager: full oversight of all interviews' },
   { id: 'send_broadcast', label: 'Send Broadcast Email', description: 'Send bulk branded emails to platform users by role, capability, or custom list' },
+  { id: 'manage_onboarding', label: 'Manage Employee Onboarding', description: 'View and track employee onboarding progress, contracts, and checklist tasks' },
 ] as const;
 
 export type CapabilityId = typeof ALL_CAPABILITIES[number]['id'];

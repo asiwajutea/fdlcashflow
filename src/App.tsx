@@ -65,6 +65,7 @@ const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const ContractTemplates = lazy(() => import("./pages/admin/ContractTemplates"));
 const EmailLogs = lazy(() => import("./pages/admin/EmailLogs"));
 const BroadcastEmail = lazy(() => import("./pages/admin/BroadcastEmail"));
+const EmployeeOnboarding = lazy(() => import("./pages/admin/EmployeeOnboarding"));
 
 // CMS pages
 const CMSDashboard = lazy(() => import("./pages/cms/CMSDashboard"));
@@ -278,6 +279,7 @@ const AppRoutes = () =>
       <Route path="/admin/contract-templates" element={<AvatarGuard><CapabilityGuard adminOnly><ContractTemplates /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/email-logs" element={<AvatarGuard><CapabilityGuard adminOnly><EmailLogs /></CapabilityGuard></AvatarGuard>} />
       <Route path="/admin/broadcast-email" element={<AvatarGuard><CapabilityGuard requires="send_broadcast"><BroadcastEmail /></CapabilityGuard></AvatarGuard>} />
+      <Route path="/admin/employee-onboarding" element={<AvatarGuard><CapabilityGuard requires="manage_onboarding"><EmployeeOnboarding /></CapabilityGuard></AvatarGuard>} />
       <Route path="/my-contract" element={<AvatarGuard><MyContract /></AvatarGuard>} />
       <Route path="/oralgen" element={<AvatarGuard><EmployeeGuard><OralGenWorkflow /></EmployeeGuard></AvatarGuard>} />
 
