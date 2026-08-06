@@ -251,7 +251,7 @@ export default function ContractTemplates() {
   const pageItems   = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   // Reset to page 1 whenever filters change
-  useMemo(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
+  useEffect(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortAsc(v => !v);
