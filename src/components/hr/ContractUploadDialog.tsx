@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
 import ContractNegotiationPanel from '@/components/hr/ContractNegotiationPanel';
+import ContractRenderer from '@/components/ContractRenderer';
 import { Loader2, Upload, CheckCircle, FileText, Sparkles, Eye, EyeOff, ChevronRight } from 'lucide-react';
 
 interface ContractUploadDialogProps {
@@ -301,9 +302,30 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
                     </Button>
                   </div>
                   {previewOpen ? (
-                    <div className="min-h-[200px] max-h-[300px] overflow-y-auto p-4 rounded-lg border bg-background text-sm whitespace-pre-wrap leading-relaxed">
-                      {bodyHtml || <span className="text-muted-foreground italic">No content yet</span>}
-                    </div>
+                    bodyHtml.trim() ? (
+                      <div className="rounded-lg bg-slate-100 p-3 max-h-[500px] overflow-y-auto">
+                        <ContractRenderer
+                          headerHtml={(() => {
+                            // Use header from the first selected template
+                            const tpl = selectedTpls.length > 0
+                              ? templates.find(t => t.id === selectedTpls[0])
+                              : null;
+                            return (tpl as any)?.header_html || '';
+                          })()}
+                          bodyHtml={bodyHtml}
+                          footerHtml={(() => {
+                            const tpl = selectedTpls.length > 0
+                              ? templates.find(t => t.id === selectedTpls[0])
+                              : null;
+                            return (tpl as any)?.footer_html || '';
+                          })()}
+                        />
+                      </div>
+                    ) : (
+                      <div className="min-h-[120px] flex items-center justify-center rounded-lg border bg-muted/30 text-sm text-muted-foreground italic">
+                        No content yet — select a template or write the contract body.
+                      </div>
+                    )
                   ) : (
                     <Textarea rows={8} value={bodyHtml} onChange={e => setBodyHtml(e.target.value)}
                       placeholder="The full contract text the candidate will read and sign…" className="text-sm" />
