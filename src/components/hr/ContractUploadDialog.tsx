@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { db } from '@/lib/supabase-db';
+import ContractNegotiationPanel from '@/components/hr/ContractNegotiationPanel';
 import { Loader2, Upload, CheckCircle, FileText, Sparkles, Eye, EyeOff, ChevronRight } from 'lucide-react';
 
 interface ContractUploadDialogProps {
@@ -184,6 +185,27 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
                   </div>
                 )}
               </div>
+            )}
+
+            {/* ── Negotiation panel ────────────────────────────────────── */}
+            {contract && ['negotiating', 'negotiation_rejected'].includes(contract.status) && applicationId && (
+              <ContractNegotiationPanel
+                contract={{
+                  id:               contract.id,
+                  status:           contract.status,
+                  candidate_reason: (contract as any).candidate_reason || null,
+                  hr_note:          (contract as any).hr_note || null,
+                  application_id:   applicationId,
+                }}
+                candidateName="this candidate"
+                jobTitle="this position"
+                onRefresh={() => {
+                  // Reload contract data
+                  supabase.from('contracts').select('*').eq('id', contract.id).maybeSingle()
+                    .then(({ data }) => { if (data) setContract(data); });
+                  onSaved?.();
+                }}
+              />
             )}
 
             {/* ── STEP 1: Template picker ──────────────────────────────── */}
