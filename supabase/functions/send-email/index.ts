@@ -381,6 +381,39 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
         `),
       };
 
+    // ── Contract assigned to an employee / new hire ──────────────────
+    case "contract_assigned":
+      return {
+        subject: `Your contract is ready for signature — ${v.title || 'Employment Contract'}`,
+        html: wrap("Contract Awaiting Signature", `
+          <p>Dear <strong>${v.name || 'Colleague'}</strong>,</p>
+          <p>A contract <strong>${v.title || 'document'}</strong> has been assigned to you and is now available on your FDL Workforce account.</p>
+          <p>Please review the document carefully and sign it at your earliest convenience.</p>
+          <a href="${origin}/my-contract" class="cta">Review &amp; Sign Contract →</a>
+          <div class="info-box">
+            <strong>Note:</strong> You can sign by drawing your signature or by typing your full legal name — both carry the same legal effect.
+          </div>
+          <p>Best regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>
+        `),
+      };
+
+    // ── Contract signed — internal notification to HR / admin ────────
+    case "staff_contract_signed":
+      return {
+        subject: `Contract signed by ${v.employee || 'an employee'}`,
+        html: wrap("Contract Signed", `
+          <p>Dear <strong>${v.name || 'Team'}</strong>,</p>
+          <p><strong>${v.employee || 'An employee'}</strong> has just signed their contract${v.title ? ` (<strong>${v.title}</strong>)` : ''}.</p>
+          <table class="detail">
+            <tr><td class="label">Signed by</td><td class="value">${v.employee || '—'}</td></tr>
+            <tr><td class="label">Document</td><td class="value">${v.title || 'Contract'}</td></tr>
+            <tr><td class="label">Signed at</td><td class="value">${v.signed_at || new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' })}</td></tr>
+          </table>
+          <a href="${origin}/admin/employee-onboarding" class="cta">View in Onboarding →</a>
+          <p>Best regards,<br/><strong>Footprints Dynasty Platform</strong></p>
+        `),
+      };
+
     default:
       return null;
   }
