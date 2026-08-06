@@ -355,10 +355,10 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
   // For non-admins we still need their own effective config
   const [myConfig, setMyConfig] = useState<AgentProfile | null>(null);
   useEffect(() => {
-    if (isAdmin || !user?.id) return;
+    if (!user?.id) return;
     db.from('oralgen_pay_effective').select('*').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => setMyConfig(data as AgentProfile | null));
-  }, [isAdmin, user?.id]);
+      .then(({ data }) => setMyConfig(data ? ({ ...(data as any), id: (data as any).id ?? (data as any).user_id } as AgentProfile) : null));
+  }, [user?.id]);
 
   // ── Count names per agent within the date range ──────────────────────────
   // Field agents: credited for names on records they personally interviewed.
