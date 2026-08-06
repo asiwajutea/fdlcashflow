@@ -28,9 +28,9 @@ serve(async (req) => {
   );
 
   try {
-    const { template_key, vars = {}, roles = [], capabilities = [] } = await req.json();
+    const { template_key, email_template_key, vars = {}, roles = [], capabilities = [] } = await req.json();
 
-    if (!template_key) throw new Error("template_key is required");
+    if (!template_key && !email_template_key) throw new Error("template_key or email_template_key is required");
     if (!roles.length && !capabilities.length) throw new Error("roles or capabilities must be provided");
 
     // ── 1. Collect user IDs matching roles ──────────────────────────────────
@@ -58,50 +58,68 @@ serve(async (req) => {
       });
     }
 
-    // ── 2. Fetch phone numbers for active users only ──────────────────────────
+    // ── 2. Fetch active recipient profiles ────────────────────────────────────
     const userIds = [...userIdSet];
     const { data: profiles } = await admin
       .from("profiles")
       .select("id, full_name, phone")
       .in("id", userIds)
-      .not("phone", "is", null)
       .eq("is_active", true);
 
-    const recipients = (profiles || []).filter((p: any) => p.phone && p.phone.trim());
+    const active = profiles || [];
+    const smsRecipients = active.filter((p: any) => p.phone && String(p.phone).trim());
 
-    if (recipients.length === 0) {
-      return new Response(JSON.stringify({ skipped: true, reason: "No phone numbers found for matching users" }), {
+    if (active.length === 0) {
+      return new Response(JSON.stringify({ skipped: true, reason: "No active users matched" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // ── 3. Send SMS to each recipient ───────────────────────────────────────
+    // ── 3. Fan out SMS + email ──────────────────────────────────────────────
     const origin = Deno.env.get("SUPABASE_URL")?.replace("/rest/v1", "") ?? "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-    const sends = recipients.map((p: any) =>
-      fetch(`${origin}/functions/v1/send-sms`, {
+    const call = (fn: string, body: unknown) =>
+      fetch(`${origin}/functions/v1/${fn}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${serviceKey}`,
           apikey: serviceKey,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
+        body: JSON.stringify(body),
+      }).catch((e) => console.error(`${fn} failed:`, e));
+
+    const jobs: Promise<unknown>[] = [];
+
+    if (template_key) {
+      smsRecipients.forEach((p: any) =>
+        jobs.push(call("send-sms", {
           to: p.phone,
           user_id: p.id,
           template_key,
           vars: { ...vars, name: p.full_name || "Staff" },
-        }),
-      }).catch((e) => console.error(`SMS failed for ${p.id}:`, e))
-    );
+        }))
+      );
+    }
 
-    await Promise.allSettled(sends);
+    if (email_template_key) {
+      active.forEach((p: any) =>
+        jobs.push(call("send-email", {
+          template_key: email_template_key,
+          user_id: p.id,
+          name: (p.full_name || "Team").split(" ")[0],
+          vars: { ...vars, name: (p.full_name || "Team").split(" ")[0] },
+        }))
+      );
+    }
+
+    await Promise.allSettled(jobs);
 
     return new Response(
-      JSON.stringify({ success: true, sent_to: recipients.length }),
+      JSON.stringify({ success: true, sms_sent_to: template_key ? smsRecipients.length : 0, emails_sent_to: email_template_key ? active.length : 0 }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
+
 
   } catch (e: any) {
     console.error("notify-staff error:", e);

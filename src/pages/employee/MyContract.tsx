@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
+import { supabase } from '@/integrations/supabase/client';
 import SignatureCanvas from '@/components/SignatureCanvas';
 import ContractRenderer from '@/components/ContractRenderer';
 import { exportContractPdf } from '@/lib/contractPdf';
@@ -111,6 +112,23 @@ function SingleContract({
       toast({ title: 'Signing failed', description: error.message, variant: 'destructive' }); return;
     }
     toast({ title: 'Contract signed', description: 'Thank you — your signed contract is on file.' });
+
+    // Notify admins + HR by SMS and email (non-fatal)
+    supabase.functions.invoke('notify-staff', {
+      body: {
+        template_key: 'staff_contract_signed',
+        email_template_key: 'staff_contract_signed',
+        roles: ['admin'],
+        capabilities: ['manage_recruitment'],
+        vars: {
+          employee: fullName || 'An employee',
+          title: template?.title || 'Contract',
+          signed_at: new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' }),
+          origin: window.location.origin,
+        },
+      },
+    }).catch((e) => console.error('contract signed notification failed', e));
+
     onSigned();
   };
 

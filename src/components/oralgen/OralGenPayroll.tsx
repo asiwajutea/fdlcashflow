@@ -337,7 +337,9 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
         db.from('oralgen_pay_effective').select('*'),
       ]);
       setRoleConfigs((cfgs as PayConfig[]) || []);
-      setAgents((eff as AgentProfile[]) || []);
+      // The `oralgen_pay_effective` view keys rows by `user_id` (there is no `id`
+      // column). Normalise to `id` so lookups against interview records work.
+      setAgents(((eff as any[]) || []).map((a) => ({ ...a, id: a.id ?? a.user_id })) as AgentProfile[]);
     } catch (e: any) {
       toast({ title: 'Could not load pay config', description: e.message, variant: 'destructive' });
     } finally {
@@ -353,10 +355,10 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
   // For non-admins we still need their own effective config
   const [myConfig, setMyConfig] = useState<AgentProfile | null>(null);
   useEffect(() => {
-    if (isAdmin || !user?.id) return;
+    if (!user?.id) return;
     db.from('oralgen_pay_effective').select('*').eq('user_id', user.id).maybeSingle()
-      .then(({ data }) => setMyConfig(data as AgentProfile | null));
-  }, [isAdmin, user?.id]);
+      .then(({ data }) => setMyConfig(data ? ({ ...(data as any), id: (data as any).id ?? (data as any).user_id } as AgentProfile) : null));
+  }, [user?.id]);
 
   // ── Count names per agent within the date range ──────────────────────────
   // Field agents: credited for names on records they personally interviewed.
@@ -444,7 +446,7 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const pay   = calcPay(names, agent);
       return { ...agent, names, ...pay };
     });
-  }, [view, agents, myConfig, namesByAgent, user?.id]);
+  }, [view, agents, myConfig, namesByAgent, user?.id, rows, range]);
 
   // ── Month-by-month history (personal view — last 6 months) ──────────────
   const monthlyHistory = useMemo(() => {

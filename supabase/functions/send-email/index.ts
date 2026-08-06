@@ -18,7 +18,7 @@ const REPLY_TO = "footprintsdynasty@gmail.com";
 
 // ─── Template → sender mapping ────────────────────────────────────────────────
 function senderFor(key: string): string {
-  const hr      = ["candidate_screening","candidate_interview","candidate_interview_updated","candidate_interview_reminder","candidate_offered","candidate_hired","candidate_rejected","user_approved","account_created","candidate_stage","candidate_no_application"];
+  const hr      = ["candidate_screening","candidate_interview","candidate_interview_updated","candidate_interview_reminder","candidate_offered","candidate_hired","candidate_rejected","user_approved","account_created","candidate_stage","candidate_no_application","contract_assigned","staff_contract_signed"];
   const finance = ["payslip","finance_decision"];
   const platform = ["test_email","new_message","broadcast"];
   if (hr.includes(key))      return FROM.hr;
@@ -377,6 +377,39 @@ function renderTemplate(key: string, vars: Record<string, any>): Rendered | null
             You will stop receiving these reminders once you open your messages.
             Reminders stop automatically after 7 days.
           </p>
+          <p>Best regards,<br/><strong>Footprints Dynasty Platform</strong></p>
+        `),
+      };
+
+    // ── Contract assigned to an employee / new hire ──────────────────
+    case "contract_assigned":
+      return {
+        subject: `Your contract is ready for signature — ${v.title || 'Employment Contract'}`,
+        html: wrap("Contract Awaiting Signature", `
+          <p>Dear <strong>${v.name || 'Colleague'}</strong>,</p>
+          <p>A contract <strong>${v.title || 'document'}</strong> has been assigned to you and is now available on your FDL Workforce account.</p>
+          <p>Please review the document carefully and sign it at your earliest convenience.</p>
+          <a href="${origin}/my-contract" class="cta">Review &amp; Sign Contract →</a>
+          <div class="info-box">
+            <strong>Note:</strong> You can sign by drawing your signature or by typing your full legal name — both carry the same legal effect.
+          </div>
+          <p>Best regards,<br/><strong>HR Team</strong><br/>Footprints Dynasty Limited</p>
+        `),
+      };
+
+    // ── Contract signed — internal notification to HR / admin ────────
+    case "staff_contract_signed":
+      return {
+        subject: `Contract signed by ${v.employee || 'an employee'}`,
+        html: wrap("Contract Signed", `
+          <p>Dear <strong>${v.name || 'Team'}</strong>,</p>
+          <p><strong>${v.employee || 'An employee'}</strong> has just signed their contract${v.title ? ` (<strong>${v.title}</strong>)` : ''}.</p>
+          <table class="detail">
+            <tr><td class="label">Signed by</td><td class="value">${v.employee || '—'}</td></tr>
+            <tr><td class="label">Document</td><td class="value">${v.title || 'Contract'}</td></tr>
+            <tr><td class="label">Signed at</td><td class="value">${v.signed_at || new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' })}</td></tr>
+          </table>
+          <a href="${origin}/admin/employee-onboarding" class="cta">View in Onboarding →</a>
           <p>Best regards,<br/><strong>Footprints Dynasty Platform</strong></p>
         `),
       };
