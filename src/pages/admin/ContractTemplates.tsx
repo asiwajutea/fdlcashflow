@@ -29,7 +29,6 @@ import AssignContractDialog from '@/components/hr/AssignContractDialog';
 /** Decode HTML to plain text (strips tags AND decodes entities like &nbsp;) */
 function htmlToPlainText(html: string): string {
   if (!html) return '';
-  // Use a temporary textarea to decode HTML entities, then strip remaining tags
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
@@ -74,6 +73,7 @@ const publicUrl = (path: string) =>
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function ContractTemplates() {
+  // ── All hooks first ────────────────────────────────────────────────────────
   const { user, role, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [items, setItems] = useState<any[]>([]);
@@ -119,6 +119,7 @@ export default function ContractTemplates() {
 
   useEffect(() => { load(); }, []);
 
+  // ── Auth guards — must come after all hooks ────────────────────────────────
   if (authLoading) return null;
   if (role && role !== 'admin') return <Navigate to="/dashboard" replace />;
 
@@ -210,7 +211,7 @@ export default function ContractTemplates() {
     else { toast({ title: 'Template deleted' }); load(); }
   };
 
-  // ─── Derived: unique roles for filter dropdown ───────────────────────────
+  // ─── Derived: unique roles for filter dropdown ────────────────────────────
   const uniqueRoles = useMemo(() =>
     [...new Set(items.map((i: any) => i.role_name).filter(Boolean))].sort() as string[],
     [items],
@@ -220,7 +221,6 @@ export default function ContractTemplates() {
   const processed = useMemo(() => {
     let list = [...items];
 
-    // search
     if (filterSearch.trim()) {
       const q = filterSearch.toLowerCase();
       list = list.filter((it: any) =>
@@ -228,16 +228,13 @@ export default function ContractTemplates() {
         it.role_name?.toLowerCase().includes(q),
       );
     }
-    // status
     if (filterStatus === 'active')   list = list.filter((it: any) => it.is_active);
     if (filterStatus === 'inactive') list = list.filter((it: any) => !it.is_active);
-    // role
     if (filterRole !== 'all') list = list.filter((it: any) => it.role_name === filterRole);
 
-    // sort
     list.sort((a: any, b: any) => {
       let diff = 0;
-      if (sortKey === 'title')      diff = (a.title || '').localeCompare(b.title || '');
+      if (sortKey === 'title')          diff = (a.title || '').localeCompare(b.title || '');
       else if (sortKey === 'role_name') diff = (a.role_name || '').localeCompare(b.role_name || '');
       else diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return sortAsc ? diff : -diff;
@@ -246,11 +243,11 @@ export default function ContractTemplates() {
     return list;
   }, [items, filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
 
-  const totalPages  = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
-  const safePage    = Math.min(page, totalPages);
-  const pageItems   = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageItems  = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  // Reset to page 1 whenever filters change
+  // Reset to page 1 whenever filters/sort change
   useEffect(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
 
   const toggleSort = (key: typeof sortKey) => {
@@ -290,7 +287,6 @@ export default function ContractTemplates() {
         {/* ── Filter bar ── */}
         {!loading && items.length > 0 && (
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Search */}
             <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -300,7 +296,6 @@ export default function ContractTemplates() {
                 onChange={e => { setFilterSearch(e.target.value); setPage(1); }}
               />
             </div>
-            {/* Status */}
             <Select value={filterStatus} onValueChange={v => { setFilterStatus(v as any); setPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-28"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -309,7 +304,6 @@ export default function ContractTemplates() {
                 <SelectItem value="inactive">Inactive</SelectItem>
               </SelectContent>
             </Select>
-            {/* Role */}
             <Select value={filterRole} onValueChange={v => { setFilterRole(v); setPage(1); }}>
               <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="All roles" /></SelectTrigger>
               <SelectContent>
@@ -317,7 +311,6 @@ export default function ContractTemplates() {
                 {uniqueRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
-            {/* Sort */}
             <div className="flex items-center gap-1">
               {([
                 { key: 'created_at', label: 'Date' },
@@ -338,7 +331,6 @@ export default function ContractTemplates() {
                 </Button>
               ))}
             </div>
-            {/* Result count */}
             <span className="text-xs text-muted-foreground ml-auto shrink-0">
               {processed.length} result{processed.length !== 1 ? 's' : ''}
             </span>
@@ -377,136 +369,127 @@ export default function ContractTemplates() {
           <>
             <div className="grid gap-3">
               {pageItems.map((it) => {
-              const pos = positions.find((p) => p.id === it.position_id);
-              // Decode HTML to clean plain text for the snippet
-              const snippet = it.body_html
-                ? htmlToPlainText(it.body_html).slice(0, 200)
-                : null;
+                const pos = positions.find((p) => p.id === it.position_id);
+                const snippet = it.body_html
+                  ? htmlToPlainText(it.body_html).slice(0, 200)
+                  : null;
 
-              return (
-                <Card key={it.id} className="hover:shadow-sm transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
-                      {/* Icon */}
-                      <div className="mt-0.5 p-2 bg-primary/8 rounded-md shrink-0">
-                        <FileText className="h-4 w-4 text-primary" />
-                      </div>
-
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 flex-wrap">
-                          <h3 className="font-semibold text-foreground text-base leading-tight">
-                            {it.title}
-                          </h3>
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 px-2 text-xs gap-1.5"
-                              onClick={() => setPreviewItem(it)}
-                            >
-                              <Eye className="h-3.5 w-3.5" /> Preview
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 px-2 text-xs gap-1.5"
-                              onClick={() => openEdit(it)}
-                            >
-                              <Edit2 className="h-3.5 w-3.5" /> Edit
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 px-2 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => remove(it.id)}
-                              disabled={deleting === it.id}
-                            >
-                              {deleting === it.id
-                                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                : <Trash2 className="h-3.5 w-3.5" />}
-                            </Button>
+                return (
+                  <Card key={it.id} className="hover:shadow-sm transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="mt-0.5 p-2 bg-primary/8 rounded-md shrink-0">
+                          <FileText className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 flex-wrap">
+                            <h3 className="font-semibold text-foreground text-base leading-tight">
+                              {it.title}
+                            </h3>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs gap-1.5"
+                                onClick={() => setPreviewItem(it)}
+                              >
+                                <Eye className="h-3.5 w-3.5" /> Preview
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs gap-1.5"
+                                onClick={() => openEdit(it)}
+                              >
+                                <Edit2 className="h-3.5 w-3.5" /> Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 px-2 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => remove(it.id)}
+                                disabled={deleting === it.id}
+                              >
+                                {deleting === it.id
+                                  ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                  : <Trash2 className="h-3.5 w-3.5" />}
+                              </Button>
+                            </div>
                           </div>
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            <Badge
+                              variant={it.is_active ? 'default' : 'secondary'}
+                              className="text-xs gap-1 py-0"
+                            >
+                              {it.is_active
+                                ? <><CheckCircle className="h-3 w-3" /> Active</>
+                                : <><XCircle className="h-3 w-3" /> Inactive</>}
+                            </Badge>
+                            {pos && (
+                              <Badge variant="outline" className="text-xs py-0">
+                                {pos.name}
+                              </Badge>
+                            )}
+                            {it.role_name && (
+                              <Badge variant="outline" className="text-xs py-0">
+                                {it.role_name}
+                              </Badge>
+                            )}
+                            {it.pdf_url && (
+                              <Badge variant="outline" className="text-xs gap-1 py-0">
+                                <FileText className="h-3 w-3" /> PDF attached
+                              </Badge>
+                            )}
+                          </div>
+                          {snippet && (
+                            <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+                              {snippet}{snippet.length >= 200 ? '…' : ''}
+                            </p>
+                          )}
                         </div>
-
-                        {/* Badges */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          <Badge
-                            variant={it.is_active ? 'default' : 'secondary'}
-                            className="text-xs gap-1 py-0"
-                          >
-                            {it.is_active
-                              ? <><CheckCircle className="h-3 w-3" /> Active</>
-                              : <><XCircle className="h-3 w-3" /> Inactive</>}
-                          </Badge>
-                          {pos && (
-                            <Badge variant="outline" className="text-xs py-0">
-                              {pos.name}
-                            </Badge>
-                          )}
-                          {it.role_name && (
-                            <Badge variant="outline" className="text-xs py-0">
-                              {it.role_name}
-                            </Badge>
-                          )}
-                          {it.pdf_url && (
-                            <Badge variant="outline" className="text-xs gap-1 py-0">
-                              <FileText className="h-3 w-3" /> PDF attached
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Body snippet — clean plain text */}
-                        {snippet && (
-                          <p className="text-sm text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
-                            {snippet}{snippet.length >= 200 ? '…' : ''}
-                          </p>
-                        )}
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {/* ── Pagination ── */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
-              <p className="text-xs text-muted-foreground">
-                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, processed.length)} of {processed.length}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline" size="sm" className="h-7 px-2 text-xs"
-                  disabled={safePage <= 1}
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                >
-                  ‹ Prev
-                </Button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
-                  <Button
-                    key={p}
-                    variant={p === safePage ? 'default' : 'outline'}
-                    size="sm"
-                    className="h-7 w-7 p-0 text-xs"
-                    onClick={() => setPage(p)}
-                  >
-                    {p}
-                  </Button>
-                ))}
-                <Button
-                  variant="outline" size="sm" className="h-7 px-2 text-xs"
-                  disabled={safePage >= totalPages}
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                >
-                  Next ›
-                </Button>
-              </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          )}
-        </>
+
+            {/* ── Pagination ── */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
+                <p className="text-xs text-muted-foreground">
+                  Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, processed.length)} of {processed.length}
+                </p>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline" size="sm" className="h-7 px-2 text-xs"
+                    disabled={safePage <= 1}
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                  >
+                    ‹ Prev
+                  </Button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                    <Button
+                      key={p}
+                      variant={p === safePage ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-7 w-7 p-0 text-xs"
+                      onClick={() => setPage(p)}
+                    >
+                      {p}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline" size="sm" className="h-7 px-2 text-xs"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    Next ›
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -651,11 +634,10 @@ export default function ContractTemplates() {
                 <div className="mt-2 rounded-lg border bg-muted/30 p-4 flex items-center justify-center">
                   <div className="relative bg-white border border-slate-300 shadow-sm"
                     style={{ width: 120, height: 170 }}>
-                    {/* Margin indicators */}
                     <div className="absolute inset-0 border-2 border-dashed border-primary/40 pointer-events-none"
                       style={{
                         top:    Math.round(form.margin_top    / 794 * 120),
-                        bottom: Math.round(form.margin_bottom / 1123 * 170),
+                        bottom: Math.round(form.margin_bottom / 794 * 120),
                         left:   Math.round(form.margin_left   / 794 * 120),
                         right:  Math.round(form.margin_right  / 794 * 120),
                       }}
