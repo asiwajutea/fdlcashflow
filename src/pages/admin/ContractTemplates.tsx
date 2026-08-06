@@ -119,11 +119,45 @@ export default function ContractTemplates() {
 
   useEffect(() => { load(); }, []);
 
-  // ── Auth guards — must come after all hooks ────────────────────────────────
+  // ── All memos and effects that depend on state — BEFORE any early return ──
+  const uniqueRoles = useMemo(() =>
+    [...new Set(items.map((i: any) => i.role_name).filter(Boolean))].sort() as string[],
+    [items],
+  );
+
+  const processed = useMemo(() => {
+    let list = [...items];
+    if (filterSearch.trim()) {
+      const q = filterSearch.toLowerCase();
+      list = list.filter((it: any) =>
+        it.title?.toLowerCase().includes(q) ||
+        it.role_name?.toLowerCase().includes(q),
+      );
+    }
+    if (filterStatus === 'active')   list = list.filter((it: any) => it.is_active);
+    if (filterStatus === 'inactive') list = list.filter((it: any) => !it.is_active);
+    if (filterRole !== 'all') list = list.filter((it: any) => it.role_name === filterRole);
+    list.sort((a: any, b: any) => {
+      let diff = 0;
+      if (sortKey === 'title')          diff = (a.title || '').localeCompare(b.title || '');
+      else if (sortKey === 'role_name') diff = (a.role_name || '').localeCompare(b.role_name || '');
+      else diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortAsc ? diff : -diff;
+    });
+    return list;
+  }, [items, filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
+
+  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  const safePage   = Math.min(page, totalPages);
+  const pageItems  = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  useEffect(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
+
+  // ── Auth guards — after ALL hooks (useState, useRef, useEffect, useMemo) ──
   if (authLoading) return null;
   if (role && role !== 'admin') return <Navigate to="/dashboard" replace />;
 
-  // ── editor open/close ──────────────────────────────────────────────────────
+  // ── Handler functions (not hooks — safe after early returns) ──────────────
   const openNew = () => {
     setEditing(null);
     setForm({ ...EMPTY_FORM, header_html: DEFAULT_HEADER, footer_html: DEFAULT_FOOTER });
@@ -210,45 +244,6 @@ export default function ContractTemplates() {
     if (error) toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
     else { toast({ title: 'Template deleted' }); load(); }
   };
-
-  // ─── Derived: unique roles for filter dropdown ────────────────────────────
-  const uniqueRoles = useMemo(() =>
-    [...new Set(items.map((i: any) => i.role_name).filter(Boolean))].sort() as string[],
-    [items],
-  );
-
-  // ─── Derived: filtered + sorted list ─────────────────────────────────────
-  const processed = useMemo(() => {
-    let list = [...items];
-
-    if (filterSearch.trim()) {
-      const q = filterSearch.toLowerCase();
-      list = list.filter((it: any) =>
-        it.title?.toLowerCase().includes(q) ||
-        it.role_name?.toLowerCase().includes(q),
-      );
-    }
-    if (filterStatus === 'active')   list = list.filter((it: any) => it.is_active);
-    if (filterStatus === 'inactive') list = list.filter((it: any) => !it.is_active);
-    if (filterRole !== 'all') list = list.filter((it: any) => it.role_name === filterRole);
-
-    list.sort((a: any, b: any) => {
-      let diff = 0;
-      if (sortKey === 'title')          diff = (a.title || '').localeCompare(b.title || '');
-      else if (sortKey === 'role_name') diff = (a.role_name || '').localeCompare(b.role_name || '');
-      else diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-      return sortAsc ? diff : -diff;
-    });
-
-    return list;
-  }, [items, filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
-
-  const totalPages = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
-  const safePage   = Math.min(page, totalPages);
-  const pageItems  = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  // Reset to page 1 whenever filters/sort change
-  useEffect(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortAsc(v => !v);
