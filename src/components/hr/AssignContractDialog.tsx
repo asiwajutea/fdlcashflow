@@ -155,7 +155,8 @@ export default function AssignContractDialog({
       const { error: insertError } = await db.from('contracts').insert(rows);
       if (insertError) throw insertError;
 
-      // Notify each employee (non-fatal)
+      // Notify each employee by SMS + email (non-fatal)
+      const tplTitle = templates.find((t) => t.id === selectedTpls[0])?.title || 'Employment Contract';
       await Promise.allSettled(
         [...selectedIds].map(async (uid) => {
           const { data: prof } = await db
@@ -164,16 +165,28 @@ export default function AssignContractDialog({
             .eq('id', uid)
             .maybeSingle();
           const name = ((prof as any)?.full_name || 'there').split(' ')[0];
-          await supabase.functions.invoke('send-sms', {
-            body: {
-              to:           (prof as any)?.phone || '',
-              user_id:      uid,
-              template_key: 'candidate_offer',
-              vars: { name, position: 'your role', link: `${window.location.origin}/my-contract` },
-            },
-          });
+          const link = `${window.location.origin}/my-contract`;
+          await Promise.allSettled([
+            supabase.functions.invoke('send-sms', {
+              body: {
+                to:           (prof as any)?.phone || '',
+                user_id:      uid,
+                template_key: 'contract_assigned',
+                vars: { name, link },
+              },
+            }),
+            supabase.functions.invoke('send-email', {
+              body: {
+                template_key: 'contract_assigned',
+                user_id: uid,
+                name,
+                vars: { name, title: tplTitle, origin: window.location.origin },
+              },
+            }),
+          ]);
         }),
       );
+
 
       const count = selectedIds.size;
       toast({
