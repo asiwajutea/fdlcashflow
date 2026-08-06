@@ -20,6 +20,16 @@ import {
   Download, XCircle, MessageSquare, AlertCircle, Info,
 } from 'lucide-react';
 
+// ─── placeholder interpolation ───────────────────────────────────────────────
+
+function interpolate(html: string, vars: Record<string, string>): string {
+  if (!html) return html;
+  return html.replace(/\{\{\s*(\w+)\s*\}\}/gi, (_, key) => {
+    const val = vars[key.toLowerCase()];
+    return val !== undefined ? val : `{{${key}}}`;
+  });
+}
+
 // ─── constants ────────────────────────────────────────────────────────────────
 
 const REJECTION_REASONS = [
@@ -56,6 +66,7 @@ const Offers = () => {
 
   const [contracts,   setContracts]   = useState<any[]>([]);
   const [loading,     setLoading]     = useState(true);
+  const [profileVars, setProfileVars] = useState<Record<string, string>>({});
 
   // signing
   const [signingId,   setSigningId]   = useState<string | null>(null);
@@ -84,6 +95,33 @@ const Offers = () => {
   }, [user]);
 
   const fetchContracts = async () => {
+    // Load candidate's profile for placeholder interpolation
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('full_name, employee_id, employment_start_date, phone, position_id, department_id')
+      .eq('id', user!.id)
+      .maybeSingle();
+
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const fullN  = (prof as any)?.full_name || fullName || '';
+    const firstName = fullN.split(' ')[0] || '';
+
+    setProfileVars({
+      name:         fullN,
+      full_name:    fullN,
+      employee:     fullN,
+      first_name:   firstName,
+      employee_id:  (prof as any)?.employee_id  || '',
+      phone:        (prof as any)?.phone         || '',
+      date:         today,
+      today:        today,
+      today_date:   today,   // alias for {{today_date}}
+      company:      'Footprints Dynasty Ltd',
+      start_date:   (prof as any)?.employment_start_date
+        ? new Date((prof as any).employment_start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+        : '',
+    });
+
     const { data: candidate } = await supabase
       .from('candidates').select('id')
       .eq('user_id', user!.id).maybeSingle();
@@ -198,10 +236,19 @@ const Offers = () => {
         ) : (
           <div className="grid gap-6">
             {contracts.map((contract) => {
-              const tpl        = contract.contract_templates;
-              const bodyHtml   = contract.body_html  || tpl?.body_html   || '';
-              const headerHtml = tpl?.header_html    || '';
-              const footerHtml = tpl?.footer_html    || '';
+      const tpl        = contract.contract_templates;
+              const rawBody    = contract.body_html  || tpl?.body_html   || '';
+              const rawHeader  = tpl?.header_html    || '';
+              const rawFooter  = tpl?.footer_html    || '';
+              // Build vars — contract start_date takes priority over profile value
+              const contractStartDate = contract.start_date
+                ? new Date(contract.start_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+                : profileVars.start_date || '';
+              const vars = { ...profileVars, start_date: contractStartDate };
+              // Replace {{placeholders}} with the candidate's actual data
+              const bodyHtml   = interpolate(rawBody,   vars);
+              const headerHtml = interpolate(rawHeader, vars);
+              const footerHtml = interpolate(rawFooter, vars);
               const margins    = tpl ? { top: tpl.margin_top ?? 56, bottom: tpl.margin_bottom ?? 56, left: tpl.margin_left ?? 64, right: tpl.margin_right ?? 64 } : undefined;
               const hasPdf     = contract.contract_url || tpl?.pdf_url;
               const statusCfg  = STATUS_CONFIG[contract.status] ?? STATUS_CONFIG.pending;

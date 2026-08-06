@@ -31,6 +31,7 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
   // Multiple selected template IDs in order
   const [selectedTpls, setSelectedTpls]   = useState<string[]>([]);
   const [bodyHtml, setBodyHtml]           = useState<string>('');
+  const [startDate, setStartDate]         = useState<string>('');
   const [previewOpen, setPreviewOpen]     = useState(false);
   const [step, setStep]                   = useState<'template' | 'edit'>('template');
 
@@ -51,6 +52,7 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
         const existingTplId = (c as any)?.template_id || '';
         setSelectedTpls(existingTplId ? [existingTplId] : []);
         setBodyHtml(existingBody);
+        setStartDate((c as any)?.start_date || '');
         if (c) setStep('edit');
         setLoading(false);
       });
@@ -94,6 +96,7 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
         status: 'pending',
         template_id: selectedTpls[0] || null,
         body_html: bodyHtml,
+        start_date: startDate || null,
       };
 
       if (contract) {
@@ -292,6 +295,27 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
                     )}
                   </div>
                 )}
+
+                {/* Start date */}
+                <div className="space-y-1.5">
+                  <Label>
+                    Start Date
+                    <span className="ml-1.5 text-xs text-muted-foreground font-normal">
+                      — used as <code className="bg-muted px-1 rounded">{'{{start_date}}'}</code> in the contract
+                    </span>
+                  </Label>
+                  <Input
+                    type="date"
+                    value={startDate}
+                    onChange={e => setStartDate(e.target.value)}
+                    min={new Date().toISOString().slice(0, 10)}
+                  />
+                  {startDate && (
+                    <p className="text-xs text-muted-foreground">
+                      Will appear as: <strong>{new Date(startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</strong>
+                    </p>
+                  )}
+                </div>
 
                 {/* Contract body */}
                 <div className="space-y-2">
