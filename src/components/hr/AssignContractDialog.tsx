@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
@@ -57,7 +58,9 @@ export default function AssignContractDialog({
   // ── Multi-select employees ────────────────────────────────────────────────
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
   // ── Templates + body ─────────────────────────────────────────────────────
-  const [selectedTpls, setSelectedTpls] = useState<string[]>([]);
+  const [selectedTpls,     setSelectedTpls]     = useState<string[]>([]);
+  const [templateSearch,   setTemplateSearch]   = useState('');
+  const [templateRoleFilter, setTemplateRoleFilter] = useState('all');
   const [bodyHtml,     setBodyHtml]     = useState('');
   const [showRawHtml,  setShowRawHtml]  = useState(false);
   const [saving,       setSaving]       = useState(false);
@@ -70,6 +73,8 @@ export default function AssignContractDialog({
     setSelectedTpls([]);
     setBodyHtml('');
     setShowRawHtml(false);
+    setTemplateSearch('');
+    setTemplateRoleFilter('all');
 
     if (preselectedUserId && preselectedUserName) {
       setSelectedIds(new Set([preselectedUserId]));
@@ -135,6 +140,27 @@ export default function AssignContractDialog({
   });
 
   const selectedEmployees = employees.filter((e) => selectedIds.has(e.id));
+
+  // ── Filtered templates ────────────────────────────────────────────────────
+  const uniqueRoles = useMemo(() =>
+    [...new Set(templates.map(t => t.role_name).filter(Boolean))].sort(),
+    [templates],
+  );
+
+  const filteredTemplates = useMemo(() => {
+    let list = templates;
+    if (templateRoleFilter !== 'all') {
+      list = list.filter(t => t.role_name === templateRoleFilter);
+    }
+    if (templateSearch.trim()) {
+      const q = templateSearch.toLowerCase();
+      list = list.filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        t.role_name?.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [templates, templateRoleFilter, templateSearch]);
 
   // ── Save: insert one contract per selected employee in parallel ───────────
   const save = async () => {
@@ -374,6 +400,32 @@ export default function AssignContractDialog({
                     Select one or more templates. They will be combined in the order selected.
                   </p>
 
+                  {/* ── Search + role/position filter ── */}
+                  {templates.length > 0 && (
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          className="pl-8 h-8 text-xs"
+                          placeholder="Search templates…"
+                          value={templateSearch}
+                          onChange={e => setTemplateSearch(e.target.value)}
+                        />
+                      </div>
+                      <Select value={templateRoleFilter} onValueChange={setTemplateRoleFilter}>
+                        <SelectTrigger className="h-8 text-xs w-44 shrink-0">
+                          <SelectValue placeholder="All positions" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All positions</SelectItem>
+                          {uniqueRoles.map(r => (
+                            <SelectItem key={r} value={r}>{r}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
                   {templates.length === 0 ? (
                     <div className="rounded-xl border border-dashed p-6 text-center text-muted-foreground space-y-2">
                       <FileText className="h-8 w-8 mx-auto opacity-40" />
@@ -382,7 +434,19 @@ export default function AssignContractDialog({
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      {templates.map((t) => {
+                      {filteredTemplates.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No templates match your search.
+                          {(templateSearch || templateRoleFilter !== 'all') && (
+                            <button
+                              className="ml-1.5 text-primary hover:underline text-xs"
+                              onClick={() => { setTemplateSearch(''); setTemplateRoleFilter('all'); }}
+                            >
+                              Clear filters
+                            </button>
+                          )}
+                        </p>
+                      ) : filteredTemplates.map((t) => {
                         const sel   = selectedTpls.includes(t.id);
                         const order = selectedTpls.indexOf(t.id) + 1;
                         return (
