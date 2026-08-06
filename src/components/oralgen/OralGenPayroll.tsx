@@ -446,7 +446,7 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
       const pay   = calcPay(names, agent);
       return { ...agent, names, ...pay };
     });
-  }, [view, agents, myConfig, namesByAgent, user?.id]);
+  }, [view, agents, myConfig, namesByAgent, user?.id, rows, range]);
 
   // ── Month-by-month history (personal view — last 6 months) ──────────────
   const monthlyHistory = useMemo(() => {
