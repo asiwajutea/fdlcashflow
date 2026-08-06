@@ -337,7 +337,9 @@ export function OralGenPayroll({ rows, isAdmin, canAudit, canInterview }: Props)
         db.from('oralgen_pay_effective').select('*'),
       ]);
       setRoleConfigs((cfgs as PayConfig[]) || []);
-      setAgents((eff as AgentProfile[]) || []);
+      // The `oralgen_pay_effective` view keys rows by `user_id` (there is no `id`
+      // column). Normalise to `id` so lookups against interview records work.
+      setAgents(((eff as any[]) || []).map((a) => ({ ...a, id: a.id ?? a.user_id })) as AgentProfile[]);
     } catch (e: any) {
       toast({ title: 'Could not load pay config', description: e.message, variant: 'destructive' });
     } finally {
