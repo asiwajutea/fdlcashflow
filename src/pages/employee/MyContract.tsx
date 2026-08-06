@@ -111,6 +111,23 @@ function SingleContract({
       toast({ title: 'Signing failed', description: error.message, variant: 'destructive' }); return;
     }
     toast({ title: 'Contract signed', description: 'Thank you — your signed contract is on file.' });
+
+    // Notify admins + HR by SMS and email (non-fatal)
+    supabase.functions.invoke('notify-staff', {
+      body: {
+        template_key: 'staff_contract_signed',
+        email_template_key: 'staff_contract_signed',
+        roles: ['admin'],
+        capabilities: ['manage_recruitment'],
+        vars: {
+          employee: fullName || 'An employee',
+          title: template?.title || 'Contract',
+          signed_at: new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' }),
+          origin: window.location.origin,
+        },
+      },
+    }).catch((e) => console.error('contract signed notification failed', e));
+
     onSigned();
   };
 
