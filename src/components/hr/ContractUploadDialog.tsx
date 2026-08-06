@@ -47,13 +47,15 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
         setContract(c);
         const tpls = (t as any[]) || [];
         setTemplates(tpls);
-        const existingBody = (c as any)?.body_html || '';
-        // Restore previously selected template IDs (stored as array or single)
-        const existingTplId = (c as any)?.template_id || '';
+        // If negotiation was accepted (or offer cancelled), start fresh — pick a new template
+        const needsFreshOffer = ['negotiation_accepted', 'cancelled'].includes((c as any)?.status);
+        const existingBody = needsFreshOffer ? '' : ((c as any)?.body_html || '');
+        const existingTplId = needsFreshOffer ? '' : ((c as any)?.template_id || '');
         setSelectedTpls(existingTplId ? [existingTplId] : []);
         setBodyHtml(existingBody);
-        setStartDate((c as any)?.start_date || '');
-        if (c) setStep('edit');
+        setStartDate(needsFreshOffer ? '' : ((c as any)?.start_date || ''));
+        // Only jump to edit step if there's an active existing contract to edit
+        if (c && !needsFreshOffer) setStep('edit');
         setLoading(false);
       });
     }
@@ -99,10 +101,16 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
         start_date: startDate || null,
       };
 
-      if (contract) {
+      if (contract && !['negotiation_accepted', 'cancelled'].includes(contract.status)) {
+        // Update existing active contract
         await db.from('contracts').update(payload).eq('id', contract.id);
       } else {
-        await db.from('contracts').insert(payload);
+        // Insert a new contract — either first time or after negotiation was accepted
+        const newContract = await db.from('contracts').insert(payload).select('id').single();
+        // If this replaces a negotiation-accepted contract, link them
+        if (contract?.status === 'negotiation_accepted' && (newContract.data as any)?.id) {
+          await db.from('contracts').update({ replaced_by_id: (newContract.data as any).id }).eq('id', contract.id);
+        }
       }
 
       // Notify candidate via SMS + inbox
