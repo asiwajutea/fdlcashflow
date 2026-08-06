@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { db } from '@/lib/supabase-db';
+import { supabase } from '@/integrations/supabase/client';
 import SignatureCanvas from '@/components/SignatureCanvas';
 import ContractRenderer from '@/components/ContractRenderer';
 import { exportContractPdf } from '@/lib/contractPdf';
