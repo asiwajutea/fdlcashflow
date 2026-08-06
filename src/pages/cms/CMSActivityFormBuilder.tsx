@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight, Copy } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
@@ -238,6 +238,21 @@ const CMSActivityFormBuilder = () => {
   };
 
   const removeField = (idx: number) => setFields(fields.filter((_, i) => i !== idx));
+
+  /** Duplicate a field — insert a copy immediately below, with a new unique key */
+  const duplicateField = (idx: number) => {
+    const original = fields[idx];
+    const copy: FieldDef = {
+      ...original,
+      key: slugify(`${original.label || 'copy'}_copy_${Date.now()}`),
+      label: original.label ? `${original.label} (copy)` : 'Copy',
+    };
+    const next = [...fields];
+    next.splice(idx + 1, 0, copy);
+    setFields(next);
+    setExpandedField(idx + 1); // auto-expand the new copy
+  };
+
   const moveField = (idx: number, dir: -1 | 1) => {
     const j = idx + dir;
     if (j < 0 || j >= fields.length) return;
@@ -450,9 +465,10 @@ const CMSActivityFormBuilder = () => {
                       </button>
                     </CollapsibleTrigger>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)}><ChevronUp className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)}><ChevronDown className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" onClick={() => removeField(idx)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, -1)} title="Move up"><ChevronUp className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => moveField(idx, 1)} title="Move down"><ChevronDown className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => duplicateField(idx)} title="Duplicate question" className="text-muted-foreground hover:text-foreground"><Copy className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => removeField(idx)} title="Delete"><Trash2 className="h-4 w-4 text-destructive" /></Button>
                     </div>
                   </div>
                   <CollapsibleContent>
