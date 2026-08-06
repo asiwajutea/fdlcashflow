@@ -95,12 +95,17 @@ const Offers = () => {
       supabase.functions.invoke('notify-staff', {
         body: {
           template_key: 'staff_contract_signed',
+          email_template_key: 'staff_contract_signed',
           roles: ['admin'],
           capabilities: ['manage_recruitment'],
           vars: {
+            employee: 'A candidate',
             candidate: 'A candidate',
+            title: contracts.find(c => c.id === contractId)?.job?.title || 'a position',
             job: contracts.find(c => c.id === contractId)?.job?.title || 'a position',
+            signed_at: new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos' }),
             link: `${window.location.origin}/applications`,
+            origin: window.location.origin,
           },
         },
       }).catch(() => {});
