@@ -415,6 +415,26 @@ export default function EmployeeOnboarding() {
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Local (silent) patch of one checklist record — avoids a full page reload
+  const patchLocal = (empId: string, itemId: string, patch: Partial<OnboardingRecord>) => {
+    setEmployees(prev => prev.map(e => {
+      if (e.id !== empId) return e;
+      const checklistMap = {
+        ...e.checklistMap,
+        [itemId]: { ...(e.checklistMap[itemId] || ({ user_id: empId, item_id: itemId } as any)), ...patch },
+      };
+      const completedItems = items.filter(i => checklistMap[i.id]?.completed).length;
+      const totalItems = items.length;
+      return {
+        ...e,
+        checklistMap,
+        completedItems,
+        totalItems,
+        completion: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+      };
+    }));
+  };
+
   // ── Toggle checklist item ─────────────────────────────────────────────────
   const handleToggle = async (emp: Employee, item: ChecklistItem, done: boolean) => {
     const existing = emp.checklistMap[item.id];
@@ -425,23 +445,33 @@ export default function EmployeeOnboarding() {
       completed_at: done ? new Date().toISOString() : null,
       completed_by: done ? user?.id : null,
     };
-    if (existing?.id) {
-      await db.from('employee_onboarding').update(payload).eq('id', existing.id);
-    } else {
-      await db.from('employee_onboarding').upsert(payload, { onConflict: 'user_id,item_id' });
+    // Optimistic UI update — no reload
+    patchLocal(emp.id, item.id, payload);
+    const { error } = existing?.id
+      ? await db.from('employee_onboarding').update(payload).eq('id', existing.id)
+      : await db.from('employee_onboarding').upsert(payload, { onConflict: 'user_id,item_id' });
+    if (error) {
+      patchLocal(emp.id, item.id, { completed: !done } as any);
+      toast({ title: 'Could not update item', description: error.message, variant: 'destructive' });
+      return;
     }
-    load();
+    toast({ title: done ? 'Item marked complete' : 'Item marked incomplete' });
   };
 
   // ── Save notes ────────────────────────────────────────────────────────────
   const handleNotesSave = async (emp: Employee, item: ChecklistItem, notes: string) => {
-    await db.from('employee_onboarding').upsert(
+    const { error } = await db.from('employee_onboarding').upsert(
       { user_id: emp.id, item_id: item.id, notes, completed: emp.checklistMap[item.id]?.completed ?? false },
       { onConflict: 'user_id,item_id' },
     );
+    if (error) {
+      toast({ title: 'Could not save note', description: error.message, variant: 'destructive' });
+      return;
+    }
+    patchLocal(emp.id, item.id, { notes } as any);
     toast({ title: 'Note saved' });
-    load();
   };
+
 
   // ── Save checklist items (admin settings) ────────────────────────────────
   const saveItems = async () => {
