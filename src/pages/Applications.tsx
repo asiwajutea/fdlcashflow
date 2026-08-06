@@ -41,6 +41,7 @@ interface ApplicationRow {
   candidate_name: string | null;
   candidate_avatar?: string | null;
   screening_score?: number | null;
+  contract_status?: string | null;   // latest contract status for offered candidates
 }
 
 const STATUS_OPTIONS = ['submitted', 'screening', 'interview', 'offered', 'hired', 'rejected'];
@@ -174,6 +175,8 @@ const Applications = () => {
     let scoreMap = new Map<string, number | null>();
     let screeningSet = new Set<string>();
     let answeredSet = new Set<string>();
+    // Contract status map — keyed by application_id, value is latest contract status
+    let contractStatusMap = new Map<string, string>();
     if (appIds.length > 0) {
       const { data: sd } = await (supabase as any).from('screening_responses').select('application_id, score, responses').in('application_id', appIds);
       scoreMap = new Map(sd?.map((s: any) => [s.application_id, s.score]) || []);
@@ -183,6 +186,21 @@ const Applications = () => {
           .filter((s: any) => { const ans = s.responses?.answers; return ans && Object.keys(ans).length > 0; })
           .map((s: any) => s.application_id)
       );
+      // Load latest contract per application for offered candidates
+      const offeredIds = (data || []).filter((a: any) => a.status === 'offered').map((a: any) => a.id);
+      if (offeredIds.length > 0) {
+        const { data: contracts } = await (supabase as any)
+          .from('contracts')
+          .select('application_id, status, created_at')
+          .in('application_id', offeredIds)
+          .order('created_at', { ascending: false });
+        // Keep only the newest contract per application
+        (contracts || []).forEach((c: any) => {
+          if (!contractStatusMap.has(c.application_id)) {
+            contractStatusMap.set(c.application_id, c.status);
+          }
+        });
+      }
     }
 
     const mapped: ApplicationRow[] = (data || []).map((a: any) => {
@@ -194,6 +212,7 @@ const Applications = () => {
         candidate_name: prof?.name || 'Unknown',
         candidate_avatar: prof?.avatar || null,
         screening_score: scoreMap.get(a.id) ?? null,
+        contract_status: contractStatusMap.get(a.id) ?? null,
       };
     });
     setHasScreeningData(screeningSet);
@@ -587,7 +606,8 @@ const Applications = () => {
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-col items-start gap-1">
+                          {/* Screening score / answered status */}
                           {app.screening_score != null
                             ? <Badge variant="secondary" className="text-xs">{app.screening_score}/100</Badge>
                             : screeningAnswered.has(app.id)
@@ -596,6 +616,30 @@ const Applications = () => {
                                 ? <span className="text-xs text-amber-600">Pending</span>
                                 : <span className="text-xs text-muted-foreground">—</span>
                           }
+                          {/* Contract response badge — only for offered candidates */}
+                          {app.status === 'offered' && app.contract_status && (() => {
+                            const cs = app.contract_status;
+                            const cfg: Record<string, { label: string; cls: string; icon: string }> = {
+                              pending:               { label: 'Awaiting response',       cls: 'border-slate-300 text-slate-600 bg-slate-50 dark:bg-slate-900/20',        icon: '⏳' },
+                              signed:                { label: 'Offer signed ✓',          cls: 'border-green-300 text-green-700 bg-green-50 dark:bg-green-950/20',        icon: '✅' },
+                              rejected:              { label: 'Offer rejected',           cls: 'border-red-300 text-red-700 bg-red-50 dark:bg-red-950/20',                icon: '❌' },
+                              negotiating:           { label: 'Negotiation requested',    cls: 'border-blue-300 text-blue-700 bg-blue-50 dark:bg-blue-950/20',            icon: '💬' },
+                              negotiation_accepted:  { label: 'Negotiation accepted',     cls: 'border-emerald-300 text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20', icon: '🤝' },
+                              negotiation_rejected:  { label: 'Negotiation declined',     cls: 'border-orange-300 text-orange-700 bg-orange-50 dark:bg-orange-950/20',    icon: '⚠️' },
+                              cancelled:             { label: 'Offer cancelled',          cls: 'border-red-300 text-red-600 bg-red-50 dark:bg-red-950/20',                icon: '🚫' },
+                            };
+                            const c = cfg[cs] ?? { label: cs, cls: 'border-border text-muted-foreground', icon: '' };
+                            return (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Badge variant="outline" className={`text-xs gap-1 ${c.cls}`}>
+                                    {c.icon} {c.label}
+                                  </Badge>
+                                </TooltipTrigger>
+                                <TooltipContent>Contract status: {cs.replace(/_/g,' ')}</TooltipContent>
+                              </Tooltip>
+                            );
+                          })()}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
