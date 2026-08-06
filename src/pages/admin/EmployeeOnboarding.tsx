@@ -327,7 +327,20 @@ export default function EmployeeOnboarding() {
         .eq('approval_status', 'approved')
         .eq('is_active', true)
         .order('full_name');
-      const profs = (profiles as any[]) || [];
+      let profs = (profiles as any[]) || [];
+      if (!profs.length) { setEmployees([]); setLoading(false); return; }
+
+      // 2b. Keep staff only — exclude job candidates / guests
+      const { data: roleRows } = await db
+        .from('user_roles')
+        .select('user_id, role')
+        .in('user_id', profs.map(p => p.id));
+      const staffIds = new Set(
+        ((roleRows as any[]) || [])
+          .filter(r => r.role === 'employee' || r.role === 'admin')
+          .map(r => r.user_id)
+      );
+      profs = profs.filter(p => staffIds.has(p.id));
       if (!profs.length) { setEmployees([]); setLoading(false); return; }
       const empIds = profs.map(p => p.id);
 
