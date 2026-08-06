@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,7 @@ import { Navigate } from 'react-router-dom';
 import {
   FileText, Plus, Trash2, Edit2, Loader2, Upload, Eye,
   Download, CheckCircle, XCircle, LayoutTemplate, Send,
+  Search, ChevronDown, ChevronUp, ChevronsUpDown,
 } from 'lucide-react';
 import RichTextEditor from '@/components/RichTextEditor';
 import ContractRenderer from '@/components/ContractRenderer';
@@ -95,6 +96,15 @@ export default function ContractTemplates() {
 
   // assign contract to employee
   const [assignOpen, setAssignOpen] = useState(false);
+
+  // ── Filter / sort / pagination ─────────────────────────────────────────────
+  const PAGE_SIZE = 10;
+  const [filterSearch,  setFilterSearch]  = useState('');
+  const [filterStatus,  setFilterStatus]  = useState<'all' | 'active' | 'inactive'>('all');
+  const [filterRole,    setFilterRole]    = useState('all');
+  const [sortKey,       setSortKey]       = useState<'created_at' | 'title' | 'role_name'>('created_at');
+  const [sortAsc,       setSortAsc]       = useState(false);
+  const [page,          setPage]          = useState(1);
 
   const load = async () => {
     setLoading(true);
@@ -200,6 +210,54 @@ export default function ContractTemplates() {
     else { toast({ title: 'Template deleted' }); load(); }
   };
 
+  // ─── Derived: unique roles for filter dropdown ───────────────────────────
+  const uniqueRoles = useMemo(() =>
+    [...new Set(items.map((i: any) => i.role_name).filter(Boolean))].sort() as string[],
+    [items],
+  );
+
+  // ─── Derived: filtered + sorted list ─────────────────────────────────────
+  const processed = useMemo(() => {
+    let list = [...items];
+
+    // search
+    if (filterSearch.trim()) {
+      const q = filterSearch.toLowerCase();
+      list = list.filter((it: any) =>
+        it.title?.toLowerCase().includes(q) ||
+        it.role_name?.toLowerCase().includes(q),
+      );
+    }
+    // status
+    if (filterStatus === 'active')   list = list.filter((it: any) => it.is_active);
+    if (filterStatus === 'inactive') list = list.filter((it: any) => !it.is_active);
+    // role
+    if (filterRole !== 'all') list = list.filter((it: any) => it.role_name === filterRole);
+
+    // sort
+    list.sort((a: any, b: any) => {
+      let diff = 0;
+      if (sortKey === 'title')      diff = (a.title || '').localeCompare(b.title || '');
+      else if (sortKey === 'role_name') diff = (a.role_name || '').localeCompare(b.role_name || '');
+      else diff = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortAsc ? diff : -diff;
+    });
+
+    return list;
+  }, [items, filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
+
+  const totalPages  = Math.max(1, Math.ceil(processed.length / PAGE_SIZE));
+  const safePage    = Math.min(page, totalPages);
+  const pageItems   = processed.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  // Reset to page 1 whenever filters change
+  useMemo(() => { setPage(1); }, [filterSearch, filterStatus, filterRole, sortKey, sortAsc]);
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortAsc(v => !v);
+    else { setSortKey(key); setSortAsc(true); }
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
 
   return (
@@ -229,6 +287,64 @@ export default function ContractTemplates() {
 
         <Separator />
 
+        {/* ── Filter bar ── */}
+        {!loading && items.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[180px]">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                className="pl-8 h-8 text-sm"
+                placeholder="Search by title or role…"
+                value={filterSearch}
+                onChange={e => { setFilterSearch(e.target.value); setPage(1); }}
+              />
+            </div>
+            {/* Status */}
+            <Select value={filterStatus} onValueChange={v => { setFilterStatus(v as any); setPage(1); }}>
+              <SelectTrigger className="h-8 text-xs w-28"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+            {/* Role */}
+            <Select value={filterRole} onValueChange={v => { setFilterRole(v); setPage(1); }}>
+              <SelectTrigger className="h-8 text-xs w-40"><SelectValue placeholder="All roles" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                {uniqueRoles.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            {/* Sort */}
+            <div className="flex items-center gap-1">
+              {([
+                { key: 'created_at', label: 'Date' },
+                { key: 'title',      label: 'Title' },
+                { key: 'role_name',  label: 'Role' },
+              ] as const).map(s => (
+                <Button
+                  key={s.key}
+                  size="sm"
+                  variant={sortKey === s.key ? 'default' : 'outline'}
+                  className="h-8 px-2 text-xs gap-1"
+                  onClick={() => toggleSort(s.key)}
+                >
+                  {s.label}
+                  {sortKey === s.key
+                    ? (sortAsc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)
+                    : <ChevronsUpDown className="h-3 w-3 opacity-40" />}
+                </Button>
+              ))}
+            </div>
+            {/* Result count */}
+            <span className="text-xs text-muted-foreground ml-auto shrink-0">
+              {processed.length} result{processed.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
         {/* ── Template list ── */}
         {loading ? (
           <div className="flex items-center justify-center py-16">
@@ -249,9 +365,18 @@ export default function ContractTemplates() {
               <Plus className="h-4 w-4 mr-1.5" /> Create Template
             </Button>
           </div>
+        ) : processed.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+            <FileText className="h-8 w-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">No templates match your filters.</p>
+            <Button size="sm" variant="outline" onClick={() => { setFilterSearch(''); setFilterStatus('all'); setFilterRole('all'); setPage(1); }}>
+              Clear filters
+            </Button>
+          </div>
         ) : (
-          <div className="grid gap-3">
-            {items.map((it) => {
+          <>
+            <div className="grid gap-3">
+              {pageItems.map((it) => {
               const pos = positions.find((p) => p.id === it.position_id);
               // Decode HTML to clean plain text for the snippet
               const snippet = it.body_html
@@ -345,6 +470,43 @@ export default function ContractTemplates() {
               );
             })}
           </div>
+
+          {/* ── Pagination ── */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
+              <p className="text-xs text-muted-foreground">
+                Showing {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, processed.length)} of {processed.length}
+              </p>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline" size="sm" className="h-7 px-2 text-xs"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                >
+                  ‹ Prev
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                  <Button
+                    key={p}
+                    variant={p === safePage ? 'default' : 'outline'}
+                    size="sm"
+                    className="h-7 w-7 p-0 text-xs"
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+                <Button
+                  variant="outline" size="sm" className="h-7 px-2 text-xs"
+                  disabled={safePage >= totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Next ›
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
         )}
       </div>
 
