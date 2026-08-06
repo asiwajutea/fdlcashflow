@@ -41,7 +41,12 @@ const ContractUploadDialog: React.FC<ContractUploadDialogProps> = ({
       setStep('template');
       setPreviewOpen(false);
       Promise.all([
-        supabase.from('contracts').select('*').eq('application_id', applicationId).maybeSingle(),
+        supabase.from('contracts')
+          .select('*')
+          .eq('application_id', applicationId)
+          .order('created_at', { ascending: false })   // newest first
+          .limit(1)
+          .maybeSingle(),
         db.from('contract_templates').select('*').eq('is_active', true).order('title'),
       ]).then(([{ data: c }, { data: t }]) => {
         setContract(c);
