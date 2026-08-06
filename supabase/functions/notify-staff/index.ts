@@ -28,9 +28,9 @@ serve(async (req) => {
   );
 
   try {
-    const { template_key, vars = {}, roles = [], capabilities = [] } = await req.json();
+    const { template_key, email_template_key, vars = {}, roles = [], capabilities = [] } = await req.json();
 
-    if (!template_key) throw new Error("template_key is required");
+    if (!template_key && !email_template_key) throw new Error("template_key or email_template_key is required");
     if (!roles.length && !capabilities.length) throw new Error("roles or capabilities must be provided");
 
     // ── 1. Collect user IDs matching roles ──────────────────────────────────
