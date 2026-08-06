@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { db } from '@/lib/supabase-db';
 import { toast } from 'sonner';
-import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight, Copy } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, ChevronUp, ChevronDown, Save, Eye, Users, ChevronRight, Copy, GripVertical } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { FieldRenderer, FieldDef, computeSteps } from '@/components/forms/FieldRenderer';
 import { ALL_CAPABILITIES } from '@/hooks/useCapabilities';
@@ -261,6 +261,37 @@ const CMSActivityFormBuilder = () => {
     setFields(next);
   };
 
+  // ── Drag-and-drop reordering ───────────────────────────────────────────────
+  const dragSrcIdx = useRef<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
+  const handleDragStart = (idx: number) => {
+    dragSrcIdx.current = idx;
+  };
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault(); // required to allow drop
+    setDragOverIdx(idx);
+  };
+  const handleDragLeave = () => setDragOverIdx(null);
+  const handleDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    setDragOverIdx(null);
+    const src = dragSrcIdx.current;
+    if (src === null || src === targetIdx) { dragSrcIdx.current = null; return; }
+    const next = [...fields];
+    const [moved] = next.splice(src, 1);
+    next.splice(targetIdx, 0, moved);
+    setFields(next);
+    // Keep expanded field tracking correct
+    if (expandedField === src) setExpandedField(targetIdx);
+    else if (expandedField !== null) {
+      if (src < expandedField && targetIdx >= expandedField) setExpandedField(expandedField - 1);
+      else if (src > expandedField && targetIdx <= expandedField) setExpandedField(expandedField + 1);
+    }
+    dragSrcIdx.current = null;
+  };
+  const handleDragEnd = () => { dragSrcIdx.current = null; setDragOverIdx(null); };
+
   const handleAddAssignment = async () => {
     if (!newAssignment.assignment_type) return;
     const payload: any = { form_id: id, assignment_type: newAssignment.assignment_type };
@@ -449,9 +480,33 @@ const CMSActivityFormBuilder = () => {
             const step = stepByIdx[idx];
             const isBreak = f.field_type === 'page_break';
             return (
-              <Card key={idx} className={`${isOpen ? 'ring-2 ring-primary/30' : ''} ${isBreak ? 'border-dashed border-primary/40 bg-primary/5' : ''}`}>
+              <Card
+                key={idx}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={[
+                  isOpen ? 'ring-2 ring-primary/30' : '',
+                  isBreak ? 'border-dashed border-primary/40 bg-primary/5' : '',
+                  dragOverIdx === idx && dragSrcIdx.current !== idx
+                    ? 'ring-2 ring-primary border-primary opacity-80'
+                    : '',
+                  'transition-all',
+                ].filter(Boolean).join(' ')}
+              >
                 <Collapsible open={isOpen} onOpenChange={(o) => setExpandedField(o ? idx : null)}>
                   <div className="flex items-center justify-between gap-2 px-4 py-3 flex-wrap">
+                    {/* Drag handle — grab here to reorder */}
+                    <div
+                      className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground shrink-0 touch-none"
+                      title="Drag to reorder"
+                      onMouseDown={(e) => e.stopPropagation()} // prevent collapsible toggle on grip
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </div>
                     <CollapsibleTrigger asChild>
                       <button className="flex items-center gap-2 flex-1 text-left hover:opacity-80">
                         <ChevronRight className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} />
